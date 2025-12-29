@@ -37,22 +37,36 @@ export class AuthController {
 
     const result = await this.authService.login(email, password);
 
-    res.cookie('token', result.token, {
+    res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false, 
-      maxAge: 24 * 60 * 60 * 1000,
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     return res.status(200).json({
+      accessToken: result.accessToken,
       name: result.name,
       email: result.email,
     });
   }
 
+  async refresh(req: Request, res: Response): Promise<any> {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'missing refresh token' });
+    }
+
+    const accessToken = await this.authService.refresh(refreshToken);
+
+    return res.status(200).json({ accessToken });
+  }
+
   async logout(req: Request, res: Response): Promise<any> {
     await this.authService.logout(req.userId!, req.token);
-    res.clearCookie('token');
+
+    res.clearCookie('refreshToken');
 
     return res.status(200).json({ message: 'logged out successfully' });
   }

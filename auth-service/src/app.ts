@@ -25,9 +25,9 @@ app.use(cookieParser());
 app.use(reqLogger);
 app.use(express.json());
 
-// app.use(verifyToken);
+app.use(verifyToken);
 
-app.use('/api/v1/auth', authRouter);
+app.use('/', authRouter);
 app.use('/', indexRouter);
 
 

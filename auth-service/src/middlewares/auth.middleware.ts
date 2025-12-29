@@ -15,6 +15,7 @@ export const verifyToken = async (
   const isPublic = 
     path.endsWith('/login') || 
     path.endsWith('/register') || 
+    path.endsWith('/refresh') ||
     path.endsWith('/health');
   if (isPublic) {
     return next();
@@ -27,7 +28,7 @@ export const verifyToken = async (
       : req.cookies?.token;
 
   if (!token) {
-    return res.status(403).json({ message: 'missing authentication token' });
+    return res.status(401).json({ message: 'missing authentication token' });
   }
 
   try {
@@ -48,7 +49,10 @@ export const verifyToken = async (
     req.token = token;
 
     return next();
-  } catch (err) {
-    return res.status(401).json({ message: 'invalid or expired token' });
+  } catch (err: any) {
+  if (err.name === 'TokenExpiredError') {
+    return res.status(401).json({ code: 'TOKEN_EXPIRED' });
   }
+  return res.status(401).json({ message: 'invalid token' });
+}
 };
