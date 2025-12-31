@@ -1,0 +1,296 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #1e1e1e;
+  color: #ffffff;
+  font-family: monospace;
+}
+
+
+.navbar {
+  height: 50px;
+  background: #252526;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #333;
+}
+
+.logo {
+  font-size: 14px;
+  font-weight: bold;
+  color: #00ffcc;
+}
+
+.nav-right a {
+  margin-left: 16px;
+  font-size: 13px;
+  color: #ccc;
+  text-decoration: none;
+}
+
+.nav-right a:hover {
+  color: white;
+}
+
+.nav-right a.active {
+  color: #00ffcc;
+}
+
+
+.editor-layout {
+  display: flex;
+  height: calc(100vh - 50px);
+}
+
+
+.explorer {
+  width: 220px;
+  background: #252526;
+  padding: 10px;
+  border-right: 1px solid #333;
+}
+
+.explorer h4 {
+  font-size: 12px;
+  margin-bottom: 10px;
+  color: #ccc;
+}
+
+.file {
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.file:hover {
+  background: #2a2d2e;
+}
+
+.file.active {
+  background: #37373d;
+}
+
+
+.editor-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs {
+  height: 36px;
+  background: #2d2d2d;
+  padding: 0 12px;
+  font-size: 13px;
+  border-bottom: 1px solid #333;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+}
+
+
+.preview-panel {
+  width: 35%;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #333;
+  background: #1e1e1e;
+}
+
+
+.preview-header {
+  height: 36px;
+  background: #39394eff;
+  color: #cccccc;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  border-bottom: 1px solid #333;
+}
+
+
+.preview-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: white;
+}
+
+
+.preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #1e1e1e;
+  display: flex;
+  flex-direction: column;
+}
+
+
+.login-wrapper {
+  height: calc(100vh - 50px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #1c1c1c, #0f0f0f);
+}
+
+.login-card {
+  width: 360px;
+  background: #1b1b1b;
+  border-radius: 10px;
+  padding: 30px;
+  border: 1px solid #333;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+  text-align: center;
+}
+
+.avatar {
+  width: 70px;
+  height: 70px;
+  background: #333;
+  border-radius: 50%;
+  margin: -60px auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+}
+
+.login-card h2 {
+  margin-bottom: 20px;
+  letter-spacing: 2px;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  background: #2a2a2a;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  padding: 10px;
+}
+
+.input-group input {
+  background: none;
+  border: none;
+  outline: none;
+  color: white;
+  width: 100%;
+  font-size: 14px;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 10px;
+  background: white;
+  color: black;
+  border: none;
+  border-radius: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.login-btn:hover {
+  background: #ddd;
+}
+
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-top: 12px;
+  color: #aaa;
+}
+
+.login-options a {
+  color: #aaa;
+  text-decoration: none;
+}
+
+.login-options a:hover {
+  text-decoration: underline;
+}
+
+.register-text {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #aaa;
+}
+
+.register-text a {
+  color: white;
+  font-weight: bold;
+  text-decoration: none;
+  margin-left: 5px;
+}
+.home-wrapper {
+  height: calc(100vh - 50px); 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #1c1c1c, #0f0f0f);
+}
+
+.home-card {
+  background: #1b1b1b;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 80px 100px;
+  width: 700px;        
+  max-width: 95%;      
+  text-align: center;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.9); 
+}
+
+.home-card h1 {
+  margin-bottom: 30px;
+  font-size: 36px;
+  color: #00ffcc;
+}
+
+.home-card p {
+  font-size: 18px; 
+  color: #ccc;
+  margin-bottom: 40px;
+}
+
+
+.home-buttons a {
+  padding: 10px 20px;
+  margin: 0 10px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.home-buttons .btn {
+  background: #00ffcc;
+  color: #000;
+}
+
+.home-buttons .btn:hover {
+  background: #00e6b8;
+}
+
+.home-buttons .btn-outline {
+  border: 2px solid #00ffcc;
+  color: #00ffcc;
+}
+
+.home-buttons .btn-outline:hover {
+  background: #00ffcc;
+  color: #000;
+}
