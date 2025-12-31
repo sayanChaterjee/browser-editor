@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const router = useRouter();
 
   const handleLogin = async () => {
     try {
@@ -19,9 +21,10 @@ export default function LoginPage() {
 
       if (!res.ok) return alert(data.message || "Invalid login credentials");
 
-      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("token", data.accessToken); // Changed from "accessToken" to "token"
+      window.dispatchEvent(new Event("authChange")); // Add this line
       alert("Login successful");
-      window.location.href = "/editor";
+      router.push("/editor"); // Better than window.location.href
     } catch (error) {
       console.error(error);
       alert("Server error");
@@ -62,7 +65,7 @@ export default function LoginPage() {
         </div>
 
         <div className="register-text">
-          Don’t have an account? <a href="/register">REGISTER HERE</a>
+          Don't have an account? <a href="/register">REGISTER HERE</a>
         </div>
 
       </div>

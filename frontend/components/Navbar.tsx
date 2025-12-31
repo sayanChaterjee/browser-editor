@@ -13,7 +13,7 @@ export default function Navbar() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
-  }, []);
+  }, [pathname]); // Re-check token whenever route changes
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -53,9 +53,12 @@ export default function Navbar() {
 
         {isLoggedIn && (
           <>
-            <span className="user-logo" title="Logged in">
-              👤
-            </span>
+            <Link
+              href="/profile"
+              className={pathname === "/profile" ? "active" : ""}
+            >
+              Profile
+            </Link>
 
             <button className="logout-btn" onClick={logout}>
               Logout
