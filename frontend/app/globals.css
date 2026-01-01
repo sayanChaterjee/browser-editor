@@ -96,14 +96,7 @@ body {
 }
 
 
-.preview-panel {
-  width: 35%;
-  min-width: 320px;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid #333;
-  background: #1e1e1e;
-}
+
 
 
 .preview-header {
@@ -363,4 +356,164 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.profile-emoji {
+  font-size: 1.4rem; 
+  margin-right: 6px;
+}
+.profile-container {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-card {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 10px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  min-width: 200px;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-in;
+}
+
+.profile-card::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: 20px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid white;
+}
+
+.profile-card-header {
+  text-align: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.profile-card-emoji {
+  font-size: 32px;
+}
+
+.profile-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-username {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+  margin: 0;
+}
+
+.profile-email {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  word-break: break-word;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+.preview-header {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;   
+
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 500;
+
+  border-bottom: 1px solid #1e293b;
+}
+
+
+
+.preview-iframe {
+  flex: 1;              
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+  display: block;
+}
+
+
+
+.preview-panel {
+  width: 100%;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+  border-left: 1px solid #333;
+  overflow: hidden;
+    flex: 1;
+  height: 100%;
+}
+
+
+.preview-header {
+  height: 36px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 500;
+  border-bottom: 1px solid #1e293b;
+}
+
+
+.preview-iframe {
+  flex: 1;
+  width: 100%;
+  height: 100%;   
+  border: none;
+  background: white;
+  display: block;
+}
+
+
+.preview-panel.fullscreen {
+  position: fixed;
+  top: 50px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+
+  width: 100vw;
+  height: calc(100vh - 50px);
+  z-index: 99999;
+
+  background: #1e1e1e;
+  border-left: none;
 }

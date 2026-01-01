@@ -4,9 +4,11 @@ import { useState } from "react";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import Preview from "./Preview";
+import QuestionPanel from "./QuestionPanel";
 
 export default function EditorLayout() {
   const [activeFile, setActiveFile] = useState("index.html");
+  const [showQuestion, setShowQuestion] = useState(false);
 
   const [html, setHtml] = useState("<h1>Hello World</h1>");
   const [css, setCss] = useState("h1 { color: red; }");
@@ -39,7 +41,21 @@ export default function EditorLayout() {
         <CodeEditor {...getEditorConfig()!} />
       </div>
 
-      <Preview html={html} css={css} js={js} />
+      {/* ONLY CHANGE IS HERE */}
+      <div className="preview-panel">
+        <button
+          onClick={() => setShowQuestion((v) => !v)}
+          style={{ fontSize: "12px", marginBottom: "4px" }}
+        >
+          {showQuestion ? "View Preview" : "View Question"}
+        </button>
+
+        {showQuestion ? (
+          <QuestionPanel />
+        ) : (
+          <Preview html={html} css={css} js={js} />
+        )}
+      </div>
     </div>
   );
 }

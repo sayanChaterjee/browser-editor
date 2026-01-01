@@ -9,14 +9,25 @@ export default function Navbar() {
   const router = useRouter();
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showProfileCard, setShowProfileCard] = useState(false);
+  const [userInfo, setUserInfo] = useState({ username: "", email: "" });
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
-  }, [pathname]); // Re-check token whenever route changes
+    
+    if (token) {
+      
+      const username = localStorage.getItem("username") || "User";
+      const email = localStorage.getItem("email") || "user@example.com";
+      setUserInfo({ username, email });
+    }
+  }, [pathname]);
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    localStorage.removeItem("email");
     setIsLoggedIn(false);
     router.push("/login");
   };
@@ -53,12 +64,30 @@ export default function Navbar() {
 
         {isLoggedIn && (
           <>
-            <Link
-              href="/profile"
-              className={pathname === "/profile" ? "active" : ""}
+            <div 
+              className="profile-container"
+              onMouseEnter={() => setShowProfileCard(true)}
+              onMouseLeave={() => setShowProfileCard(false)}
             >
-              Profile
-            </Link>
+              <Link
+                href="/profile"
+                className={pathname === "/profile" ? "active" : ""}
+              >
+                <span className="profile-emoji">👨🏻‍💻</span>
+              </Link>
+
+              {showProfileCard && (
+                <div className="profile-card">
+                  <div className="profile-card-header">
+                    <span className="profile-card-emoji">👨🏻‍💻</span>
+                  </div>
+                  <div className="profile-card-body">
+                    <p className="profile-username">{userInfo.username}</p>
+                    <p className="profile-email">{userInfo.email}</p>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button className="logout-btn" onClick={logout}>
               Logout
