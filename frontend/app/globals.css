@@ -517,3 +517,38 @@ body {
   background: #1e1e1e;
   border-left: none;
 }
+.editor-layout-wrapper {
+  height: calc(100vh - 50px);
+  display: flex;
+  flex-direction: column;
+}
+
+.contest-bar {
+  height: 40px;
+  background: #facc15;
+  color: #000;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.start-btn {
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 2px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.locked-screen {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  color: #fff;
+  font-size: 20px;
+}
