@@ -1,166 +1,158 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import Preview from "./Preview";
 import QuestionPanel from "./QuestionPanel";
 
 export default function EditorLayout() {
+  const router = useRouter();
   const [activeFile, setActiveFile] = useState("index.html");
   const [showQuestion, setShowQuestion] = useState(false);
-
   const [contestStarted, setContestStarted] = useState(false);
-  const [locked, setLocked] = useState(false);
-
-  const strikes = useRef(0);
-  const violationLock = useRef(false); 
+  const [strikeCount, setStrikeCount] = useState(0);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  
+  const violationLock = useRef(false);
   const MAX_WARNINGS = 3;
 
   const [html, setHtml] = useState("<h1>Hello World</h1>");
   const [css, setCss] = useState("h1 { color: red; }");
   const [js, setJs] = useState("console.log('Hello JS');");
 
-  
+  const logoutUser = () => {
+    localStorage.clear();
+    router.push("/login");
+  };
+
+  const violate = () => {
+    if (violationLock.current) return;
+
+    violationLock.current = true;
+    const newStrikes = strikeCount + 1;
+    setStrikeCount(newStrikes);
+
+    if (newStrikes >= MAX_WARNINGS) {
+      logoutUser();
+      return;
+    }
+
+    setShowWarningModal(true);
+    
+    setTimeout(() => {
+      violationLock.current = false;
+    }, 1000);
+  };
+
+  const resumeContest = async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+      setShowWarningModal(false);
+    } catch (err) {
+      console.error("Fullscreen restoration failed");
+    }
+  };
+
   useEffect(() => {
     if (!contestStarted) return;
 
-    const violate = () => {
-      if (violationLock.current || locked) return;
-
-      violationLock.current = true;
-      strikes.current += 1;
-
-      if (strikes.current > MAX_WARNINGS) {
-        setLocked(true);
-        alert("❌ Contest locked due to multiple violations.");
-        return;
+    const handleSecurityBreach = () => {
+      if (document.hidden || !document.hasFocus()) {
+        violate();
       }
-
-      alert(
-        `⚠ Warning ${strikes.current}/${MAX_WARNINGS}\nDo not switch tabs or exit fullscreen!`
-      );
-
-      document.documentElement.requestFullscreen().catch(() => {});
-
-     
-      setTimeout(() => {
-        violationLock.current = false;
-      }, 1500);
     };
 
     const onFullscreenChange = () => {
-      if (!document.fullscreenElement) violate();
-    };
-
-    const onVisibilityChange = () => {
-      if (document.hidden) violate();
+      if (!document.fullscreenElement && !violationLock.current && !showWarningModal) {
+        violate();
+      }
     };
 
     const onBlur = () => {
-      violate();
+      setTimeout(() => {
+        const activeElem = document.activeElement;
+        const isInternal = activeElem?.tagName === "IFRAME" || activeElem?.closest('.editor-center');
+        if (!isInternal) handleSecurityBreach();
+      }, 100);
     };
 
     document.addEventListener("fullscreenchange", onFullscreenChange);
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener("visibilitychange", handleSecurityBreach);
     window.addEventListener("blur", onBlur);
 
     return () => {
       document.removeEventListener("fullscreenchange", onFullscreenChange);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("visibilitychange", handleSecurityBreach);
       window.removeEventListener("blur", onBlur);
     };
-  }, [contestStarted, locked]);
+  }, [contestStarted, strikeCount, showWarningModal]);
 
-
-  const getEditorConfig = () => {
-    switch (activeFile) {
-      case "index.html":
-        return {
-          language: "html" as const,
-          value: html,
-          onChange: setHtml,
-        };
-
-      case "styles.css":
-        return {
-          language: "css" as const,
-          value: css,
-          onChange: setCss,
-        };
-
-      case "script.js":
-        return {
-          language: "javascript" as const,
-          value: js,
-          onChange: setJs,
-        };
+  const startContest = async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+      setStrikeCount(0);
+      setContestStarted(true);
+    } catch (err) {
+      alert("Fullscreen is required to start.");
     }
   };
 
-  const startContest = async () => {
-    await document.documentElement.requestFullscreen();
-    strikes.current = 0;
-    violationLock.current = false;
-    setContestStarted(true);
+  const quitContest = () => {
+    if (confirm("Are you sure you want to quit? This will end your session.")) {
+      logoutUser();
+    }
   };
 
- 
-  if (locked) {
-    return (
-      <div className="locked-screen">
-        <h2>Contest Locked 🔒</h2>
-        <p>You violated contest rules multiple times.</p>
-      </div>
-    );
-  }
-
-
   return (
-    <div className="editor-layout-wrapper">
-      
-      <div className="contest-bar">
-        <span>
-          ⚠ Leaving fullscreen or switching tabs gives 3 warnings. After that,
-          contest locks.
-        </span>
+    <div className="editor-layout-wrapper" onContextMenu={(e) => e.preventDefault()}>
+      {showWarningModal && (
+        <div className="violation-overlay">
+          <div className="warning-card">
+            <h2>Security Violation</h2>
+            <p>Warning {strikeCount} of {MAX_WARNINGS}</p>
+            <p className="sub-text">Switching tabs or exiting fullscreen is prohibited.</p>
+            <div className="modal-buttons">
+              <button className="resume-btn" onClick={resumeContest}>Return to Contest</button>
+              <button className="quit-btn" onClick={quitContest}>Quit Contest</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-        <button
-          className="start-btn"
-          onClick={startContest}
-          disabled={contestStarted}
-        >
-          {contestStarted ? "Contest Running" : "Start Contest"}
-        </button>
+      <div className="contest-bar">
+        <span>Warnings: {strikeCount} / {MAX_WARNINGS}</span>
+        <div className="contest-controls">
+           <button className="start-btn" onClick={startContest} disabled={contestStarted}>
+            {contestStarted ? "Contest Active" : "Start Contest"}
+          </button>
+          {contestStarted && <button className="quit-link" onClick={quitContest}>Quit</button>}
+        </div>
       </div>
 
-      {/* MAIN EDITOR */}
-      <div className="editor-layout">
-        <FileExplorer
-          activeFile={activeFile}
-          setActiveFile={setActiveFile}
-        />
-
+      <div className={`editor-layout ${showWarningModal ? "blur-effect" : ""}`}>
+        <FileExplorer activeFile={activeFile} setActiveFile={setActiveFile} />
         <div className="editor-center">
           <div className="tabs">{activeFile}</div>
-          <CodeEditor {...getEditorConfig()!} />
+          <CodeEditor {...getEditorConfig(activeFile, { html, setHtml, css, setCss, js, setJs })} />
         </div>
-
         <div className="preview-panel">
-          <button
-            onClick={() => setShowQuestion((v) => !v)}
-            className="preview-toggle"
-          >
-            {showQuestion ? "View Preview" : "View Question"}
+          <button onClick={() => setShowQuestion(!showQuestion)} className="preview-toggle">
+            {showQuestion ? "Preview" : "Question"}
           </button>
-
-          {showQuestion ? (
-            <QuestionPanel />
-          ) : (
-            <Preview html={html} css={css} js={js} />
-          )}
+          {showQuestion ? <QuestionPanel /> : <Preview html={html} css={css} js={js} />}
         </div>
       </div>
     </div>
   );
+}
+
+function getEditorConfig(activeFile: string, states: any) {
+  const configs: Record<string, any> = {
+    "index.html": { language: "html", value: states.html, onChange: states.setHtml },
+    "styles.css": { language: "css", value: states.css, onChange: states.setCss },
+    "script.js": { language: "javascript", value: states.js, onChange: states.setJs },
+  };
+  return configs[activeFile];
 }

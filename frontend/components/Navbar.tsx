@@ -9,15 +9,16 @@ export default function Navbar() {
   const router = useRouter();
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [showProfileCard, setShowProfileCard] = useState(false);
   const [userInfo, setUserInfo] = useState({ username: "", email: "" });
 
   useEffect(() => {
+    setMounted(true);
     const token = localStorage.getItem("token");
     setIsLoggedIn(!!token);
     
     if (token) {
-      
       const username = localStorage.getItem("username") || "User";
       const email = localStorage.getItem("email") || "user@example.com";
       setUserInfo({ username, email });
@@ -32,6 +33,8 @@ export default function Navbar() {
     router.push("/login");
   };
 
+  if (!mounted) return <nav className="navbar" />;
+
   return (
     <nav className="navbar">
       <div className="nav-left">
@@ -39,40 +42,27 @@ export default function Navbar() {
       </div>
 
       <div className="nav-right">
-        <Link href="/" className={pathname === "/" ? "active" : ""}>
-          Home
-        </Link>
-
         <Link href="/editor" className={pathname === "/editor" ? "active" : ""}>
           Editor
         </Link>
 
-        {!isLoggedIn && (
+        {!isLoggedIn ? (
           <>
             <Link href="/login" className={pathname === "/login" ? "active" : ""}>
               Login
             </Link>
-
-            <Link
-              href="/register"
-              className={pathname === "/register" ? "active" : ""}
-            >
+            <Link href="/register" className={pathname === "/register" ? "active" : ""}>
               Register
             </Link>
           </>
-        )}
-
-        {isLoggedIn && (
+        ) : (
           <>
             <div 
               className="profile-container"
               onMouseEnter={() => setShowProfileCard(true)}
               onMouseLeave={() => setShowProfileCard(false)}
             >
-              <Link
-                href="/profile"
-                className={pathname === "/profile" ? "active" : ""}
-              >
+              <Link href="/profile" className={pathname === "/profile" ? "active" : ""}>
                 <span className="profile-emoji">👨🏻‍💻</span>
               </Link>
 
@@ -88,7 +78,6 @@ export default function Navbar() {
                 </div>
               )}
             </div>
-
             <button className="logout-btn" onClick={logout}>
               Logout
             </button>

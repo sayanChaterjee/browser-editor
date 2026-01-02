@@ -12,9 +12,9 @@ export default function Home() {
           <Link href="/editor" className="btn">
             Start Coding
           </Link>
-          <a href="#" className="btn-outline">
+          <Link href="#" className="btn-outline">
             Learn More
-          </a>
+          </Link>
         </div>
       </div>
     </div>

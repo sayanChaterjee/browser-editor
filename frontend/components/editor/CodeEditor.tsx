@@ -11,7 +11,7 @@ type Props = {
 export default function CodeEditor({ language, value, onChange }: Props) {
   return (
     <Editor
-      height="100%"
+      height="95%"
       theme="vs-dark"
       language={language}
       value={value}
@@ -21,6 +21,17 @@ export default function CodeEditor({ language, value, onChange }: Props) {
         fontSize: 14,
         wordWrap: "on",
         automaticLayout: true,
+        readOnly: false,
+        contextmenu: false,
+        links: false,
+      }}
+      onMount={(editor) => {
+        editor.onKeyDown((e) => {
+          const { ctrlKey, metaKey, code } = e;
+          if ((ctrlKey || metaKey) && (code === 'KeyC' || code === 'KeyV' || code === 'KeyX')) {
+            e.preventDefault();
+          }
+        });
       }}
     />
   );
