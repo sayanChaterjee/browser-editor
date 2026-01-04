@@ -10,7 +10,6 @@ export default function LoginPage() {
 
   const router = useRouter();
 
-  /* ---------- Validation ---------- */
 
   const validateEmail = (value: string) => {
     if (!value.endsWith("@gmail.com"))
@@ -26,7 +25,7 @@ export default function LoginPage() {
     return "";
   };
 
-  /* ---------- Login ---------- */
+
 
   const handleLogin = async () => {
     const newErrors = {
