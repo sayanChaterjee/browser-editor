@@ -8,22 +8,74 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
+  const [errors, setErrors] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirm: "",
+  });
+
+
+  const validateUsername = (value: string) => {
+    if (value.length < 3)
+      return "Username must be at least 3 characters";
+    if (!/^[a-zA-Z0-9_]+$/.test(value))
+      return "Only letters, numbers and underscore allowed";
+    return "";
+  };
+
+  const validateEmail = (value: string) => {
+    if (!value.endsWith("@gmail.com"))
+      return "Email must be a @gmail.com address";
+    return "";
+  };
+const validatePassword = (value: string) => {
+  if (value.length < 6)
+    return "Password must be at least 6 characters";
+
+  if (!/(?=.*[a-z])/.test(value))
+    return "Password must contain a lowercase letter";
+
+  if (!/(?=.*[A-Z])/.test(value))
+    return "Password must contain an uppercase letter";
+
+  if (!/(?=.*\d)/.test(value))
+    return "Password must contain a number";
+
+  if (!/(?=.*[@$!%*?&#_])/.test(value))
+    return "Password must contain a special character";
+
+  return "";
+};
+
+
+  const validateConfirm = (value: string) => {
+    if (value !== password) return "Passwords do not match";
+    return "";
+  };
+
+
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (password !== confirm) {
-      alert("Passwords do not match");
-      return;
-    }
+    const newErrors = {
+      username: validateUsername(username),
+      email: validateEmail(email),
+      password: validatePassword(password),
+      confirm: validateConfirm(confirm),
+    };
+
+    setErrors(newErrors);
+
+    if (Object.values(newErrors).some((err) => err !== "")) return;
 
     try {
       const res = await fetch("http://localhost:3001/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: username,   
+          name: username,
           email,
           password,
         }),
@@ -35,7 +87,6 @@ export default function RegisterPage() {
       try {
         data = JSON.parse(text);
       } catch {
-        console.error("Non-JSON response:", text);
         alert("Unexpected server response");
         return;
       }
@@ -47,17 +98,20 @@ export default function RegisterPage() {
 
       alert("Registration successful 🎉");
       window.location.href = "/login";
-
-    } catch (error) {
-      console.error(error);
+    } catch {
       alert("Server error");
     }
   };
 
+  const isFormValid =
+    !validateUsername(username) &&
+    !validateEmail(email) &&
+    !validatePassword(password) &&
+    !validateConfirm(confirm);
+
   return (
     <div className="login-wrapper">
       <div className="login-card">
-
         <div className="avatar">
           <span>🧑‍💻</span>
         </div>
@@ -71,10 +125,13 @@ export default function RegisterPage() {
               type="text"
               placeholder="Username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
+              onChange={(e) => {
+                setUsername(e.target.value);
+                setErrors({ ...errors, username: validateUsername(e.target.value) });
+              }}
             />
           </div>
+          {errors.username && <p className="error-text">{errors.username}</p>}
 
           <div className="input-group">
             <span className="icon">📧</span>
@@ -82,10 +139,13 @@ export default function RegisterPage() {
               type="email"
               placeholder="Email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setErrors({ ...errors, email: validateEmail(e.target.value) });
+              }}
             />
           </div>
+          {errors.email && <p className="error-text">{errors.email}</p>}
 
           <div className="input-group">
             <span className="icon">🔒</span>
@@ -93,10 +153,13 @@ export default function RegisterPage() {
               type="password"
               placeholder="Password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setErrors({ ...errors, password: validatePassword(e.target.value) });
+              }}
             />
           </div>
+          {errors.password && <p className="error-text">{errors.password}</p>}
 
           <div className="input-group">
             <span className="icon">🔒</span>
@@ -104,12 +167,15 @@ export default function RegisterPage() {
               type="password"
               placeholder="Confirm Password"
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
+              onChange={(e) => {
+                setConfirm(e.target.value);
+                setErrors({ ...errors, confirm: validateConfirm(e.target.value) });
+              }}
             />
           </div>
+          {errors.confirm && <p className="error-text">{errors.confirm}</p>}
 
-          <button className="login-btn" type="submit">
+          <button className="login-btn" type="submit" disabled={!isFormValid}>
             Register
           </button>
         </form>
@@ -118,7 +184,6 @@ export default function RegisterPage() {
           Already have an account?
           <a href="/login"> LOGIN</a>
         </p>
-
       </div>
     </div>
   );
