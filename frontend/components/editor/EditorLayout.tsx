@@ -6,6 +6,7 @@ import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import Preview from "./Preview";
 import QuestionPanel from "./QuestionPanel";
+import ReactMarkdown from "react-markdown";
 
 export default function EditorLayout() {
   const router = useRouter();
@@ -19,14 +20,15 @@ export default function EditorLayout() {
   const violationLock = useRef(false);
   const MAX_WARNINGS = 3;
 
-  
   const CONTEST_DURATION = 180 * 60;
   const [timeLeft, setTimeLeft] = useState(CONTEST_DURATION);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+
   const [html, setHtml] = useState("<h1>Hello World</h1>");
   const [css, setCss] = useState("h1 { color: red; }");
   const [js, setJs] = useState("console.log('Hello JS');");
+  const [md, setMd] = useState("# Hello Markdown");
 
   const logoutUser = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -58,7 +60,7 @@ export default function EditorLayout() {
       await document.documentElement.requestFullscreen();
       setShowWarningModal(false);
     } catch {
-      console.error("Fullscreen restoration failed");
+      console.error("Fullscreen restore failed");
     }
   };
 
@@ -98,7 +100,6 @@ export default function EditorLayout() {
     };
   }, [contestStarted, strikeCount, showWarningModal]);
 
-  // ⏱ START CONTEST + TIMER
   const startContest = async () => {
     try {
       await document.documentElement.requestFullscreen();
@@ -114,7 +115,6 @@ export default function EditorLayout() {
     }
   };
 
-  // ⏱ AUTO END WHEN TIME OVER
   useEffect(() => {
     if (!contestStarted) return;
 
@@ -125,12 +125,11 @@ export default function EditorLayout() {
   }, [timeLeft, contestStarted]);
 
   const quitContest = () => {
-    if (confirm("Are you sure you want to quit? This will end your session.")) {
+    if (confirm("Are you sure you want to quit?")) {
       logoutUser();
     }
   };
 
-  // ⏱ FORMAT TIME → H:MM:SS
   const hours = Math.floor(timeLeft / 3600);
   const minutes = Math.floor((timeLeft % 3600) / 60);
   const seconds = timeLeft % 60;
@@ -190,7 +189,14 @@ export default function EditorLayout() {
         <FileExplorer activeFile={activeFile} setActiveFile={setActiveFile} />
 
         <div className="editor-center">
-          <div className="tabs">{activeFile}</div>
+          <div className="tabs" style={{ display: "flex", gap: "6px" }}>
+            {activeFile === "index.html" && <i className="devicon-html5-plain colored" />}
+            {activeFile === "styles.css" && <i className="devicon-css3-plain colored" />}
+            {activeFile === "script.js" && <i className="devicon-javascript-plain colored" />}
+            {activeFile === "README.md" && <i className="devicon-markdown-original colored" />}
+            <span>{activeFile}</span>
+          </div>
+
           <CodeEditor
             {...getEditorConfig(activeFile, {
               html,
@@ -199,6 +205,8 @@ export default function EditorLayout() {
               setCss,
               js,
               setJs,
+              md,
+              setMd,
             })}
           />
         </div>
@@ -210,8 +218,13 @@ export default function EditorLayout() {
           >
             {showQuestion ? "Preview" : "Question"}
           </button>
+
           {showQuestion ? (
             <QuestionPanel />
+          ) : activeFile === "README.md" ? (
+            <div className="markdown-preview">
+              <ReactMarkdown>{md}</ReactMarkdown>
+            </div>
           ) : (
             <Preview html={html} css={css} js={js} />
           )}
@@ -237,6 +250,11 @@ function getEditorConfig(activeFile: string, states: any) {
       language: "javascript",
       value: states.js,
       onChange: states.setJs,
+    },
+    "README.md": {
+      language: "markdown",
+      value: states.md,
+      onChange: states.setMd,
     },
   };
 
