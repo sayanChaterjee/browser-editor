@@ -21,7 +21,16 @@ export default function FileExplorer({ activeFile, setActiveFile }: Props) {
           className={`file ${activeFile === file.name ? "active" : ""}`}
           onClick={() => setActiveFile(file.name)}
         >
-          {file.name}
+          {file.name === "index.html" && (
+            <i className="devicon-html5-plain colored" />
+          )}
+          {file.name === "styles.css" && (
+            <i className="devicon-css3-plain colored" />
+          )}
+          {file.name === "script.js" && (
+            <i className="devicon-javascript-plain colored" />
+          )}
+          <span style={{ marginLeft: "8px" }}>{file.name}</span>
         </div>
       ))}
     </div>
