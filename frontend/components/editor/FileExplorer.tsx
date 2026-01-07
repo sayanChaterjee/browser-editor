@@ -23,7 +23,7 @@ export default function FileExplorer({ activeFile, setActiveFile }: Props) {
           className={`file ${activeFile === file.name ? "active" : ""}`}
           onClick={() => setActiveFile(file.name)}
         >
-          {/* Icons */}
+        
           {file.name === "index.html" && (
             <i className="devicon-html5-plain colored" />
           )}

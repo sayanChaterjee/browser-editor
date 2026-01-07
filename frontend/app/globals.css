@@ -49,6 +49,9 @@ body {
   display: flex;
   height: calc(100vh - 50px);
 }
+.editor-layout > * {
+  min-width: 0;
+}
 
 .explorer {
   width: 220px;
@@ -82,7 +85,10 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;        /* IMPORTANT */
+  overflow: hidden;   /* IMPORTANT */
 }
+
 
 .tabs {
   height: 36px;
@@ -617,4 +623,57 @@ body {
 .blur-effect {
   filter: blur(8px);
   pointer-events: none;
+}
+.contest-bar button {
+  margin-left: 16px;
+  padding: 6px 16px;
+  background: #00ffcc;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: monospace;
+  transition: background 0.3s ease;
+}
+
+.contest-bar button:hover {
+  background: #00e6b8;
+}
+
+.contest-bar button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.return {
+  margin-left: 16px;
+  padding: 6px 16px;
+  background: #00ffcc;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: monospace;
+  transition: background 0.3s ease;
+}
+
+.return {
+  background: #00e6b8;
+}
+
+.markdown-preview.exam-doc {
+  width: 100%;
+  max-width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+}
+
+.markdown-preview.exam-doc * {
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
