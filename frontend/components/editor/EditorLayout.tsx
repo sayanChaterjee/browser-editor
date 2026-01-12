@@ -6,6 +6,8 @@ import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import Preview from "./Preview";
 import QuestionPanel from "./QuestionPanel";
+import ReactMarkdown from "react-markdown";
+import { AiOutlineWarning } from "react-icons/ai"; 
 
 export default function EditorLayout() {
   const router = useRouter();
@@ -117,6 +119,89 @@ export default function EditorLayout() {
     }
   };
 
+ const [md] = useState(`
+# HTML TAG REFERENCE
+
+## Structural Tags
+- <div>: Generic container used for layout
+- <span>: Inline container for styling text
+- <header>: Represents introductory content or navigation
+- <footer>: Represents footer content
+- <section>: Semantic section of a page
+- <article>: Self-contained content
+- <main>: Main content of the document
+- <nav>: Navigation links
+- <aside>: Sidebar content
+- <figure>: Content with optional caption
+- <figcaption>: Caption for <figure>
+
+## Headings & Text
+- <h1> – <h6>: Headings from most important to least
+- <p>: Paragraph text
+- <hr>: Horizontal rule (line)
+- <blockquote>: Quoted content
+- <pre>: Preformatted text
+- <code>: Inline code
+
+## Lists
+- <ul>: Unordered list
+- <ol>: Ordered list
+- <li>: List item
+- <dl>: Description list
+- <dt>: Description term
+- <dd>: Description definition
+
+## Forms & Input
+- <form>: Groups inputs for submission
+- <input>: Accepts user input
+- <textarea>: Multi-line input
+- <select>: Dropdown select box
+- <option>: Option inside select
+- <label>: Label for input
+- <button>: Clickable button
+- <fieldset>: Groups related inputs
+- <legend>: Title for fieldset
+
+## Links & Media
+- <a>: Creates a hyperlink
+- <img>: Displays an image
+- <video>: Embeds a video
+- <audio>: Embeds audio
+- <source>: Media source
+- <map>: Image map
+- <area>: Area inside a map
+
+## Tables
+- <table>: Table container
+- <tr>: Table row
+- <th>: Table header cell
+- <td>: Table data cell
+- <caption>: Table caption
+- <thead>: Table header group
+- <tbody>: Table body group
+- <tfoot>: Table footer group
+
+## Semantic & Misc
+- <em>: Emphasized text
+- <strong>: Important text
+- <b>: Bold text
+- <i>: Italic text
+- <u>: Underlined text
+- <s>: Strikethrough text
+- <mark>: Highlighted text
+- <abbr>: Abbreviation
+- <time>: Date/time value
+- <details>: Collapsible content
+- <summary>: Summary for details
+- <progress>: Progress bar
+- <dialog>: Dialog box
+
+
+`);
+
+
+
+
   const logoutUser = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (syncRef.current) clearInterval(syncRef.current);
@@ -127,6 +212,7 @@ export default function EditorLayout() {
     router.push("/login");
   };
 
+  
   const violate = () => {
     if (violationLock.current) return;
 
@@ -151,7 +237,7 @@ export default function EditorLayout() {
       await document.documentElement.requestFullscreen();
       setShowWarningModal(false);
     } catch {
-      console.error("Fullscreen restoration failed");
+      console.error("Fullscreen restore failed");
     }
   };
 
@@ -212,8 +298,9 @@ export default function EditorLayout() {
       setTimeout(() => {
         const activeElem = document.activeElement;
         const isInternal =
-          activeElem?.tagName === "IFRAME" ||
-          activeElem?.closest(".editor-center");
+          activeElem?.closest(".editor-center") ||
+          activeElem?.closest(".preview-panel");
+
         if (!isInternal) handleSecurityBreach();
       }, 150);
     };
@@ -230,9 +317,9 @@ export default function EditorLayout() {
       document.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("blur", onBlur);
     };
-  }, [contestStarted, strikeCount, showWarningModal]);
+  }, [contestStarted, showWarningModal]);
 
-  // ⏱ START CONTEST + TIMER
+
   const startContest = async () => {
     try {
       await document.documentElement.requestFullscreen();
@@ -244,7 +331,7 @@ export default function EditorLayout() {
         setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     } catch {
-      alert("Fullscreen is required to start.");
+      alert("Fullscreen is required.");
     }
   };
 
@@ -335,10 +422,8 @@ export default function EditorLayout() {
 
   // ⏱ AUTO END WHEN TIME OVER
   useEffect(() => {
-    if (!contestStarted) return;
-
-    if (timeLeft <= 0) {
-      alert("Time's up! Contest ended.");
+    if (contestStarted && timeLeft <= 0) {
+      alert("Time's up!");
       logoutUser();
     }
   }, [timeLeft, contestStarted]);
@@ -380,11 +465,9 @@ export default function EditorLayout() {
     return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
+
   return (
-    <div
-      className="editor-layout-wrapper"
-      onContextMenu={(e) => e.preventDefault()}
-    >
+    <div className="editor-layout-wrapper" onContextMenu={(e) => e.preventDefault()}>
       {showWarningModal && (
         <div className="violation-overlay">
           <div className="warning-card">
@@ -590,21 +673,9 @@ export default function EditorLayout() {
 
 function getEditorConfig(activeFile: string, states: any) {
   const configs: Record<string, any> = {
-    "index.html": {
-      language: "html",
-      value: states.html,
-      onChange: states.setHtml,
-    },
-    "styles.css": {
-      language: "css",
-      value: states.css,
-      onChange: states.setCss,
-    },
-    "script.js": {
-      language: "javascript",
-      value: states.js,
-      onChange: states.setJs,
-    },
+    "index.html": { language: "html", value: states.html, onChange: states.setHtml },
+    "styles.css": { language: "css", value: states.css, onChange: states.setCss },
+    "script.js": { language: "javascript", value: states.js, onChange: states.setJs },
   };
 
   return configs[activeFile];
