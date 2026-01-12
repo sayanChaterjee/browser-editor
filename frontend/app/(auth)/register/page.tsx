@@ -19,13 +19,11 @@ export default function RegisterPage() {
   const validateUsername = (value: string) => {
     if (value.length < 3)
       return "Username must be at least 3 characters";
-    if (!/^[a-zA-Z0-9_]+$/.test(value))
-      return "Only letters, numbers and underscore allowed";
     return "";
   };
 
   const validateEmail = (value: string) => {
-    if (!value.endsWith("@gmail.com"))
+    if (!value.toLowerCase().endsWith("@gmail.com"))
       return "Email must be a @gmail.com address";
     return "";
   };
@@ -71,7 +69,7 @@ const validatePassword = (value: string) => {
     if (Object.values(newErrors).some((err) => err !== "")) return;
 
     try {
-      const res = await fetch("http://localhost:3001/register", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

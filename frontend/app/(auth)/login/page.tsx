@@ -38,7 +38,7 @@ export default function LoginPage() {
     if (newErrors.email || newErrors.password) return;
 
     try {
-      const res = await fetch("http://localhost:3001/login", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -53,6 +53,9 @@ export default function LoginPage() {
       }
 
       localStorage.setItem("token", data.accessToken);
+      // Set cookie for middleware access
+      document.cookie = `token=${data.accessToken}; path=/; max-age=86400; SameSite=Strict`;
+      
       window.dispatchEvent(new Event("authChange"));
       alert("Login successful");
       router.push("/editor");

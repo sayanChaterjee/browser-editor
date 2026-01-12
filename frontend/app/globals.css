@@ -351,7 +351,26 @@ body {
 }
 .profile-emoji {
   font-size: 1.4rem;
-  margin-right: 6px;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.profile-icon-link:hover .profile-emoji {
+  transform: scale(1.1);
+}
+
+.profile-icon-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: background 0.2s ease;
+}
+
+.profile-icon-link:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 .profile-container {
   position: relative;
@@ -363,14 +382,14 @@ body {
   top: 100%;
   right: 0;
   margin-top: 10px;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   padding: 16px;
-  min-width: 200px;
+  min-width: 240px;
   z-index: 1000;
-  animation: fadeIn 0.2s ease-in;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .profile-card::before {
@@ -382,38 +401,40 @@ body {
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-bottom: 8px solid white;
+  border-bottom: 8px solid #1f2937;
 }
 
 .profile-card-header {
   text-align: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #1f2937;
 }
 
 .profile-card-emoji {
   font-size: 32px;
+  display: block;
+  margin: 0 auto;
 }
 
 .profile-card-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .profile-username {
   font-weight: 600;
-  font-size: 16px;
-  color: #333;
+  font-size: 15px;
+  color: #f3f4f6;
   margin: 0;
 }
 
 .profile-email {
-  font-size: 14px;
-  color: #666;
+  font-size: 13px;
+  color: #9ca3af;
   margin: 0;
-  word-break: break-word;
+  word-break: break-all;
 }
 
 @keyframes fadeIn {

@@ -19,9 +19,25 @@ export default function Navbar() {
     setIsLoggedIn(!!token);
     
     if (token) {
-      const username = localStorage.getItem("username") || "User";
-      const email = localStorage.getItem("email") || "user@example.com";
-      setUserInfo({ username, email });
+      // Fetch fresh profile if needed
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/user/profile`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => res.ok ? res.text() : "")
+      .then(text => {
+        if (text) {
+          try {
+            const data = JSON.parse(text);
+            
+            if (data.name) {
+              setUserInfo({ username: data.name, email: data.email });
+            }
+          } catch (e) {
+            console.error("Navbar profile JSON parse error", e);
+          }
+        }
+      })
+      .catch(err => console.error("Profile fetch in navbar failed", err));
     }
   }, [pathname]);
 
@@ -29,6 +45,8 @@ export default function Navbar() {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
     localStorage.removeItem("email");
+    // Clear cookie for middleware
+    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Strict";
     setIsLoggedIn(false);
     router.push("/login");
   };
@@ -62,10 +80,10 @@ export default function Navbar() {
               onMouseEnter={() => setShowProfileCard(true)}
               onMouseLeave={() => setShowProfileCard(false)}
             >
-              <Link href="/profile" className={pathname === "/profile" ? "active" : ""}>
+              <Link href="/profile" className={`profile-icon-link ${pathname === "/profile" ? "active" : ""}`}>
                 <span className="profile-emoji">👨🏻‍💻</span>
               </Link>
-
+              
               {showProfileCard && (
                 <div className="profile-card">
                   <div className="profile-card-header">
