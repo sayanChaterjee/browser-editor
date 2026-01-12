@@ -2,6 +2,7 @@ import { Server } from 'http';
 import logger from '../config/logger';
 import { RedisClient } from '../config/redis';
 import { disconnectKafka } from '../events/kafka';
+import { disconnectDB } from '../db/db';
 
 export const setupGracefulShutdown = (server: Server) => {
   const shutdown = async (signal: string) => {
@@ -16,8 +17,8 @@ export const setupGracefulShutdown = (server: Server) => {
       });
 
       await RedisClient.closeConnection();
-
       await disconnectKafka();
+      await disconnectDB();
 
       logger.info(
         'Graceful shutdown completed\n--------------------------------',

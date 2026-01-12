@@ -16,6 +16,9 @@ export const verifyToken = async (
     path.endsWith('/login') || 
     path.endsWith('/register') || 
     path.endsWith('/refresh') ||
+    path.endsWith('/logout') ||
+    path.endsWith('/forgot-password') ||
+    path.endsWith('/reset-password') ||
     path.endsWith('/health');
   if (isPublic) {
     return next();

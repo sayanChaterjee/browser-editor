@@ -7,6 +7,7 @@ import redis from '../config/redis';
 import { User } from '../models/user.model';
 import { createError } from '../utils';
 import { publishUserRegistered } from '../events/producers/userRegistered.producer';
+import { sendResetEmail } from '../utils/mailer';
 
 interface RegisterDto {
   name: string;
@@ -139,6 +140,44 @@ class AuthService {
       await redis.del(key);
     }
   }
+
+  async forgotPassword(email: string) {
+  const user = await User.findOne({ email });
+  if (!user) return; 
+
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  await redis.setex(
+    `reset_password:${resetToken}`,
+    15 * 60, 
+    user._id.toString()
+  );
+
+  await sendResetEmail(user.email, resetToken);
+}
+
+async resetPassword(token: string, newPassword: string) {
+  const redisKey = `reset_password:${token}`;
+  const userId = await redis.get(redisKey);
+
+  if (!userId) {
+    throw createError('Invalid or expired reset token', 400);
+  }
+
+  const user = await User.findById(userId);
+  if (!user) throw createError('User not found', 404);
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  user.password = passwordHash;
+  await user.save();
+
+  await redis.del(redisKey);
+  const authKeys = await redis.keys(`auth:${userId}:*`);
+  const refreshKeys = await redis.keys(`refresh:${userId}:*`);
+  for (const key of [...authKeys, ...refreshKeys]) {
+    await redis.del(key);
+  }
+}
 }
 
 export default AuthService;

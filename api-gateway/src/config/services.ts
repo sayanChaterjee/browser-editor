@@ -9,8 +9,22 @@ class ServiceProxy {
     {
       path: '/api/v1/auth',
       url: config.AUTH_SERVICE_URL,
-      pathRewrite: { '^/api/v1/auth': '/api/v1/auth' },
+      pathRewrite: { '^/api/v1/auth': '' },
       name: 'auth-service',
+      timeout: 5000,
+    },
+    {
+      path: '/api/v1/user',
+      url: config.USER_SERVICE_URL || 'http://localhost:3002',
+      pathRewrite: { '^/api/v1/user': '' },
+      name: 'user-service',
+      timeout: 5000,
+    },
+    {
+      path: '/api/v1/code',
+      url: config.CODE_SERVICE_URL || 'http://localhost:3003',
+      pathRewrite: { '^/api/v1/code': '' },
+      name: 'code-service',
       timeout: 5000,
     },
   ];

@@ -5,9 +5,9 @@ services:
     image: mongo:7
     container_name: mongodb
     environment:
-      MONGO_INITDB_ROOT_USERNAME: browseruser
-      MONGO_INITDB_ROOT_PASSWORD: browsereditordevch
-      MONGO_INITDB_DATABASE: ceditor
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
     ports:
       - "27017:27017"
     volumes:
@@ -17,7 +17,7 @@ services:
     image: redis/redis-stack:6.2.6-v19
     container_name: redis
     environment:
-      REDIS_ARGS: "--requirepass browsereditordevch"
+      REDIS_ARGS: "--requirepass ${REDIS_PASSWORD}"
     ports:
       - "6379:6379"
       - "8001:8001"
@@ -38,6 +38,10 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
 
   kafka-ui:
     image: provectuslabs/kafka-ui
@@ -49,6 +53,74 @@ services:
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
     depends_on:
       - kafka
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    restart: on-failure # Automatically restart if it boots too fast for other services
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - USER_SERVICE_URL=http://user-service:3002
+      - CODE_SERVICE_URL=http://code-service:3003
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET}
+      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET}
+      - ALLOWED_ORIGINS=http://localhost:3001,http://localhost:3005,http://localhost:3000,http://localhost:3004,http://localhost:3006
+      - DEFAULT_TIMEOUT=30000
+    depends_on:
+      - redis
+      - auth-service
+      - user-service
+      - code-service
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    restart: on-failure
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DATABASE_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/ceditor_auth?authSource=admin
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - mongodb
+      - redis
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    restart: on-failure
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - DATABASE_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/ceditor_user?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - mongodb
+      - redis
+
+  code-service:
+    build: ./code-service
+    container_name: code-service
+    restart: on-failure
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - DATABASE_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/ceditor_code?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+    depends_on:
+      - mongodb
 
 volumes:
   redis_data:

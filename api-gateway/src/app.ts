@@ -8,12 +8,25 @@ import helmet from "helmet";
 import { config } from "./config/index";
 import { limiter } from "./middlewares/rateLimiter.middleware";
 import { proxyServices } from "./config/services";
+import { setupGracefulShutdown } from "./utils/shutdown";
 
 
 const app = express();
 
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowedOrigins = config.ALLOWED_ORIGINS.split(',');
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
 app.use(limiter);
 
 app.get("/health", (req: Request, res: Response) => {
@@ -40,9 +53,11 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 const startServer = () => {
   try {
-    app.listen(config.PORT, () => {
+    const server = app.listen(config.PORT, () => {
       logger.info(`${config.SERVICE_NAME} running on port ${config.PORT}`);
     });
+
+    setupGracefulShutdown(server);
   } catch (error) {
     logger.error("Failed to start server:", error);
     process.exit(1);

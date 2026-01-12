@@ -15,10 +15,13 @@ import { authRouter, indexRouter } from './routes';
 import init from './init';
 import { setupGracefulShutdown } from './utils/shutdown';
 import { connectDB } from './db/db';
+import { connectKafka } from './config/kafka';
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(corsMiddleware);
 
 app.use(cookieParser());
@@ -36,6 +39,7 @@ app.use(errorHandler);
 (async () => {
   try {
     await connectDB();
+    await connectKafka();
     await init();
 
     const server = app.listen(config.PORT, () => {

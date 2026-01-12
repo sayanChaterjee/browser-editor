@@ -15,7 +15,7 @@ export const config: Config = {
   SERVICE_NAME: require('../../package.json').name,
   PORT: Number(process.env.PORT) || 3001,
   DATABASE_URL:
-    process.env.DATABASE_URL || 'postgres://user:password@localhost:5432/auth',
+    process.env.DATABASE_URL || '',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   KAFKA_BROKER: process.env.KAFKA_BROKER || 'localhost:9092',
   JWT_SECRET: process.env.JWT_SECRET || 'your-default-secret-key',
@@ -24,3 +24,7 @@ export const config: Config = {
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
 };
+
+if (!process.env.DATABASE_URL) {
+  console.warn('[WARN] DATABASE_URL is missing. Please set it in .env');
+}
