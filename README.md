@@ -16,55 +16,33 @@ A professional-grade Browser Editor application built with a microservices archi
 
 ```mermaid
 graph TD
-    Client[Frontend / Next.js] -->|HTTP/REST| Gateway[API Gateway]
-    
-    Gateway -->|Forward| Auth[Auth Service]
-    Gateway -->|Forward| User[User Service]
-    Gateway -->|Forward| Code[Code Service]
-    
-    Auth -.->|Register Event| Kafka((Kafka Bus))
-    Kafka -.->|Subscribe| User
-    
-    Auth <--> RedisSession[(Redis Session)]
-    Code <--> RedisCache[(Redis Cache)]
-    
-    User <--> UserDB[(MongoDB User)]
-    Code <--> CodeDB[(MongoDB Code)]
+    subgraph Client Layer
+        Browser[Frontend/Next.js]
+        IDB[(IndexedDB Local)]
+        Browser <--> IDB
+    end
+
+    subgraph API Layer
+        Gateway[API Gateway]
+        Browser -->|HTTP/JWT| Gateway
+    end
+
+    subgraph Service Layer
+        Gateway --> Auth[Auth Service]
+        Gateway --> User[User Service]
+        Gateway --> Code[Code Service]
+        
+        Auth -.->|Kafka: UserRegistered| Kafka((Kafka Bus))
+        Kafka -.->|Subscribe| User
+    end
+
+    subgraph Persistence Layer
+        Auth <--> RedisSession[(Redis Session Store)]
+        Code <--> RedisCache[(Redis Result Cache)]
+        Code <--> CodeDB[(MongoDB Code)]
+        User <--> UserDB[(MongoDB Profile)]
+    end
 ```
-
-## 🛣️ API Routes
-
-All internal service routes are proxied through the API Gateway at `http://localhost:3000/api/v1/`.
-
-### 🔐 Auth Service (`/auth`)
-| Method | Endpoint | Description | Auth |
-| :--- | :--- | :--- | :--- |
-| POST | `/register` | Register a new account | No |
-| POST | `/login` | Authenticate and get tokens | No |
-| POST | `/refresh` | Get new access token via refresh token | No |
-| POST | `/logout` | Revoke session and clear cookies | Yes |
-| POST | `/forgot-password` | Request password reset email | No |
-| POST | `/reset-password` | Set new password with reset token | No |
-
-### 👤 User Service (`/user`)
-| Method | Endpoint | Description | Auth |
-| :--- | :--- | :--- | :--- |
-| GET | `/profile` | Get current user's profile data | Yes |
-
-### 💻 Code Service (`/code`)
-| Method | Endpoint | Description | Auth |
-| :--- | :--- | :--- | :--- |
-| GET | `/` | List all user's projects | Yes |
-| GET | `/:projectId` | Fetch a specific project by ID | Yes |
-| POST | `/save` | Save or update a project | Yes |
-| GET | `/submissions` | List all user's submissions | Yes |
-| GET | `/submissions/:projectId` | List submissions for a specific project | Yes |
-| POST | `/submit` | Submit a snapshot of the current code | Yes |
-
-### Infrastructure
-- **MongoDB**: Distributed database stores for code and user data.
-- **Redis**: Shared store for active session validation across all microservices.
-- **Kafka**: Reliable event bus for real-time user data synchronization.
 
 ## ✨ Key Features
 
@@ -72,17 +50,19 @@ All internal service routes are proxied through the API Gateway at `http://local
 - **Console Deterrent**: Real-time `debugger` loop detects and penalizes devtool usage.
 - **Keyboard Lockdown**: Blocks common developer shortcuts (F12, Ctrl+Shift+I, etc.).
 - **Focus Tracking**: Automatic strike system for tab/window switching or exiting fullscreen.
-- **Auth Middleware**: Server-side route protection ensuring zero unauthorized entries.
+- **Strict Enforcement**: Users get 3 warnings; the 4th violation triggers an automatic logout.
+- **Submit Restriction**: Submission is strictly allowed only during active contest mode.
 
 ### 💾 Multi-Layer Persistence
 - **IndexedDB**: Local auto-save every 2 seconds for zero-loss recovery.
 - **Periodic Sync**: Background synchronization to MongoDB every 10 seconds.
-- **Timer Persistence**: Contest timer state is saved globally, allowing session resumption.
+- **Redis Caching**: `code-service` implements multi-layer caching for project lists and details.
+- **Mandatory Projects**: Users must have a project to enter the editor; contests force fresh project creation.
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Next.js 16, React 19, Monaco Editor, CSS3.
-- **Backend**: Node.js, TypeScript, Express.js.
+- **Frontend**: Next.js (App Router), React, Monaco Editor, IndexedDB.
+- **Backend**: Node.js, TypeScript, Express.js, Winston Logger.
 - **Data**: MongoDB (Mongoose), Redis (ioredis).
 - **Messaging**: Kafka (kafkajs).
 - **DevOps**: Docker, Docker Compose.
@@ -90,13 +70,12 @@ All internal service routes are proxied through the API Gateway at `http://local
 ## 🚦 Getting Started
 
 ### 1. Environment Setup
-Create a `.env` file in the root directory by copying the example:
+Rename `.env.example` to `.env` in the root directory and update secrets:
 ```bash
 cp .env.example .env
 ```
-Ensure you set the `JWT_SECRET`, `MONGO_ROOT_PASSWORD`, and other sensitive keys.
 
-### 2. Running with Docker (Recommended)
+### 2. Running with Docker
 ```bash
 docker-compose up --build
 ```
@@ -105,7 +84,7 @@ docker-compose up --build
 
 ## ⚠️ Troubleshooting
 
-- **503 Errors**: Ensure `api-gateway` can resolve service hostnames (using default docker bridge).
-- **CORP/CORS**: Helmet is configured to allow cross-origin resource sharing for the editor preview.
-- **Auth Sync**: If profiles don't sync, ensure the Kafka container is healthy and topics are initialized.
+- **503 Errors**: Check if services are healthy in Docker.
+- **Kafka Sync**: Ensure topics are created if profile data doesn't appear immediately.
+- **CORS**: Gateway handles preflight; services use secure origin allow-lists.
 

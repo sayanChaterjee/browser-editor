@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import Preview from "./Preview";
 import QuestionPanel from "./QuestionPanel";
-import ReactMarkdown from "react-markdown";
-import { AiOutlineWarning } from "react-icons/ai"; 
+import CreateProjectModal from "./CreateProjectModal";
+import { getLocalProject } from "../../lib/indexedDB";
+import { INITIAL_README, INITIAL_HTML, INITIAL_CSS, INITIAL_JS } from "../../utils/constants";
+import { useEditorPersistence } from "../../hooks/useEditorPersistence";
+import ContestBar from "./ContestBar";
+import SecurityWarningModal from "./SecurityWarningModal";
+
+let hasPromptedInSession = false;
+
 
 export default function EditorLayout() {
   const router = useRouter();
@@ -17,197 +24,44 @@ export default function EditorLayout() {
   const [contestStarted, setContestStarted] = useState(false);
   const [strikeCount, setStrikeCount] = useState(0);
   const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [isContestPending, setIsContestPending] = useState(false);
+  const [isModalCancelable, setIsModalCancelable] = useState(true);
   const [userProfile, setUserProfile] = useState<{ name: string; email: string } | null>(null);
 
   const violationLock = useRef(false);
-  const MAX_WARNINGS = 3;
+  const MAX_WARNINGS = 4;
 
   const CONTEST_DURATION = 180 * 60;
   const [timeLeft, setTimeLeft] = useState(CONTEST_DURATION);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const syncRef = useRef<NodeJS.Timeout | null>(null);
-  const idbRef = useRef<IDBDatabase | null>(null);
   const securityLoopRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [html, setHtml] = useState("<h1>Hello World</h1>");
-  const [css, setCss] = useState("h1 { color: red; }");
-  const [js, setJs] = useState("console.log('Hello JS');");
-  const [projectName, setProjectName] = useState("My Project");
+  const [html, setHtml] = useState("");
+  const [css, setCss] = useState("");
+  const [js, setJs] = useState("");
+  const [projectName, setProjectName] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projects, setProjects] = useState<any[]>([]);
 
-  // IndexedDB Init
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const request = indexedDB.open("EditorDB", 1);
-    request.onupgradeneeded = (e: any) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains("code")) {
-        db.createObjectStore("code", { keyPath: "id" });
+  const { saveToIDB, syncToBackend } = useEditorPersistence({
+    html,
+    css,
+    js,
+    timeLeft,
+    projectName,
+    contestStarted,
+    onLoadFromIDB: (data) => {
+      if (!contestStarted) {
       }
-    };
-    request.onsuccess = (e: any) => {
-      idbRef.current = e.target.result;
-      loadFromIndexedDB();
-    };
-  }, []);
-
-  const saveToIndexedDB = () => {
-    if (!idbRef.current) return;
-    try {
-      const transaction = idbRef.current.transaction("code", "readwrite");
-      const store = transaction.objectStore("code");
-      store.put({ id: "current", html, css, js, timeLeft, updatedAt: Date.now() });
-    } catch (err) {
-      console.error("IDB Save failed", err);
-    }
-  };
-
-  const loadFromIndexedDB = () => {
-    if (!idbRef.current) return;
-    const transaction = idbRef.current.transaction("code", "readonly");
-    const store = transaction.objectStore("code");
-    const request = store.get("current");
-    request.onsuccess = (e: any) => {
-      const data = e.target.result;
-      if (data && !contestStarted) {
-        // Fallback if network fails, or load if fresher
-        // setHtml(data.html); ...
-      }
-    };
-  };
-
-  // 2s Auto-save to IndexedDB
-  useEffect(() => {
-    const interval = setInterval(() => {
-      saveToIndexedDB();
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [html, css, js, timeLeft]);
-
-  // 10s Periodic Sync to Backend
-  useEffect(() => {
-    if (!contestStarted) return;
-
-    syncRef.current = setInterval(() => {
-      syncToBackend();
-    }, 10000);
-
-    return () => {
-      if (syncRef.current) clearInterval(syncRef.current);
-    };
-  }, [contestStarted, html, css, js, timeLeft]);
-
-  const syncToBackend = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/save`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ name: projectName, html, css, js, timeLeft }),
-        }
-      );
-    } catch (error) {
-      console.error("Auto-sync failed", error);
-    }
-  };
-
- const [md] = useState(`
-# HTML TAG REFERENCE
-
-## Structural Tags
-- <div>: Generic container used for layout
-- <span>: Inline container for styling text
-- <header>: Represents introductory content or navigation
-- <footer>: Represents footer content
-- <section>: Semantic section of a page
-- <article>: Self-contained content
-- <main>: Main content of the document
-- <nav>: Navigation links
-- <aside>: Sidebar content
-- <figure>: Content with optional caption
-- <figcaption>: Caption for <figure>
-
-## Headings & Text
-- <h1> – <h6>: Headings from most important to least
-- <p>: Paragraph text
-- <hr>: Horizontal rule (line)
-- <blockquote>: Quoted content
-- <pre>: Preformatted text
-- <code>: Inline code
-
-## Lists
-- <ul>: Unordered list
-- <ol>: Ordered list
-- <li>: List item
-- <dl>: Description list
-- <dt>: Description term
-- <dd>: Description definition
-
-## Forms & Input
-- <form>: Groups inputs for submission
-- <input>: Accepts user input
-- <textarea>: Multi-line input
-- <select>: Dropdown select box
-- <option>: Option inside select
-- <label>: Label for input
-- <button>: Clickable button
-- <fieldset>: Groups related inputs
-- <legend>: Title for fieldset
-
-## Links & Media
-- <a>: Creates a hyperlink
-- <img>: Displays an image
-- <video>: Embeds a video
-- <audio>: Embeds audio
-- <source>: Media source
-- <map>: Image map
-- <area>: Area inside a map
-
-## Tables
-- <table>: Table container
-- <tr>: Table row
-- <th>: Table header cell
-- <td>: Table data cell
-- <caption>: Table caption
-- <thead>: Table header group
-- <tbody>: Table body group
-- <tfoot>: Table footer group
-
-## Semantic & Misc
-- <em>: Emphasized text
-- <strong>: Important text
-- <b>: Bold text
-- <i>: Italic text
-- <u>: Underlined text
-- <s>: Strikethrough text
-- <mark>: Highlighted text
-- <abbr>: Abbreviation
-- <time>: Date/time value
-- <details>: Collapsible content
-- <summary>: Summary for details
-- <progress>: Progress bar
-- <dialog>: Dialog box
-
-
-`);
-
-
-
+    },
+  });
 
   const logoutUser = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (syncRef.current) clearInterval(syncRef.current);
     if (securityLoopRef.current) clearInterval(securityLoopRef.current);
     localStorage.clear();
-    // Clear token cookie
     document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");
   };
@@ -321,12 +175,24 @@ export default function EditorLayout() {
 
 
   const startContest = async () => {
+    // Force a fresh project for contest
+    setIsContestPending(true);
+    setIsModalCancelable(true); // Can cancel to not start contest
+    setShowCreateModal(true);
+  };
+
+  const openNewProjectModal = () => {
+    setIsContestPending(false);
+    setIsModalCancelable(true);
+    setShowCreateModal(true);
+  };
+
+  const handleContestStart = async () => {
     try {
       await document.documentElement.requestFullscreen();
       setStrikeCount(0);
       setContestStarted(true);
-
-      setTimeLeft(timeLeft > 0 ? timeLeft : CONTEST_DURATION);
+      setTimeLeft(CONTEST_DURATION);
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
@@ -335,10 +201,21 @@ export default function EditorLayout() {
     }
   };
 
+  const handleCancelCreate = () => {
+    setShowCreateModal(false);
+    setIsContestPending(false);
+  };
+
+  const searchParams = useSearchParams();
+  const requestedProjectId = searchParams.get("projectId");
+
   useEffect(() => {
     const initData = async () => {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) {
+        router.push("/login"); // Strict redirect if no token
+        return;
+      }
 
       // 1. Fetch User Profile
       try {
@@ -351,12 +228,15 @@ export default function EditorLayout() {
           if (profText) {
             try {
               const profData = JSON.parse(profText);
-              
               setUserProfile(profData);
             } catch (e) {
               console.error("Profile JSON parse error", e);
             }
           }
+        } else if (profRes.status === 401) {
+           // Token invalid
+           logoutUser();
+           return;
         }
       } catch (err) {
         console.error("Profile fetch failed", err);
@@ -372,15 +252,36 @@ export default function EditorLayout() {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
             setProjects(data);
-            const latest = data[0]; // Sorted by updatedAt -1 on backend
-            setProjectId(latest._id);
-            setProjectName(latest.name);
-            setHtml(latest.html || "");
-            setCss(latest.css || "");
-            setJs(latest.js || "");
-            if (latest.timeLeft !== undefined) {
-              setTimeLeft(latest.timeLeft);
+            
+            let targetProject = data[0]; 
+            if (requestedProjectId) {
+              const found = data.find(p => p._id === requestedProjectId);
+              if (found) targetProject = found;
             }
+
+            setProjectId(targetProject._id);
+            setProjectName(targetProject.name);
+            
+            // Try to load from local cache first
+            const localData = await getLocalProject(targetProject._id);
+            if (localData && new Date(localData.updatedAt) > new Date(targetProject.updatedAt)) {
+              setHtml(localData.html);
+              setCss(localData.css);
+              setJs(localData.js);
+            } else {
+              setHtml(targetProject.html || "");
+              setCss(targetProject.css || "");
+              setJs(targetProject.js || "");
+            }
+
+            if (targetProject.timeLeft !== undefined) {
+              setTimeLeft(targetProject.timeLeft);
+            }
+          } else {
+            // No projects found - mandatory creation
+            setIsModalCancelable(false);
+            setIsContestPending(false);
+            setShowCreateModal(true);
           }
         }
       } catch (error) {
@@ -389,7 +290,74 @@ export default function EditorLayout() {
     };
 
     initData();
-  }, []);
+  }, [router]); // Re-fetch when navigating back to this page
+
+
+
+  const handleCreateProject = async (name: string) => {
+    setIsCreatingProject(true);
+    
+    // Immediately save it to backend
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("No token found, cannot save project");
+      alert("You must be logged in to create a project");
+      setIsCreatingProject(false);
+      setShowCreateModal(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          name, 
+          html: INITIAL_HTML, 
+          css: INITIAL_CSS, 
+          js: INITIAL_JS, 
+          timeLeft: CONTEST_DURATION 
+        }),
+      });
+      
+      if (res.ok) {
+        const newData = await res.json();
+        
+        if (newData._id) {
+          // Success: Update main states
+          setProjectName(name);
+          setHtml(INITIAL_HTML);
+          setCss(INITIAL_CSS);
+          setJs(INITIAL_JS);
+          setProjectId(newData._id);
+          setProjects([newData]);
+          alert(`Project "${name}" created successfully!`);
+
+          if (isContestPending) {
+            handleContestStart();
+            setIsContestPending(false);
+          }
+        } else {
+          console.error("No _id in response:", newData);
+          alert("Project created but missing ID");
+        }
+      } else {
+        const errorText = await res.text();
+        console.error("Failed to save project. Status:", res.status, "Error:", errorText);
+        alert(`Failed to create project: ${res.status} ${errorText}`);
+      }
+    } catch (error) {
+      console.error("Exception while saving project:", error);
+      alert("Network error while creating project. Check console for details.");
+    } finally {
+      setIsCreatingProject(false);
+      setShowCreateModal(false);
+    }
+  };
+
 
   const saveCode = async () => {
     const token = localStorage.getItem("token");
@@ -449,8 +417,8 @@ export default function EditorLayout() {
 
       // 4. Reset contest state
       setContestStarted(false);
+      setTimeLeft(CONTEST_DURATION);
       if (timerRef.current) clearInterval(timerRef.current);
-      if (syncRef.current) clearInterval(syncRef.current);
       if (securityLoopRef.current) clearInterval(securityLoopRef.current);
       
       alert("Contest exited. Your data has been saved and editor cleared.");
@@ -468,108 +436,34 @@ export default function EditorLayout() {
 
   return (
     <div className="editor-layout-wrapper" onContextMenu={(e) => e.preventDefault()}>
-      {showWarningModal && (
-        <div className="violation-overlay">
-          <div className="warning-card">
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚠️</div>
-            <h2>Security Violation</h2>
-            <p style={{ color: strikeCount >= 2 ? "#ff5555" : "#ffcc00", fontWeight: "bold" }}>
-              Warning {strikeCount} of {MAX_WARNINGS}
-            </p>
-            <p className="sub-text">
-              Switching tabs, exiting fullscreen, or opening devtools is strictly prohibited.
-              One more violation may end your session.
-            </p>
-            <div className="modal-buttons">
-              <button className="resume-btn" onClick={resumeContest}>
-                Return to Contest
-              </button>
-              <button className="quit-btn" onClick={quitContest}>
-                Quit Contest
-              </button>
-            </div>
-          </div>
-        </div>
+      <SecurityWarningModal 
+        isVisible={showWarningModal}
+        strikeCount={strikeCount}
+        MAX_WARNINGS={MAX_WARNINGS}
+        onResume={resumeContest}
+        onQuit={quitContest}
+      />
+
+      {showCreateModal && (
+        <CreateProjectModal 
+          onSubmit={handleCreateProject} 
+          onCancel={handleCancelCreate}
+          isCreating={isCreatingProject} 
+          isCancelable={isModalCancelable}
+        />
       )}
 
-      <div className="contest-bar" style={{ background: "#0f172a", borderBottom: "1px solid #1e293b", height: "50px", padding: "0 20px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <span style={{ color: timeLeft < 300 ? "#f87171" : "#38bdf8", fontWeight: "600", fontSize: "1.1rem", fontFamily: "monospace" }}>
-            ⏱ {formatTime(timeLeft)}
-          </span>
-          <div style={{ height: "20px", width: "1px", background: "#334155" }} />
-          <span style={{ color: "#94a3b8", fontSize: "0.9rem" }}>
-            Strikes: <span style={{ color: strikeCount > 0 ? "#f87171" : "#10b981" }}>{strikeCount} / {MAX_WARNINGS}</span>
-          </span>
-        </div>
-
-        {userProfile && (
-          <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-               <select 
-                  value={projectName}
-                  onChange={(e) => {
-                    const selected = projects.find(p => p.name === e.target.value);
-                    if (selected) {
-                      setProjectId(selected._id);
-                      setProjectName(selected.name);
-                      setHtml(selected.html);
-                      setCss(selected.css);
-                      setJs(selected.js);
-                      setTimeLeft(selected.timeLeft);
-                    } else if (e.target.value === "NEW_PROJECT") {
-                      const name = prompt("Enter project name:");
-                      if (name) {
-                        setProjectId(null);
-                        setProjectName(name);
-                        setHtml("<h1>New Project</h1>");
-                        setCss("");
-                        setJs("");
-                        setTimeLeft(CONTEST_DURATION);
-                      }
-                    }
-                  }}
-                  style={{ background: "#1e293b", color: "#e2e8f0", border: "1px solid #334155", borderRadius: "4px", fontSize: "12px", padding: "2px 8px" }}
-               >
-                  {projects.map(p => <option key={p._id} value={p.name}>{p.name}</option>)}
-                  <option value="NEW_PROJECT">+ New Project</option>
-               </select>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", background: "#1e293b", padding: "4px 12px", borderRadius: "20px", border: "1px solid #334155" }}>
-              <div style={{ width: "24px", height: "24px", background: "#0ea5e9", borderRadius: "50%", display: "flex", alignItems: "center", justifyItems: "center", fontSize: "12px", fontWeight: "bold", color: "white", justifyContent: "center" }}>
-                {userProfile.name?.[0]?.toUpperCase() || "U"}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <span style={{ fontSize: "12px", fontWeight: "600", color: "#e2e8f0", lineHeight: "1" }}>{userProfile.name || "User"}</span>
-                <span style={{ fontSize: "10px", color: "#94a3b8" }}>{userProfile.email || "No Email"}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="contest-controls" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <button
-            className="start-btn"
-            onClick={startContest}
-            disabled={contestStarted}
-            style={{ 
-              background: contestStarted ? "#1e293b" : "linear-gradient(135deg, #0ea5e9, #2563eb)",
-              color: "white",
-              padding: "8px 20px",
-              borderRadius: "6px",
-              boxShadow: contestStarted ? "none" : "0 4px 12px rgba(37, 99, 235, 0.3)"
-            }}
-          >
-            {contestStarted ? "Contest Active" : "Start Contest"}
-          </button>
-          {contestStarted && (
-            <button className="quit-link" onClick={quitContest} style={{ color: "#94a3b8", fontSize: "0.85rem", textDecoration: "none" }}>
-              Quit
-            </button>
-          )}
-        </div>
-      </div>
+      <ContestBar 
+        timeLeft={timeLeft}
+        strikeCount={strikeCount}
+        MAX_WARNINGS={MAX_WARNINGS}
+        projectName={projectName}
+        contestStarted={contestStarted}
+        onStartContest={startContest}
+        onNewProject={openNewProjectModal}
+        onQuitContest={quitContest}
+        formatTime={formatTime}
+      />
 
       <div className={`editor-layout ${showWarningModal ? "blur-effect" : ""}`} style={{ height: "calc(100vh - 100px)" }}>
         <FileExplorer activeFile={activeFile} setActiveFile={setActiveFile} />
@@ -626,6 +520,7 @@ export default function EditorLayout() {
             </button>
             <button 
               onClick={async () => {
+                if (!contestStarted) return;
                 const token = localStorage.getItem("token");
                 if (!token) return;
                 try {
@@ -642,17 +537,23 @@ export default function EditorLayout() {
                   console.error("Submission failed", err);
                 }
               }} 
+              disabled={!contestStarted}
               className="preview-toggle" 
               style={{ 
                 flex: 1,
                 padding: "8px",
-                background: "linear-gradient(135deg, #0ea5e9, #2563eb)", 
+                background: contestStarted 
+                  ? "linear-gradient(135deg, #0ea5e9, #2563eb)" 
+                  : "#334155", 
                 border: "none",
                 borderRadius: "4px",
-                color: "white",
+                color: contestStarted ? "white" : "#94a3b8",
                 fontWeight: "bold",
-                cursor: "pointer",
-                boxShadow: "0 4px 10px rgba(14, 165, 233, 0.2)"
+                cursor: contestStarted ? "pointer" : "not-allowed",
+                boxShadow: contestStarted 
+                  ? "0 4px 10px rgba(14, 165, 233, 0.2)" 
+                  : "none",
+                opacity: contestStarted ? 1 : 0.7
               }}
             >
               🚀 Submit
@@ -676,6 +577,7 @@ function getEditorConfig(activeFile: string, states: any) {
     "index.html": { language: "html", value: states.html, onChange: states.setHtml },
     "styles.css": { language: "css", value: states.css, onChange: states.setCss },
     "script.js": { language: "javascript", value: states.js, onChange: states.setJs },
+    "README.md": { language: "markdown", value: INITIAL_README, onChange: () => {} },
   };
 
   return configs[activeFile];

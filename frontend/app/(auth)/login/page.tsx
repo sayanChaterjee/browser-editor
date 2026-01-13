@@ -18,10 +18,7 @@ export default function LoginPage() {
   };
 
   const validatePassword = (value: string) => {
-    if (value.length < 6)
-      return "Password must be at least 6 characters";
-    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#_])/.test(value))
-      return "Password must be strong";
+    if (!value) return "Password is required";
     return "";
   };
 

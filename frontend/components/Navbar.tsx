@@ -15,26 +15,36 @@ export default function Navbar() {
 
   useEffect(() => {
     setMounted(true);
-    const token = localStorage.getItem("token");
+    let token = localStorage.getItem("token");
+    
+    // Recovery: If token in localStorage is missing but cookie exists, restore it
+    if (!token) {
+      const match = document.cookie.match(new RegExp('(^| )token=([^;]+)'));
+      if (match) {
+        token = match[2];
+        localStorage.setItem("token", token);
+      }
+    }
+
     setIsLoggedIn(!!token);
     
     if (token) {
-      // Fetch fresh profile if needed
+      // Fetch fresh profile
       fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/user/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      .then(res => res.ok ? res.text() : "")
-      .then(text => {
-        if (text) {
-          try {
-            const data = JSON.parse(text);
-            
-            if (data.name) {
-              setUserInfo({ username: data.name, email: data.email });
-            }
-          } catch (e) {
-            console.error("Navbar profile JSON parse error", e);
-          }
+      .then(res => {
+        if (res.status === 401) {
+          logout();
+          return null;
+        }
+        return res.ok ? res.json() : null;
+      })
+      .then(data => {
+        if (data && data.name) {
+          setUserInfo({ username: data.name, email: data.email });
+          localStorage.setItem("username", data.name);
+          localStorage.setItem("email", data.email);
         }
       })
       .catch(err => console.error("Profile fetch in navbar failed", err));

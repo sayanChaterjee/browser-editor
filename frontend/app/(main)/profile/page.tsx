@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
-interface Submission {
+interface Project {
   _id: string;
+  name: string;
   html: string;
   css: string;
   js: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 interface UserProfile {
@@ -19,8 +21,9 @@ interface UserProfile {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,19 +41,31 @@ export default function ProfilePage() {
         const profRes = await fetch(`${apiUrl}/api/v1/user/profile`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+
+        if (profRes.status === 401) {
+          localStorage.clear();
+          document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          router.push("/login");
+          return;
+        }
+
         if (profRes.ok) {
           const profData = await profRes.json();
-          console.log("Profile Page Data:", profData);
           setUser(profData);
         }
 
-        // Fetch Submissions
-        const subRes = await fetch(`${apiUrl}/api/v1/code/submissions`, {
+        // Fetch Projects
+        const projRes = await fetch(`${apiUrl}/api/v1/code`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (subRes.ok) {
-          const subData = await subRes.json();
-          setSubmissions(subData);
+        if (projRes.ok) {
+          const projData = await projRes.json();
+          if (Array.isArray(projData)) {
+            setProjects(projData);
+          } else {
+            setProjects([]);
+          }
+        } else {
         }
       } catch (err) {
         console.error("Profile page load failed", err);
@@ -60,7 +75,26 @@ export default function ProfilePage() {
     };
 
     fetchData();
-  }, [router]);
+  }, [router, pathname]);
+
+  const deleteProject = async (projectId: string) => {
+    if (!confirm("Are you sure you want to delete this project?")) return;
+
+    const token = localStorage.getItem("token");
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+      const res = await fetch(`${apiUrl}/api/v1/code/${projectId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setProjects(projects.filter(p => p._id !== projectId));
+        alert("Project deleted successfully");
+      }
+    } catch (err) {
+      console.error("Delete failed", err);
+    }
+  };
 
   if (loading) {
     return <div className="loading-screen">Loading Profile...</div>;
@@ -98,7 +132,7 @@ export default function ProfilePage() {
         
         <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', marginTop: '10px' }}>
             <div style={{ textAlign: 'center' }}>
-                <p style={{ color: '#38bdf8', fontWeight: '800', fontSize: '22px', marginBottom: '4px' }}>{submissions.length}</p>
+                <p style={{ color: '#38bdf8', fontWeight: '800', fontSize: '22px', marginBottom: '4px' }}>{projects.length}</p>
                 <p style={{ color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Sessions</p>
             </div>
             <div style={{ height: '40px', width: '1px', background: '#334155' }}></div>
@@ -112,12 +146,12 @@ export default function ProfilePage() {
       <div className="submissions-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <span style={{ color: '#38bdf8' }}>📦</span> Submission History
+               <span style={{ color: '#38bdf8' }}>📂</span> My Projects
             </h2>
-            <span style={{ color: '#64748b', fontSize: '13px' }}>{submissions.length} Total Snapshots</span>
+            <span style={{ color: '#64748b', fontSize: '13px' }}>{projects.length} Total Projects</span>
         </div>
 
-        {submissions.length === 0 ? (
+        {projects.length === 0 ? (
           <div style={{ 
             background: '#1e293b', 
             padding: '60px 20px', 
@@ -125,20 +159,20 @@ export default function ProfilePage() {
             border: '1px dashed #334155', 
             textAlign: 'center' 
           }}>
-            <div style={{ fontSize: '40px', marginBottom: '15px', opacity: 0.5 }}>📝</div>
-            <p style={{ color: '#94a3b8', fontSize: '16px' }}>No code submissions found yet.</p>
+            <div style={{ fontSize: '40px', marginBottom: '15px', opacity: 0.5 }}>🏗️</div>
+            <p style={{ color: '#94a3b8', fontSize: '16px' }}>No projects found yet.</p>
             <button 
                 onClick={() => router.push('/editor')}
                 style={{ marginTop: '20px', background: '#38bdf8', color: '#0f172a', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
             >
-                Start Coding
+                Create New Project
             </button>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '16px' }}>
-            {submissions.map((sub) => (
+            {Array.isArray(projects) && projects.map((proj) => (
               <div 
-                key={sub._id} 
+                key={proj._id} 
                 className="submission-card" 
                 style={{ 
                     background: '#1e293b', 
@@ -155,40 +189,59 @@ export default function ProfilePage() {
               >
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#38bdf8' }}></div>
                 <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#f1f5f9', marginBottom: '8px' }}>
-                    Snapshot: {new Date(sub.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#f8fafc', marginBottom: '4px' }}>
+                    {proj.name}
                   </h3>
+                  <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
+                    Last updated: {new Date(proj.updatedAt).toLocaleString()}
+                  </p>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <span style={{ fontSize: '11px', background: '#0f172a', color: '#38bdf8', padding: '4px 10px', borderRadius: '6px', fontWeight: '600', border: '1px solid #1e293b' }}>
-                        HTML ({sub.html.length})
+                        HTML
                     </span>
                     <span style={{ fontSize: '11px', background: '#0f172a', color: '#10b981', padding: '4px 10px', borderRadius: '6px', fontWeight: '600', border: '1px solid #1e293b' }}>
-                        CSS ({sub.css.length})
+                        CSS
                     </span>
                     <span style={{ fontSize: '11px', background: '#0f172a', color: '#fbbf24', padding: '4px 10px', borderRadius: '6px', fontWeight: '600', border: '1px solid #1e293b' }}>
-                        JS ({sub.js.length})
+                        JS
                     </span>
                   </div>
                 </div>
-                <button 
-                    onClick={() => {
-                        alert("Direct restoration from profile is coming soon! For now, your work is safely persisted.");
-                    }}
-                    className="view-btn"
-                    style={{ 
-                        background: '#334155', 
-                        color: '#f8fafc', 
-                        border: 'none', 
-                        padding: '10px 20px', 
-                        borderRadius: '10px', 
-                        fontSize: '13px', 
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                    }}
-                >
-                  View Details
-                </button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <button 
+                        onClick={() => router.push(`/editor?projectId=${proj._id}`)}
+                        className="view-btn"
+                        style={{ 
+                            background: '#38bdf8', 
+                            color: '#0f172a', 
+                            border: 'none', 
+                            padding: '10px 20px', 
+                            borderRadius: '10px', 
+                            fontSize: '13px', 
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                      Open in Editor
+                    </button>
+                    <button 
+                        onClick={() => deleteProject(proj._id)}
+                        style={{ 
+                            background: 'rgba(239, 68, 68, 0.1)', 
+                            color: '#ef4444', 
+                            border: '1px solid rgba(239, 68, 68, 0.2)', 
+                            padding: '10px 15px', 
+                            borderRadius: '10px', 
+                            fontSize: '13px', 
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                      Delete
+                    </button>
+                </div>
               </div>
             ))}
           </div>
