@@ -1,18 +1,6 @@
 name: ceditor
 
 services:
-  mongodb:
-    image: mongo:7
-    container_name: mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-
   redis:
     image: redis/redis-stack:6.2.6-v19
     container_name: redis
@@ -84,12 +72,11 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
-      - DATABASE_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/ceditor_auth?authSource=admin
+      - DATABASE_URL=${AUTH_DATABASE_URL}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - JWT_SECRET=${JWT_SECRET}
       - KAFKA_BROKER=kafka:9092
     depends_on:
-      - mongodb
       - redis
 
   user-service:
@@ -100,12 +87,11 @@ services:
       - "3002:3002"
     environment:
       - PORT=3002
-      - DATABASE_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/ceditor_user?authSource=admin
+      - DATABASE_URL=${USER_DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - KAFKA_BROKER=kafka:9092
     depends_on:
-      - mongodb
       - redis
 
   code-service:
@@ -116,12 +102,9 @@ services:
       - "3003:3003"
     environment:
       - PORT=3003
-      - DATABASE_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/ceditor_code?authSource=admin
+      - DATABASE_URL=${CODE_DATABASE_URL}
       - JWT_SECRET=${JWT_SECRET}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-    depends_on:
-      - mongodb
 
 volumes:
   redis_data:
-  mongo_data:
