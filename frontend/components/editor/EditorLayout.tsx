@@ -31,6 +31,8 @@ export default function EditorLayout() {
   const [userProfile, setUserProfile] = useState<{ name: string; email: string } | null>(null);
 
   const violationLock = useRef(false);
+  const isQuittingRef = useRef(false);
+
   const MAX_WARNINGS = 4;
 
   const CONTEST_DURATION = 180 * 60;
@@ -132,21 +134,27 @@ export default function EditorLayout() {
       }
     };
 
-    const handleSecurityBreach = () => {
-      if (document.hidden || !document.hasFocus()) {
-        violate();
-      }
-    };
+   const handleSecurityBreach = () => {
+  if (isQuittingRef.current) return;
 
-    const onFullscreenChange = () => {
-      if (
-        !document.fullscreenElement &&
-        !violationLock.current &&
-        !showWarningModal
-      ) {
-        violate();
-      }
-    };
+  if (document.hidden || !document.hasFocus()) {
+    violate();
+  }
+};
+
+
+  const onFullscreenChange = () => {
+  if (isQuittingRef.current) return;
+
+  if (
+    !document.fullscreenElement &&
+    !violationLock.current &&
+    !showWarningModal
+  ) {
+    violate();
+  }
+};
+
 
     const onBlur = () => {
       setTimeout(() => {
@@ -396,34 +404,37 @@ export default function EditorLayout() {
     }
   }, [timeLeft, contestStarted]);
 
-  const quitContest = async () => {
-    if (confirm("Are you sure you want to quit? This will save your progress and exit.")) {
-      // 1. Save content to DB
-      await saveCode();
+ const quitContest = async () => {
+  isQuittingRef.current = true;
 
-      // 2. Exit full screen if active
-      if (document.fullscreenElement) {
-        try {
-          await document.exitFullscreen();
-        } catch (err) {
-          console.error("Error exiting fullscreen:", err);
-        }
+  if (confirm("Are you sure you want to quit? This will save your progress and exit.")) {
+    await saveCode();
+
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch (err) {
+        console.error("Error exiting fullscreen:", err);
       }
-
-      // 3. Clear content from editor
-      setHtml("");
-      setCss("");
-      setJs("");
-
-      // 4. Reset contest state
-      setContestStarted(false);
-      setTimeLeft(CONTEST_DURATION);
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (securityLoopRef.current) clearInterval(securityLoopRef.current);
-      
-      alert("Contest exited. Your data has been saved and editor cleared.");
     }
-  };
+
+    setHtml("");
+    setCss("");
+    setJs("");
+
+    setContestStarted(false);
+    setTimeLeft(CONTEST_DURATION);
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (securityLoopRef.current) clearInterval(securityLoopRef.current);
+
+    alert("Contest exited. Your data has been saved and editor cleared.");
+    logoutUser();
+  }
+
+  isQuittingRef.current = false;
+};
+
+
 
   // ⏱ FORMAT TIME → H:MM:SS
   const formatTime = (seconds: number) => {
