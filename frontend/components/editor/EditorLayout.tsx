@@ -97,89 +97,116 @@ export default function EditorLayout() {
     }
   };
 
-  // 🛡 CONTEST SECURITY HARDENING
+  // 🛡 FIXED CONTEST SECURITY
   useEffect(() => {
     if (!contestStarted) return;
 
-    // 1. Console Deterrent (Exploit debugger)
+    console.log("🔒 SECURITY ACTIVE - Contest Started");
+
+    // 1. Console Deterrent
     securityLoopRef.current = setInterval(() => {
       const startTime = performance.now();
       debugger;
       const endTime = performance.now();
       if (endTime - startTime > 100) {
-        // Console was likely open
+        console.log("⚠️ CONSOLE DETECTED - VIOLATION");
         violate();
       }
     }, 1000);
 
-    // 2. Prevent Keyboard Shortcuts
+    // 2. Keyboard Shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Escape key violation
+      console.log("⌨️ Key:", e.key);
+      
       if (e.key === "Escape") {
+        console.log("⚠️ ESCAPE - VIOLATION");
         e.preventDefault();
         violate();
         return false;
       }
 
-      // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+Shift+C
       if (
         e.key === "F12" ||
         (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
         (e.ctrlKey && e.key === "u") ||
         (e.ctrlKey && e.key === "s")
       ) {
+        console.log("⚠️ BLOCKED SHORTCUT - VIOLATION");
         e.preventDefault();
         violate();
         return false;
       }
     };
 
-   const handleSecurityBreach = () => {
-  if (isQuittingRef.current) return;
-
-  if (document.hidden || !document.hasFocus()) {
-    violate();
-  }
-};
-
-
-  const onFullscreenChange = () => {
-  if (isQuittingRef.current) return;
-
-  if (
-    !document.fullscreenElement &&
-    !violationLock.current &&
-    !showWarningModal
-  ) {
-    violate();
-  }
-};
-
-
-    const onBlur = () => {
-      setTimeout(() => {
-        const activeElem = document.activeElement;
-        const isInternal =
-          activeElem?.closest(".editor-center") ||
-          activeElem?.closest(".preview-panel");
-
-        if (!isInternal) handleSecurityBreach();
-      }, 150);
+    // 3. Tab/Window Switch Detection
+    const handleVisibilityChange = () => {
+      console.log("👁️ VISIBILITY:", document.hidden ? "HIDDEN" : "VISIBLE");
+      
+      if (isQuittingRef.current || violationLock.current) {
+        console.log("   ↳ Skipped");
+        return;
+      }
+      
+      if (document.hidden) {
+        console.log("⚠️ TAB SWITCHED - VIOLATION");
+        violate();
+      }
     };
 
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    document.addEventListener("visibilitychange", handleSecurityBreach);
+    // 4. Window Focus Loss
+    const handleBlur = () => {
+      console.log("💨 WINDOW BLUR");
+      
+      if (isQuittingRef.current || violationLock.current) {
+        console.log("   ↳ Skipped");
+        return;
+      }
+      
+      console.log("⚠️ FOCUS LOST - VIOLATION");
+      violate();
+    };
+
+    // 5. Fullscreen Exit
+    const handleFullscreenChange = () => {
+      console.log("🖥️ FULLSCREEN:", document.fullscreenElement ? "ON" : "OFF");
+      
+      if (isQuittingRef.current) return;
+
+      if (!document.fullscreenElement && !violationLock.current && !showWarningModal) {
+        console.log("⚠️ EXITED FULLSCREEN - VIOLATION");
+        violate();
+      }
+    };
+
+    // 6. Page Hide (backup for desktop switching)
+    const handlePageHide = () => {
+      console.log("📄 PAGE HIDE");
+      if (!isQuittingRef.current && !violationLock.current) {
+        console.log("⚠️ PAGE HIDDEN - VIOLATION");
+        violate();
+      }
+    };
+
+    // Attach listeners
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("blur", onBlur);
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("pagehide", handlePageHide);
 
+    console.log("✅ All security listeners attached");
+
+    // Cleanup
     return () => {
+      console.log("🔓 SECURITY DEACTIVATED");
       if (securityLoopRef.current) clearInterval(securityLoopRef.current);
-      document.removeEventListener("fullscreenchange", onFullscreenChange);
-      document.removeEventListener("visibilitychange", handleSecurityBreach);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("pagehide", handlePageHide);
     };
-  }, [contestStarted, showWarningModal]);
+  }, [contestStarted, showWarningModal, strikeCount]);
 
 
   const startContest = async () => {
@@ -221,7 +248,7 @@ export default function EditorLayout() {
     const initData = async () => {
       const token = localStorage.getItem("token");
       if (!token) {
-        router.push("/login"); // Strict redirect if no token
+        router.push("/login");
         return;
       }
 
@@ -242,7 +269,6 @@ export default function EditorLayout() {
             }
           }
         } else if (profRes.status === 401) {
-           // Token invalid
            logoutUser();
            return;
         }
@@ -270,7 +296,6 @@ export default function EditorLayout() {
             setProjectId(targetProject._id);
             setProjectName(targetProject.name);
             
-            // Try to load from local cache first
             const localData = await getLocalProject(targetProject._id);
             if (localData && new Date(localData.updatedAt) > new Date(targetProject.updatedAt)) {
               setHtml(localData.html);
@@ -286,7 +311,6 @@ export default function EditorLayout() {
               setTimeLeft(targetProject.timeLeft);
             }
           } else {
-            // No projects found - mandatory creation
             setIsModalCancelable(false);
             setIsContestPending(false);
             setShowCreateModal(true);
@@ -298,14 +322,13 @@ export default function EditorLayout() {
     };
 
     initData();
-  }, [router]); // Re-fetch when navigating back to this page
+  }, [router]);
 
 
 
   const handleCreateProject = async (name: string) => {
     setIsCreatingProject(true);
     
-    // Immediately save it to backend
     const token = localStorage.getItem("token");
     if (!token) {
       console.error("No token found, cannot save project");
@@ -335,7 +358,6 @@ export default function EditorLayout() {
         const newData = await res.json();
         
         if (newData._id) {
-          // Success: Update main states
           setProjectName(name);
           setHtml(INITIAL_HTML);
           setCss(INITIAL_CSS);
@@ -396,7 +418,6 @@ export default function EditorLayout() {
     }
   };
 
-  // ⏱ AUTO END WHEN TIME OVER
   useEffect(() => {
     if (contestStarted && timeLeft <= 0) {
       alert("Time's up!");
@@ -404,39 +425,36 @@ export default function EditorLayout() {
     }
   }, [timeLeft, contestStarted]);
 
- const quitContest = async () => {
-  isQuittingRef.current = true;
+  const quitContest = async () => {
+    isQuittingRef.current = true;
 
-  if (confirm("Are you sure you want to quit? This will save your progress and exit.")) {
-    await saveCode();
+    if (confirm("Are you sure you want to quit? This will save your progress and exit.")) {
+      await saveCode();
 
-    if (document.fullscreenElement) {
-      try {
-        await document.exitFullscreen();
-      } catch (err) {
-        console.error("Error exiting fullscreen:", err);
+      if (document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch (err) {
+          console.error("Error exiting fullscreen:", err);
+        }
       }
+
+      setHtml("");
+      setCss("");
+      setJs("");
+
+      setContestStarted(false);
+      setTimeLeft(CONTEST_DURATION);
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (securityLoopRef.current) clearInterval(securityLoopRef.current);
+
+      alert("Contest exited. Your data has been saved and editor cleared.");
+      logoutUser();
     }
 
-    setHtml("");
-    setCss("");
-    setJs("");
+    isQuittingRef.current = false;
+  };
 
-    setContestStarted(false);
-    setTimeLeft(CONTEST_DURATION);
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (securityLoopRef.current) clearInterval(securityLoopRef.current);
-
-    alert("Contest exited. Your data has been saved and editor cleared.");
-    logoutUser();
-  }
-
-  isQuittingRef.current = false;
-};
-
-
-
-  // ⏱ FORMAT TIME → H:MM:SS
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
