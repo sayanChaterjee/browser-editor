@@ -28,6 +28,14 @@ export default function Preview({ html, css, js }: Props) {
     ${html}
     <script>
       ${js}
+      // Security: Prevent navigation via links
+      document.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
+          e.preventDefault();
+          window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
+        }
+      }, true);
     <\/script>
   </body>
 </html>

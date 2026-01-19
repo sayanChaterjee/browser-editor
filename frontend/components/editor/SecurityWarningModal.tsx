@@ -7,7 +7,7 @@ interface SecurityWarningModalProps {
   strikeCount: number;
   MAX_WARNINGS: number;
   onResume: () => void;
-  onQuit: () => void;
+  onSubmit: () => void;
 }
 
 export default function SecurityWarningModal({
@@ -15,7 +15,7 @@ export default function SecurityWarningModal({
   strikeCount,
   MAX_WARNINGS,
   onResume,
-  onQuit,
+  onSubmit,
 }: SecurityWarningModalProps) {
   if (!isVisible) return null;
 
@@ -35,8 +35,8 @@ export default function SecurityWarningModal({
           <button className="resume-btn" onClick={onResume}>
             Return to Contest
           </button>
-          <button className="quit-btn" onClick={onQuit}>
-            Quit Contest
+          <button className="quit-btn" onClick={onSubmit}>
+            Submit & Exit
           </button>
         </div>
       </div>

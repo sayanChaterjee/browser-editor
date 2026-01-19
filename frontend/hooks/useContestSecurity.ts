@@ -105,7 +105,14 @@ export function useContestSecurity({
                 }
                 return;
             }
-            violate();
+
+            // Small delay to let document.activeElement update
+            setTimeout(() => {
+                if (document.activeElement?.tagName === "IFRAME") {
+                    return; // Focus moved to preview iframe, ignore
+                }
+                violate();
+            }, 100);
         };
 
         // 5. Fullscreen Exit
@@ -123,11 +130,18 @@ export function useContestSecurity({
             }
         };
 
+        const handleMessage = (e: MessageEvent) => {
+            if (e.data?.type === "PREVIEW_LINK_CLICK") {
+                violate();
+            }
+        };
+
         document.addEventListener("fullscreenchange", handleFullscreenChange);
         document.addEventListener("visibilitychange", handleVisibilityChange);
         document.addEventListener("keydown", handleKeyDown);
         window.addEventListener("blur", handleBlur);
         window.addEventListener("pagehide", handlePageHide);
+        window.addEventListener("message", handleMessage);
 
         return () => {
             if (securityLoopRef.current) clearInterval(securityLoopRef.current);
@@ -136,6 +150,7 @@ export function useContestSecurity({
             document.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("blur", handleBlur);
             window.removeEventListener("pagehide", handlePageHide);
+            window.removeEventListener("message", handleMessage);
         };
     }, [contestStarted, showWarningModal, strikeCount]);
 

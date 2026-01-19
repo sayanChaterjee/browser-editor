@@ -110,6 +110,7 @@ export default function EditorLayout() {
       await document.documentElement.requestFullscreen();
       setStrikeCount(0);
       setContestStarted(true);
+      setTimeLeft(CONTEST_DURATION);
       startTimer();
     } catch {
       setIgnoreNextBlur(true);
@@ -140,54 +141,56 @@ export default function EditorLayout() {
     setIsContestPending(false);
   };
 
-  const quitContest = async () => {
+  const handleSubmit = async () => {
+    if (!contestStarted) return;
+    
     isQuittingRef.current = true;
     setIgnoreNextBlur(true);
-    if (confirm("Are you sure you want to quit? This will save your progress and exit.")) {
-      await saveCode({ html, css, js, timeLeft });
 
-      if (document.fullscreenElement) {
-        try {
-          await document.exitFullscreen();
-        } catch (err) {
-          console.error("Error exiting fullscreen:", err);
+    if (confirm("Are you sure you want to submit? This will save your progress and exit.")) {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        // First save to standard save endpoint
+        await saveCode({ html, css, js, timeLeft });
+
+        // Then submit to snapshot endpoint
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/submit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ projectId, html, css, js, timeLeft }),
+        });
+
+        if (res.ok) {
+          alert("Project submitted successfully! Your progress has been saved.");
         }
+      } catch (err) {
+        console.error("Submission/Save failed", err);
+      } finally {
+        if (document.fullscreenElement) {
+          try {
+            await document.exitFullscreen();
+          } catch (err) {
+            console.error("Error exiting fullscreen:", err);
+          }
+        }
+
+        setHtml("");
+        setCss("");
+        setJs("");
+        setContestStarted(false);
+        stopTimer();
+        setTimeLeft(CONTEST_DURATION);
+        
+        logoutUser();
       }
-
-      setHtml("");
-      setCss("");
-      setJs("");
-      setContestStarted(false);
-      stopTimer();
-      setTimeLeft(CONTEST_DURATION);
-
-      alert("Contest exited. Your data has been saved and editor cleared.");
-      logoutUser();
     }
 
     isQuittingRef.current = false;
-  };
-
-  const handleSubmit = async () => {
-    if (!contestStarted) return;
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ projectId, html, css, js, timeLeft }),
-      });
-      if (res.ok) {
-        setIgnoreNextBlur(true);
-        alert("Snapshot submitted successfully! View it in your profile.");
-      }
-    } catch (err) {
-      console.error("Submission failed", err);
-    }
   };
 
   return (
@@ -197,7 +200,7 @@ export default function EditorLayout() {
         strikeCount={strikeCount}
         MAX_WARNINGS={MAX_WARNINGS}
         onResume={resumeContest}
-        onQuit={quitContest}
+        onSubmit={handleSubmit}
       />
 
       {showCreateModal && (
@@ -217,7 +220,6 @@ export default function EditorLayout() {
         contestStarted={contestStarted}
         onStartContest={startContest}
         onNewProject={openNewProjectModal}
-        onQuitContest={quitContest}
         formatTime={formatTime}
       />
 

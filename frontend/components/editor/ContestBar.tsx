@@ -10,7 +10,6 @@ interface ContestBarProps {
   contestStarted: boolean;
   onStartContest: () => void;
   onNewProject: () => void;
-  onQuitContest: () => void;
   formatTime: (seconds: number) => string;
 }
 
@@ -22,7 +21,6 @@ export default function ContestBar({
   contestStarted,
   onStartContest,
   onNewProject,
-  onQuitContest,
   formatTime,
 }: ContestBarProps) {
   return (
@@ -90,22 +88,6 @@ export default function ContestBar({
         >
           {contestStarted ? "Contest Active" : "Start Contest"}
         </button>
-        {contestStarted && (
-          <button 
-            className="quit-link" 
-            onClick={onQuitContest} 
-            style={{ 
-              color: "#94a3b8", 
-              fontSize: "0.85rem", 
-              textDecoration: "none",
-              background: "none",
-              border: "none",
-              cursor: "pointer"
-            }}
-          >
-            Quit
-          </button>
-        )}
       </div>
     </div>
   );
