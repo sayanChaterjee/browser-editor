@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,8 +13,8 @@ export default function LoginPage() {
 
 
   const validateEmail = (value: string) => {
-    if (!value.endsWith("@gmail.com"))
-      return "Email must be a @gmail.com address";
+    // if (!value.endsWith("@gmail.com"))
+    //   return "Email must be a @gmail.com address";
     return "";
   };
 
@@ -108,7 +109,7 @@ export default function LoginPage() {
         </button>
 
         <div className="login-options">
-          <a href="#">Forgot Password</a>
+          <Link href="/forgot-password">Forgot Password</Link>
         </div>
 
         <div className="register-text">

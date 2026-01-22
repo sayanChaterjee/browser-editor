@@ -23,8 +23,8 @@ export default function RegisterPage() {
   };
 
   const validateEmail = (value: string) => {
-    if (!value.toLowerCase().endsWith("@gmail.com"))
-      return "Email must be a @gmail.com address";
+    // if (!value.toLowerCase().endsWith("@gmail.com"))
+    //   return "Email must be a @gmail.com address";
     return "";
   };
 const validatePassword = (value: string) => {

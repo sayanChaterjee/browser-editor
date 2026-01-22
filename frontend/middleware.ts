@@ -6,7 +6,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Define public paths that don't require authentication
-  const isPublicPath = pathname === '/login' || pathname === '/register';
+  const isPublicPath =
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password';
 
   if (!token && !isPublicPath) {
     // Redirect to login if trying to access a protected route without a token
