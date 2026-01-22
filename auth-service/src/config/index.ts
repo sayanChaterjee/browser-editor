@@ -9,6 +9,7 @@ interface Config {
   REFRESH_TOKEN_EXPIRES_IN?: string;
   LOG_LEVEL: string;
   ALLOWED_ORIGINS: string;
+  RESEND_API_KEY: string;
 }
 
 export const config: Config = {
@@ -23,6 +24,7 @@ export const config: Config = {
   REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
+  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
 };
 
 if (!process.env.DATABASE_URL) {

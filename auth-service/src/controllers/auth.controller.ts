@@ -5,9 +5,10 @@ import { producer } from '../config/kafka';
 
 const registerSchema = z.object({
   name: z.string().min(3).max(100),
-  email: z.string().email().refine((val) => val.toLowerCase().endsWith('@gmail.com'), {
-    message: "Email must be a @gmail.com address",
-  }),
+  email: z.string().email(),
+  // .refine((val) => val.toLowerCase().endsWith('@gmail.com'), {
+  //   message: "Email must be a @gmail.com address",
+  // }),
   password: z.string().min(6).max(100),
 });
 
@@ -62,7 +63,7 @@ export class AuthController {
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -74,23 +75,23 @@ export class AuthController {
   }
 
   async refresh(req: Request, res: Response): Promise<any> {
-  const refreshToken = req.cookies?.refreshToken;
-  if (!refreshToken) {
-    return res.status(401).json({ message: 'missing refresh token' });
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'missing refresh token' });
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } =
+      await this.authService.refresh(refreshToken);
+
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({ accessToken });
   }
-
-  const { accessToken, refreshToken: newRefreshToken } =
-    await this.authService.refresh(refreshToken);
-
-  res.cookie('refreshToken', newRefreshToken, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: false,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-
-  return res.status(200).json({ accessToken });
-}
 
   async logout(req: Request, res: Response): Promise<any> {
     await this.authService.logout(req.userId!, req.token);
@@ -101,16 +102,16 @@ export class AuthController {
   }
 
   async forgotPassword(req: Request, res: Response): Promise<any> {
-  const { email } = forgotPasswordSchema.parse(req.body);
-  await this.authService.forgotPassword(email);
+    const { email } = forgotPasswordSchema.parse(req.body);
+    await this.authService.forgotPassword(email);
 
-  return res.status(200).json({ message: 'If an account exists, a reset link has been sent.' });
-}
+    return res.status(200).json({ message: 'If an account exists, a reset link has been sent.' });
+  }
 
-async resetPassword(req: Request, res: Response): Promise<any> {
-  const { token, newPassword } = resetPasswordSchema.parse(req.body);
-  await this.authService.resetPassword(token, newPassword);
+  async resetPassword(req: Request, res: Response): Promise<any> {
+    const { token, newPassword } = resetPasswordSchema.parse(req.body);
+    await this.authService.resetPassword(token, newPassword);
 
-  return res.status(200).json({ message: 'Password updated successfully' });
-}
+    return res.status(200).json({ message: 'Password updated successfully' });
+  }
 }
