@@ -108,79 +108,91 @@ const validatePassword = (value: string) => {
     !validateConfirm(confirm);
 
   return (
-    <div className="login-wrapper">
-      <div className="login-card">
-        <div className="avatar">
+    <div className="h-[calc(100vh-50px)] flex items-center justify-center">
+      <div className="w-[360px] bg-[#1b1b1b] rounded-[10px] p-[30px] border border-[#333] shadow-[0_0_30px_rgba(0,0,0,0.8)] text-center">
+        <div className="w-[70px] h-[70px] bg-[#333] rounded-full -mt-[60px] mx-auto mb-[10px] flex items-center justify-center text-[30px]">
           <span>🧑‍💻</span>
         </div>
 
-        <h2>CREATE ACCOUNT</h2>
+        <h2 className="mb-5 tracking-[2px] font-bold text-white text-lg">CREATE ACCOUNT</h2>
 
-        <form onSubmit={handleRegister}>
-          <div className="input-group">
-            <span className="icon">👤</span>
-            <input
-              type="text"
-              placeholder="Username"
-              value={username}
-              onChange={(e) => {
-                setUsername(e.target.value);
-                setErrors({ ...errors, username: validateUsername(e.target.value) });
-              }}
-            />
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div>
+            <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">
+              <span className="mr-2">👤</span>
+              <input
+                type="text"
+                placeholder="Username"
+                className="bg-transparent border-none outline-none text-white w-full text-[14px]"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setErrors({ ...errors, username: validateUsername(e.target.value) });
+                }}
+              />
+            </div>
+            {errors.username && <p className="text-red-500 text-[12px] mt-1 text-left">{errors.username}</p>}
           </div>
-          {errors.username && <p className="error-text">{errors.username}</p>}
 
-          <div className="input-group">
-            <span className="icon">📧</span>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setErrors({ ...errors, email: validateEmail(e.target.value) });
-              }}
-            />
+          <div>
+            <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">
+              <span className="mr-2">📧</span>
+              <input
+                type="email"
+                placeholder="Email"
+                className="bg-transparent border-none outline-none text-white w-full text-[14px]"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrors({ ...errors, email: validateEmail(e.target.value) });
+                }}
+              />
+            </div>
+            {errors.email && <p className="text-red-500 text-[12px] mt-1 text-left">{errors.email}</p>}
           </div>
-          {errors.email && <p className="error-text">{errors.email}</p>}
 
-          <div className="input-group">
-            <span className="icon">🔒</span>
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setErrors({ ...errors, password: validatePassword(e.target.value) });
-              }}
-            />
+          <div>
+            <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">
+              <span className="mr-2">🔒</span>
+              <input
+                type="password"
+                placeholder="Password"
+                className="bg-transparent border-none outline-none text-white w-full text-[14px]"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrors({ ...errors, password: validatePassword(e.target.value) });
+                }}
+              />
+            </div>
+            {errors.password && <p className="text-red-500 text-[12px] mt-1 text-left inline-block w-full">{errors.password}</p>}
           </div>
-          {errors.password && <p className="error-text">{errors.password}</p>}
 
-          <div className="input-group">
-            <span className="icon">🔒</span>
-            <input
-              type="password"
-              placeholder="Confirm Password"
-              value={confirm}
-              onChange={(e) => {
-                setConfirm(e.target.value);
-                setErrors({ ...errors, confirm: validateConfirm(e.target.value) });
-              }}
-            />
+          <div>
+            <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">
+              <span className="mr-2">🔒</span>
+              <input
+                type="password"
+                placeholder="Confirm Password"
+                className="bg-transparent border-none outline-none text-white w-full text-[14px]"
+                value={confirm}
+                onChange={(e) => {
+                  setConfirm(e.target.value);
+                  setErrors({ ...errors, confirm: validateConfirm(e.target.value) });
+                }}
+              />
+            </div>
+            {errors.confirm && <p className="text-red-500 text-[12px] mt-1 text-left">{errors.confirm}</p>}
           </div>
-          {errors.confirm && <p className="error-text">{errors.confirm}</p>}
 
-          <button className="login-btn" type="submit" disabled={!isFormValid}>
+          <button className="w-full p-2.5 bg-[#00ffcc] text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer transition-colors hover:bg-[#00e6b8] disabled:opacity-50 disabled:cursor-not-allowed" type="submit" disabled={!isFormValid}>
             Register
           </button>
         </form>
 
-        <p className="register-text">
+        <p className="mt-5 text-[12px] text-[#aaa]">
           Already have an account?
-          <a href="/login"> LOGIN</a>
+          <a href="/login" className="text-white font-bold no-underline ml-1 hover:underline"> LOGIN</a>
         </p>
       </div>
     </div>

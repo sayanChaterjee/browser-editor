@@ -97,147 +97,91 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <div className="loading-screen">Loading Profile...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-56px)] text-white text-xl">
+        Loading Profile...
+      </div>
+    );
   }
 
   return (
-    <div className="profile-page-wrapper" style={{ padding: '40px 20px', maxWidth: '1000px', margin: '0 auto', minHeight: 'calc(100vh - 56px)' }}>
-      <div className="profile-header" style={{ 
-        background: 'linear-gradient(145deg, #1e293b, #0f172a)', 
-        padding: '40px', 
-        borderRadius: '24px', 
-        border: '1px solid #334155', 
-        marginBottom: '40px', 
-        textAlign: 'center',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)'
-      }}>
-        <div style={{ 
-          width: '100px', 
-          height: '100px', 
-          background: 'linear-gradient(135deg, #38bdf8, #2563eb)', 
-          borderRadius: '50%', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          fontSize: '42px', 
-          fontWeight: 'bold',
-          color: 'white',
-          margin: '0 auto 20px',
-          boxShadow: '0 0 25px rgba(56, 189, 248, 0.4)'
-        }}>
+    <div className="py-10 px-5 max-w-[1000px] mx-auto min-h-[calc(100vh-56px)]">
+      <div className="bg-gradient-to-br from-[#1e293b] to-[#0f172a] p-10 rounded-[24px] border border-[#334155] mb-10 text-center shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+        <div className="w-[100px] h-[100px] bg-gradient-to-br from-[#38bdf8] to-[#2563eb] rounded-full flex items-center justify-center text-[42px] font-bold text-white mx-auto mb-5 shadow-[0_0_25px_rgba(56,189,248,0.4)]">
           {user?.name?.[0]?.toUpperCase() || 'U'}
         </div>
-        <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#f8fafc', marginBottom: '8px', letterSpacing: '-0.025em' }}>{user?.name}</h1>
-        <p style={{ color: '#94a3b8', fontSize: '15px', marginBottom: '24px' }}>{user?.email}</p>
+        <h1 className="text-[28px] font-extrabold text-[#f8fafc] mb-2 tracking-tight">{user?.name}</h1>
+        <p className="text-[#94a3b8] text-[15px] mb-6">{user?.email}</p>
         
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', marginTop: '10px' }}>
-            <div style={{ textAlign: 'center' }}>
-                <p style={{ color: '#38bdf8', fontWeight: '800', fontSize: '22px', marginBottom: '4px' }}>{projects.length}</p>
-                <p style={{ color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Sessions</p>
+        <div className="flex justify-center gap-10 mt-2.5">
+            <div className="text-center">
+                <p className="text-[#38bdf8] font-extrabold text-[22px] mb-1">{projects.length}</p>
+                <p className="text-[#64748b] text-[11px] font-semibold uppercase tracking-widest">Sessions</p>
             </div>
-            <div style={{ height: '40px', width: '1px', background: '#334155' }}></div>
-            <div style={{ textAlign: 'center' }}>
-                <p style={{ color: '#10b981', fontWeight: '800', fontSize: '22px', marginBottom: '4px' }}>Active</p>
-                <p style={{ color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Member Since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2026'}</p>
+            <div className="h-10 w-[1px] bg-[#334155]"></div>
+            <div className="text-center">
+                <p className="text-[#10b981] font-extrabold text-[22px] mb-1">Active</p>
+                <p className="text-[#64748b] text-[11px] font-semibold uppercase tracking-widest">Member Since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2026'}</p>
             </div>
         </div>
       </div>
 
-      <div className="submissions-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <span style={{ color: '#38bdf8' }}>📂</span> My Projects
+      <div className="space-y-6">
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-[#f1f5f9] flex items-center gap-3">
+               <span className="text-[#38bdf8]">📂</span> My Projects
             </h2>
-            <span style={{ color: '#64748b', fontSize: '13px' }}>{projects.length} Total Projects</span>
+            <span className="text-[#64748b] text-[13px]">{projects.length} Total Projects</span>
         </div>
 
         {projects.length === 0 ? (
-          <div style={{ 
-            background: '#1e293b', 
-            padding: '60px 20px', 
-            borderRadius: '20px', 
-            border: '1px dashed #334155', 
-            textAlign: 'center' 
-          }}>
-            <div style={{ fontSize: '40px', marginBottom: '15px', opacity: 0.5 }}>🏗️</div>
-            <p style={{ color: '#94a3b8', fontSize: '16px' }}>No projects found yet.</p>
+          <div className="bg-[#1e293b] py-[60px] px-5 rounded-[20px] border border-dashed border-[#334155] text-center">
+            <div className="text-[40px] mb-[15px] opacity-50">🏗️</div>
+            <p className="text-[#94a3b8] text-base">No projects found yet.</p>
             <button 
                 onClick={() => router.push('/editor')}
-                style={{ marginTop: '20px', background: '#38bdf8', color: '#0f172a', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                className="mt-5 bg-[#38bdf8] text-[#0f172a] border-none px-6 py-2.5 rounded-lg font-bold cursor-pointer transition-opacity hover:opacity-90 active:scale-95"
             >
                 Create New Project
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: '16px' }}>
+          <div className="grid gap-4">
             {Array.isArray(projects) && projects.map((proj) => (
               <div 
                 key={proj._id} 
-                className="submission-card" 
-                style={{ 
-                    background: '#1e293b', 
-                    padding: '20px 24px', 
-                    borderRadius: '16px', 
-                    border: '1px solid #334155', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    position: 'relative',
-                    overflow: 'hidden'
-                }}
+                className="group bg-[#1e293b] px-6 py-5 rounded-2xl border border-[#334155] flex justify-between items-center transition-all relative overflow-hidden hover:border-[#38bdf8]/50"
               >
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#38bdf8' }}></div>
-                <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#f8fafc', marginBottom: '4px' }}>
+                <div className="absolute top-0 left-0 w-1 h-full bg-[#38bdf8]"></div>
+                <div className="flex-1 min-w-0 pr-4">
+                  <h3 className="text-lg font-bold text-[#f8fafc] mb-1 truncate">
                     {proj.name}
                   </h3>
-                  <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px' }}>
+                  <p className="text-[12px] text-[#64748b] mb-3">
                     Last updated: {new Date(proj.updatedAt).toLocaleString()}
                   </p>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <span style={{ fontSize: '11px', background: '#0f172a', color: '#38bdf8', padding: '4px 10px', borderRadius: '6px', fontWeight: '600', border: '1px solid #1e293b' }}>
+                  <div className="flex gap-2">
+                    <span className="text-[11px] bg-[#0f172a] text-[#38bdf8] px-2.5 py-1 rounded-md font-semibold border border-[#1e293b]">
                         HTML
                     </span>
-                    <span style={{ fontSize: '11px', background: '#0f172a', color: '#10b981', padding: '4px 10px', borderRadius: '6px', fontWeight: '600', border: '1px solid #1e293b' }}>
+                    <span className="text-[11px] bg-[#0f172a] text-[#10b981] px-2.5 py-1 rounded-md font-semibold border border-[#1e293b]">
                         CSS
                     </span>
-                    <span style={{ fontSize: '11px', background: '#0f172a', color: '#fbbf24', padding: '4px 10px', borderRadius: '6px', fontWeight: '600', border: '1px solid #1e293b' }}>
+                    <span className="text-[11px] bg-[#0f172a] text-[#fbbf24] px-2.5 py-1 rounded-md font-semibold border border-[#1e293b]">
                         JS
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div className="flex gap-3 shrink-0">
                     <button 
                         onClick={() => router.push(`/editor?projectId=${proj._id}`)}
-                        className="view-btn"
-                        style={{ 
-                            background: '#38bdf8', 
-                            color: '#0f172a', 
-                            border: 'none', 
-                            padding: '10px 20px', 
-                            borderRadius: '10px', 
-                            fontSize: '13px', 
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}
+                        className="bg-[#38bdf8] text-[#0f172a] border-none px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer transition-all hover:opacity-90 active:scale-95"
                     >
                       Open in Editor
                     </button>
                     <button 
                         onClick={() => deleteProject(proj._id)}
-                        style={{ 
-                            background: 'rgba(239, 68, 68, 0.1)', 
-                            color: '#ef4444', 
-                            border: '1px solid rgba(239, 68, 68, 0.2)', 
-                            padding: '10px 15px', 
-                            borderRadius: '10px', 
-                            fontSize: '13px', 
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                        }}
+                        className="bg-red-500/10 text-red-500 border border-red-500/20 px-[15px] py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition-all hover:bg-red-500/20 active:scale-95"
                     >
                       Delete
                     </button>

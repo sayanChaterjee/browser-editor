@@ -8,8 +8,8 @@ interface FileTabsProps {
 
 const FileTabs: React.FC<FileTabsProps> = ({ activeFile }) => {
   return (
-    <div className="tabs" style={{ background: "#1e293b", color: "#94a3b8", borderBottom: "1px solid #0f172a" }}>
-      <span style={{ borderBottom: "2px solid #38bdf8", padding: "8px 16px", color: "#f8fafc" }}>{activeFile}</span>
+    <div className="h-9 flex items-center bg-[#1e293b] text-[#94a3b8] border-b border-[#0f172a] text-[13px] z-10 px-3">
+      <span className="border-b-2 border-[#38bdf8] py-2 px-4 color-[#f8fafc] text-[#f8fafc]">{activeFile}</span>
     </div>
   );
 };

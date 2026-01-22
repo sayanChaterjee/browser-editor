@@ -18,55 +18,27 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onSubmit,
 }) => {
   return (
-    <div style={{ padding: "10px", display: "flex", gap: "10px", borderBottom: "1px solid #1e293b" }}>
+    <div className="p-2.5 flex gap-2.5 border-b border-[#1e293b]">
       <button
         onClick={() => setShowQuestion(!showQuestion)}
-        className="preview-toggle"
-        style={{
-          flex: 1,
-          padding: "8px",
-          background: showQuestion ? "#334155" : "#1e293b",
-          border: "1px solid #334155",
-          borderRadius: "4px",
-          color: "white",
-          cursor: "pointer",
-        }}
+        className={`flex-1 p-2 rounded cursor-pointer text-white border transition-colors ${showQuestion ? "bg-[#334155] border-[#334155]" : "bg-[#1e293b] border-[#334155]"}`}
       >
         {showQuestion ? "👁 Preview" : "📝 Question"}
       </button>
       <button
         onClick={onSave}
-        className="preview-toggle"
-        style={{
-          flex: 1,
-          padding: "8px",
-          background: "linear-gradient(135deg, #10b981, #059669)",
-          border: "none",
-          borderRadius: "4px",
-          color: "white",
-          fontWeight: "bold",
-          cursor: "pointer",
-          boxShadow: "0 4px 10px rgba(16, 185, 129, 0.2)",
-        }}
+        className="flex-1 p-2 bg-gradient-to-br from-[#10b981] to-[#059669] border-none rounded text-white font-bold cursor-pointer shadow-[0_4px_10px_rgba(16,185,129,0.2)] transition-opacity hover:opacity-90"
       >
         💾 Save
       </button>
       <button
         onClick={onSubmit}
         disabled={!contestStarted}
-        className="preview-toggle"
-        style={{
-          flex: 1,
-          padding: "8px",
-          background: contestStarted ? "linear-gradient(135deg, #0ea5e9, #2563eb)" : "#334155",
-          border: "none",
-          borderRadius: "4px",
-          color: contestStarted ? "white" : "#94a3b8",
-          fontWeight: "bold",
-          cursor: contestStarted ? "pointer" : "not-allowed",
-          boxShadow: contestStarted ? "0 4px 10px rgba(14, 165, 233, 0.2)" : "none",
-          opacity: contestStarted ? 1 : 0.7,
-        }}
+        className={`flex-1 p-2 border-none rounded font-bold transition-all ${
+          contestStarted 
+            ? "bg-gradient-to-br from-[#0ea5e9] to-[#2563eb] text-white cursor-pointer shadow-[0_4px_10px_rgba(14,165,233,0.2)] hover:opacity-90" 
+            : "bg-[#334155] text-[#94a3b8] cursor-not-allowed opacity-70"
+        }`}
       >
         🚀 Submit
       </button>

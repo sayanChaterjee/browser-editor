@@ -58,14 +58,19 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="login-wrapper">
-        <div className="login-card">
-          <div className="avatar"><span>⚠️</span></div>
-          <h2>INVALID LINK</h2>
-          <p style={{ color: '#ff5555', marginBottom: '20px' }}>
+      <div className="h-[calc(100vh-50px)] flex items-center justify-center">
+        <div className="w-[360px] bg-[#1b1b1b] rounded-[10px] p-[30px] border border-[#333] shadow-[0_0_30px_rgba(0,0,0,0.8)] text-center">
+          <div className="w-[70px] h-[70px] bg-[#333] rounded-full -mt-[60px] mx-auto mb-[10px] flex items-center justify-center text-[30px]">
+            <span>⚠️</span>
+          </div>
+          <h2 className="mb-5 tracking-[2px] font-bold text-white text-lg">INVALID LINK</h2>
+          <p className="text-[#ff5555] mb-5">
             This password reset link is invalid or has expired.
           </p>
-          <button className="login-btn" onClick={() => router.push("/forgot-password")}>
+          <button 
+            className="w-full p-2.5 bg-[#00ffcc] text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer transition-colors hover:bg-[#00e6b8]" 
+            onClick={() => router.push("/forgot-password")}
+          >
             Request New Link
           </button>
         </div>
@@ -74,38 +79,42 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="login-wrapper">
-      <div className="login-card">
-        <div className="avatar"><span>🔒</span></div>
-        <h2>RESET PASSWORD</h2>
-        <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '20px' }}>
+    <div className="h-[calc(100vh-50px)] flex items-center justify-center">
+      <div className="w-[360px] bg-[#1b1b1b] rounded-[10px] p-[30px] border border-[#333] shadow-[0_0_30px_rgba(0,0,0,0.8)] text-center">
+        <div className="w-[70px] h-[70px] bg-[#333] rounded-full -mt-[60px] mx-auto mb-[10px] flex items-center justify-center text-[30px]">
+          <span>🔒</span>
+        </div>
+        <h2 className="mb-5 tracking-[2px] font-bold text-white text-lg">RESET PASSWORD</h2>
+        <p className="text-[12px] text-[#aaa] mb-5">
           Enter your new password below.
         </p>
 
-        <div className="input-group">
-          <span className="icon">🔒</span>
+        <div className="flex items-center bg-[#2a2a2a] rounded-[5px] mb-[15px] p-2.5">
+          <span className="mr-2">🔒</span>
           <input
             type="password"
             placeholder="New Password"
+            className="bg-transparent border-none outline-none text-white w-full text-[14px]"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
 
-        <div className="input-group">
-          <span className="icon">🔒</span>
+        <div className="flex items-center bg-[#2a2a2a] rounded-[5px] mb-[15px] p-2.5">
+          <span className="mr-2">🔒</span>
           <input
             type="password"
             placeholder="Confirm Password"
+            className="bg-transparent border-none outline-none text-white w-full text-[14px]"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
         </div>
 
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="text-red-500 text-[12px] mb-2 -mt-2 text-left">{error}</p>}
 
         <button
-          className="login-btn"
+          className="w-full p-2.5 bg-[#00ffcc] text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer transition-colors hover:bg-[#00e6b8] disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleResetPassword}
           disabled={loading || !password || !confirmPassword}
         >

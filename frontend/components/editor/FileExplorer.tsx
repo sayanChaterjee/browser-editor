@@ -14,16 +14,15 @@ const files = [
 
 export default function FileExplorer({ activeFile, setActiveFile }: Props) {
   return (
-    <div className="explorer">
-      <h4>EXPLORER</h4>
+    <div className="w-[220px] bg-[#252526] p-[10px] border-r border-[#333]">
+      <h4 className="text-[12px] mb-2.5 text-[#ccc] font-bold">EXPLORER</h4>
 
       {files.map((file) => (
         <div
           key={file.name}
-          className={`file ${activeFile === file.name ? "active" : ""}`}
+          className={`px-2 py-1.5 cursor-pointer rounded text-[13px] transition-colors flex items-center ${activeFile === file.name ? "bg-[#37373d]" : "hover:bg-[#2a2d2e]"}`}
           onClick={() => setActiveFile(file.name)}
         >
-        
           {file.name === "index.html" && (
             <i className="devicon-html5-plain colored" />
           )}
@@ -34,10 +33,10 @@ export default function FileExplorer({ activeFile, setActiveFile }: Props) {
             <i className="devicon-javascript-plain colored" />
           )}
           {file.name === "README.md" && (
-            <span style={{ fontWeight: "bold" }}>📘</span>
+            <span className="font-bold">📘</span>
           )}
 
-          <span style={{ marginLeft: "8px" }}>{file.name}</span>
+          <span className="ml-2">{file.name}</span>
         </div>
       ))}
     </div>

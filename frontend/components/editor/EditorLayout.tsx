@@ -194,7 +194,7 @@ export default function EditorLayout() {
   };
 
   return (
-    <div className="editor-layout-wrapper" onContextMenu={(e) => e.preventDefault()}>
+    <div className="h-[calc(100vh-56px)] flex flex-col select-none" onContextMenu={(e) => e.preventDefault()}>
       <SecurityWarningModal 
         isVisible={showWarningModal}
         strikeCount={strikeCount}
@@ -223,10 +223,10 @@ export default function EditorLayout() {
         formatTime={formatTime}
       />
 
-      <div className={`editor-layout ${showWarningModal ? "blur-effect" : ""}`} style={{ height: "calc(100vh - 100px)" }}>
+      <div className={`flex h-[calc(100vh-100px)] min-w-0 ${showWarningModal ? "blur-sm pointer-events-none" : ""}`}>
         <FileExplorer activeFile={activeFile} setActiveFile={setActiveFile} />
 
-        <div className="editor-center" style={{ background: "#0f172a" }}>
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0f172a]">
           <FileTabs activeFile={activeFile} />
           <CodeEditor
             {...getEditorConfig(activeFile, {
@@ -240,7 +240,7 @@ export default function EditorLayout() {
           />
         </div>
 
-        <div className="preview-panel" style={{ background: "#0f172a" }}>
+        <div className="flex-1 w-full min-w-[320px] flex flex-col bg-[#0f172a] border-l border-[#333] overflow-hidden">
           <EditorToolbar 
             showQuestion={showQuestion}
             setShowQuestion={setShowQuestion}
@@ -251,7 +251,7 @@ export default function EditorLayout() {
             }}
             onSubmit={handleSubmit}
           />
-          <div style={{ flex: 1, overflow: "hidden" }}>
+          <div className="flex-1 overflow-hidden">
             {showQuestion ? (
               <QuestionPanel />
             ) : (

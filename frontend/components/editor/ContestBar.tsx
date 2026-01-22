@@ -24,67 +24,40 @@ export default function ContestBar({
   formatTime,
 }: ContestBarProps) {
   return (
-    <div className="contest-bar" style={{ 
-      background: "#0f172a", 
-      borderBottom: "1px solid #1e293b", 
-      height: "50px", 
-      padding: "0 20px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between"
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-        <span style={{ 
-          color: timeLeft < 300 ? "#f87171" : "#38bdf8", 
-          fontWeight: "600", 
-          fontSize: "1.1rem", 
-          fontFamily: "monospace" 
-        }}>
+    <div className="bg-[#0f172a] border-b border-[#1e293b] h-[50px] px-5 flex items-center justify-between">
+      <div className="flex items-center gap-5">
+        <span className={`font-semibold text-[1.1rem] font-mono ${timeLeft < 300 ? "text-[#f87171]" : "text-[#38bdf8]"}`}>
           ⏱ {formatTime(timeLeft)}
         </span>
-        <div style={{ height: "20px", width: "1px", background: "#334155" }} />
-        <span style={{ color: "#94a3b8", fontSize: "0.9rem" }}>
-          Strikes: <span style={{ color: strikeCount > 0 ? "#f87171" : "#10b981" }}>{strikeCount} / {MAX_WARNINGS}</span>
+        <div className="h-5 w-[1px] bg-[#334155]" />
+        <span className="text-[#94a3b8] text-[0.9rem]">
+          Strikes: <span className={strikeCount > 0 ? "text-[#f87171]" : "text-[#10b981]"}>{strikeCount} / {MAX_WARNINGS}</span>
         </span>
         {projectName && (
           <>
-            <div style={{ height: "20px", width: "1px", background: "#334155" }} />
-            <span style={{ color: "#38bdf8", fontSize: "0.95rem", fontWeight: "600" }}>
+            <div className="h-5 w-[1px] bg-[#334155]" />
+            <span className="text-[#38bdf8] text-[0.95rem] font-semibold">
               📂 {projectName}
             </span>
           </>
         )}
       </div>
 
-      <div className="contest-controls" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <div className="flex items-center gap-2.5">
         <button
           onClick={onNewProject}
-          style={{ 
-            background: "linear-gradient(135deg, #10b981, #059669)",
-            color: "white",
-            padding: "8px 16px",
-            borderRadius: "6px",
-            border: "none",
-            fontSize: "14px",
-            fontWeight: "600",
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(16, 185, 129, 0.3)",
-            transition: "all 0.2s"
-          }}
+          className="bg-gradient-to-br from-[#10b981] to-[#059669] text-white px-4 py-2 rounded-md border-none text-[14px] font-semibold cursor-pointer shadow-[0_4px_12px_rgba(16,185,129,0.3)] transition-all hover:opacity-90 active:scale-95"
         >
           + New Project
         </button>
         <button
-          className="start-btn"
           onClick={onStartContest}
           disabled={contestStarted}
-          style={{ 
-            background: contestStarted ? "#1e293b" : "linear-gradient(135deg, #0ea5e9, #2563eb)",
-            color: "white",
-            padding: "8px 20px",
-            borderRadius: "6px",
-            boxShadow: contestStarted ? "none" : "0 4px 12px rgba(37, 99, 235, 0.3)"
-          }}
+          className={`px-5 py-2 rounded-md border-none text-[14px] font-semibold transition-all ${
+            contestStarted 
+              ? "bg-[#1e293b] text-white cursor-not-allowed shadow-none" 
+              : "bg-gradient-to-br from-[#0ea5e9] to-[#2563eb] text-white cursor-pointer shadow-[0_4px_12px_rgba(37,99,235,0.3)] hover:opacity-90 active:scale-95"
+          }`}
         >
           {contestStarted ? "Contest Active" : "Start Contest"}
         </button>

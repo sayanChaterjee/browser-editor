@@ -25,42 +25,12 @@ export default function CreateProjectModal({
   };
 
   return (
-    <div className="modal-overlay" style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: "rgba(0, 0, 0, 0.8)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 10000,
-    }}>
-      <div className="modal-content" style={{
-        background: "linear-gradient(145deg, #1e293b, #0f172a)",
-        padding: "40px",
-        borderRadius: "20px",
-        border: "1px solid #334155",
-        boxShadow: "0 20px 60px rgba(0, 0, 0, 0.5)",
-        maxWidth: "500px",
-        width: "90%",
-      }}>
-        <h2 style={{ 
-          fontSize: "24px", 
-          fontWeight: "700", 
-          color: "#f8fafc", 
-          marginBottom: "12px",
-          textAlign: "center"
-        }}>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[10000]">
+      <div className="bg-gradient-to-br from-[#1e293b] to-[#0f172a] p-10 rounded-[20px] border border-[#334155] shadow-[0_20px_60px_rgba(0,0,0,0.5)] max-w-[500px] w-[90%] animate-in fade-in zoom-in duration-200">
+        <h2 className="text-2xl font-bold text-[#f8fafc] mb-3 text-center">
           🚀 Create Your Project
         </h2>
-        <p style={{ 
-          color: "#94a3b8", 
-          fontSize: "14px", 
-          marginBottom: "32px",
-          textAlign: "center"
-        }}>
+        <p className="text-[#94a3b8] text-sm mb-8 text-center">
           Enter a unique name for your coding project
         </p>
 
@@ -71,40 +41,16 @@ export default function CreateProjectModal({
             onChange={(e) => setProjectName(e.target.value)}
             placeholder="e.g., My Awesome Website"
             autoFocus
-            style={{
-              width: "100%",
-              padding: "14px 18px",
-              fontSize: "16px",
-              background: "#0f172a",
-              border: "2px solid #334155",
-              borderRadius: "10px",
-              color: "#f8fafc",
-              outline: "none",
-              marginBottom: "24px",
-              transition: "border-color 0.2s",
-            }}
-            onFocus={(e) => e.target.style.borderColor = "#38bdf8"}
-            onBlur={(e) => e.target.style.borderColor = "#334155"}
+            className="w-full px-[18px] py-3.5 text-base bg-[#0f172a] border-2 border-[#334155] rounded-[10px] text-[#f8fafc] outline-none mb-6 transition-colors focus:border-[#38bdf8]"
           />
 
-          <div style={{ display: "flex", gap: "12px" }}>
+          <div className="flex gap-3">
             {onCancel && isCancelable && (
               <button
                 type="button"
                 onClick={onCancel}
                 disabled={isCreating}
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "transparent",
-                  border: "1px solid #334155",
-                  borderRadius: "10px",
-                  color: "#94a3b8",
-                  fontSize: "15px",
-                  fontWeight: "600",
-                  cursor: isCreating ? "not-allowed" : "pointer",
-                  transition: "all 0.2s",
-                }}
+                className="flex-1 py-3 bg-transparent border border-[#334155] rounded-[10px] text-[#94a3b8] text-[15px] font-semibold transition-all hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
@@ -112,38 +58,17 @@ export default function CreateProjectModal({
             <button
               type="submit"
               disabled={!projectName.trim() || isCreating}
-              style={{
-                flex: (onCancel && isCancelable) ? 2 : 1,
-                padding: "12px",
-                background: (projectName.trim() && !isCreating)
-                  ? "linear-gradient(135deg, #38bdf8, #2563eb)" 
-                  : "#334155",
-                border: "none",
-                borderRadius: "10px",
-                color: "white",
-                fontSize: "15px",
-                fontWeight: "700",
-                cursor: (projectName.trim() && !isCreating) ? "pointer" : "not-allowed",
-                boxShadow: (projectName.trim() && !isCreating)
-                  ? "0 4px 14px rgba(56, 189, 248, 0.4)" 
-                  : "none",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px"
-              }}
+              className={`py-3 rounded-[10px] text-white text-[15px] font-bold transition-all flex items-center justify-center gap-2 ${
+                onCancel && isCancelable ? "flex-[2]" : "flex-1"
+              } ${
+                projectName.trim() && !isCreating
+                  ? "bg-gradient-to-r from-[#38bdf8] to-[#2563eb] cursor-pointer shadow-[0_4px_14px_rgba(56,189,248,0.4)] hover:opacity-90 active:scale-95" 
+                  : "bg-[#334155] cursor-not-allowed"
+              }`}
             >
               {isCreating ? (
                 <>
-                  <span className="spinner" style={{
-                    width: "16px",
-                    height: "16px",
-                    border: "2px solid #ffffff40",
-                    borderTop: "2px solid white",
-                    borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite"
-                  }} />
+                  <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                   Creating...
                 </>
               ) : (
