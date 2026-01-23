@@ -5,16 +5,32 @@ import logger from "./config/logger";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import axios from "axios";
 import { config } from "./config/index";
 import { limiter } from "./middlewares/rateLimiter.middleware";
 import { proxyServices } from "./config/services";
 import { setupGracefulShutdown } from "./utils/shutdown";
+import { correlationMiddleware } from "./middlewares/correlation.middleware";
+import { authMiddleware } from "./middlewares/auth.middleware";
 
 
 const app = express();
 
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Needed for some editor features
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "*"],
+      frameSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+      frameAncestors: ["'none'"], // Prevent clickjacking
+    },
+  },
 }));
 app.use(cors({
   origin: (origin, callback) => {
@@ -27,15 +43,64 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+// Apply Correlation ID middleware globally first
+app.use(correlationMiddleware);
+
 app.use(limiter);
 
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).send("OK");
 });
 
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  logger.debug(`${req.method} ${req.url}`);
+// Middleware to log all incoming requests with correlation ID
+app.use((req: Request, res: Response, next: NextFunction) => {
+  logger.info(`${req.method} ${req.url}`);
   next();
+});
+
+// Apply centralized Authentication middleware
+app.use(authMiddleware);
+
+/**
+ * Gateway Aggregation Pattern
+ * GET /api/v1/dashboard
+ * Aggregates user profile and projects in parallel
+ */
+app.get("/api/v1/dashboard", async (req: Request, res: Response) => {
+  try {
+    const correlationId = req.headers['x-correlation-id'];
+    const userId = req.headers['x-user-id'];
+
+    logger.info(`Fetching dashboard data for user: ${userId}`);
+
+    const [profileRes, projectsRes] = await Promise.all([
+      axios.get(`${config.USER_SERVICE_URL}/profile`, {
+        headers: {
+          'x-user-id': userId,
+          'x-correlation-id': correlationId
+        }
+      }),
+      axios.get(`${config.CODE_SERVICE_URL}/`, {
+        headers: {
+          'x-user-id': userId,
+          'x-correlation-id': correlationId
+        }
+      })
+    ]);
+
+    res.json({
+      user: profileRes.data,
+      projects: projectsRes.data,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    logger.error('Dashboard aggregation failed:', error.message);
+    res.status(error.response?.status || 500).json({
+      message: 'Failed to aggregate dashboard data',
+      error: error.message
+    });
+  }
 });
 
 

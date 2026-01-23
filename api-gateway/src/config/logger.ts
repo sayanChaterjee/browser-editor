@@ -1,5 +1,6 @@
 import winston from 'winston'; // for logging
 import { config } from '../config/index';
+import { correlationContext } from '../utils/context';
 
 const logger = winston.createLogger({
   level: config.LOG_LEVEL || 'info',
@@ -14,7 +15,9 @@ const logger = winston.createLogger({
       format: winston.format.combine(
         winston.format.colorize(),
         winston.format.printf(({ level, message, timestamp, service, stack }) => {
-          return `${timestamp} [${level}] [${service}]: ${stack || message}`;
+          const correlationId = correlationContext.getStore();
+          const cidStr = correlationId ? ` [CID: ${correlationId}]` : '';
+          return `${timestamp}${cidStr} [${level}] [${service}]: ${stack || message}`;
         })
       )
     })

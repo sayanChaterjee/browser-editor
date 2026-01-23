@@ -58,7 +58,7 @@ export default function LoginPage() {
       alert("Login successful");
       router.push("/editor");
     } catch (error) {
-      console.error(error);
+      console.warn('Login attempt failed');
       alert("Server error");
     }
   };

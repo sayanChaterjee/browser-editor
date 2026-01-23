@@ -17,6 +17,8 @@ import { setupGracefulShutdown } from './utils/shutdown';
 import { connectDB } from './db/db';
 import { connectKafka } from './config/kafka';
 
+import { correlationMiddleware } from './middlewares/correlation.middleware';
+
 const app = express();
 
 app.use(helmet({
@@ -25,6 +27,7 @@ app.use(helmet({
 app.use(corsMiddleware);
 
 app.use(cookieParser());
+app.use(correlationMiddleware);
 app.use(reqLogger);
 app.use(express.json());
 
@@ -41,6 +44,9 @@ app.use(errorHandler);
     await connectDB();
     await connectKafka();
     await init();
+
+    const { startAuthJanitor } = require('./scripts/janitor');
+    startAuthJanitor();
 
     const server = app.listen(config.PORT, () => {
       logger.info(

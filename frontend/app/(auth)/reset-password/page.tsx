@@ -49,7 +49,7 @@ function ResetPasswordForm() {
       alert("Password reset successfully! Please login with your new password.");
       router.push("/login");
     } catch (error) {
-      console.error(error);
+      console.warn('Reset password attempt failed');
       setError("Server error");
     } finally {
       setLoading(false);

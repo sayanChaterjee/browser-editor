@@ -1,5 +1,6 @@
-import { Application } from 'express';
+import { Application, Request, Response } from 'express';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
+import CircuitBreaker from 'opossum';
 import { config } from './index';
 import logger from './logger';
 import { ProxyErrorResponse, ServiceConfig } from '../types/index';
@@ -29,6 +30,9 @@ class ServiceProxy {
     },
   ];
 
+  // Map to store circuit breakers for each service
+  private static breakers: Map<string, CircuitBreaker> = new Map();
+
   private static createProxyOptions(service: ServiceConfig): Options {
     return {
       target: service.url,
@@ -38,8 +42,20 @@ class ServiceProxy {
       logger: logger,
       on: {
         error: ServiceProxy.handleProxyError,
-        proxyReq: ServiceProxy.handleProxyRequest,
-        proxyRes: ServiceProxy.handleProxyResponse,
+        proxyReq: (proxyReq, req: any) => {
+          // 1. Header Hydration: Strip Authorization, inject user context and correlation ID
+          proxyReq.removeHeader('Authorization');
+
+          if (req.headers['x-user-id']) {
+            proxyReq.setHeader('x-user-id', req.headers['x-user-id']);
+          }
+          if (req.headers['x-user-role']) {
+            proxyReq.setHeader('x-user-role', req.headers['x-user-role']);
+          }
+          if (req.headers['x-correlation-id']) {
+            proxyReq.setHeader('x-correlation-id', req.headers['x-correlation-id']);
+          }
+        },
       },
     };
   }
@@ -47,31 +63,65 @@ class ServiceProxy {
   private static handleProxyError(err: Error, req: any, res: any): void {
     logger.error(`Proxy error for ${req.path}:`, err);
 
-    const errorResponse: ProxyErrorResponse = {
+    res.status(503).json({
       message: 'Service unavailable',
       status: 503,
       timestamp: new Date().toISOString(),
-    };
-
-    res
-      .status(503)
-      .setHeader('Content-Type', 'application/json')
-      .end(JSON.stringify(errorResponse));
-  }
-
-  private static handleProxyRequest(proxyReq: any, req: any): void {
-    // logger.debug(`Proxying request to ${req.path}`);
-  }
-
-  private static handleProxyResponse(proxyRes: any, req: any): void {
-    // logger.debug(`Received response for ${req.path}`);
+    });
   }
 
   public static setupProxy(app: Application): void {
     ServiceProxy.serviceConfigs.forEach((service) => {
       const proxyOptions = ServiceProxy.createProxyOptions(service);
-      app.use(service.path, createProxyMiddleware(proxyOptions));
-      logger.info(`Configured proxy for ${service.name} at ${service.path}`);
+      const proxyMiddleware = createProxyMiddleware(proxyOptions);
+
+      // 2. Circuit Breaker Integration
+      const breaker = new CircuitBreaker(
+        async (req: Request, res: Response, next: any) => {
+          return new Promise((resolve, reject) => {
+            // @ts-ignore
+            proxyMiddleware(req, res, (err) => {
+              if (err) reject(err);
+              else resolve(true);
+            });
+          });
+        },
+        {
+          timeout: service.timeout || 5000,
+          errorThresholdPercentage: 50,
+          resetTimeout: 30000,
+        }
+      );
+
+      breaker.fallback((req: Request, res: Response) => {
+        logger.warn(`Circuit breaker tripped for ${service.name}. Returning fallback.`);
+
+        if (service.name === 'code-service') {
+          return res.status(200).json({
+            message: "Service Temporarily Degraded",
+            projects: [],
+            status: "fallback"
+          });
+        }
+
+        return res.status(503).json({
+          message: `Service ${service.name} is temporarily unavailable. Please try again later.`,
+          status: 503
+        });
+      });
+
+      this.breakers.set(service.name, breaker);
+
+      // Wrapper middleware to use the breaker
+      app.use(service.path, (req, res, next) => {
+        breaker.fire(req, res, next).catch((err) => {
+          if (!res.headersSent) {
+            ServiceProxy.handleProxyError(err, req, res);
+          }
+        });
+      });
+
+      logger.info(`Configured proxy for ${service.name} at ${service.path} with Circuit Breaker`);
     });
   }
 }

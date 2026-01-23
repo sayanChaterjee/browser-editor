@@ -7,7 +7,10 @@ import redis from '../config/redis';
 import { User } from '../models/user.model';
 import { createError } from '../utils';
 import { publishUserRegistered } from '../events/producers/userRegistered.producer';
+import { publishSecurityEvent } from '../events/producers/securityEvents.producer';
 import { sendResetEmail } from '../utils/mailer';
+import logger from '../config/logger';
+
 
 interface RegisterDto {
   name: string;
@@ -54,9 +57,20 @@ class AuthService {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw createError('invalid credentials', 401);
 
+    const userId = user._id.toString();
+
+    // Single Session Enforcement: Invalidate all previous sessions for this user
+    const oldAuthKeys = await redis.keys(`auth:${userId}:*`);
+    const oldRefreshKeys = await redis.keys(`refresh:${userId}:*`);
+    const allOldKeys = [...oldAuthKeys, ...oldRefreshKeys];
+    if (allOldKeys.length > 0) {
+      await redis.del(...allOldKeys);
+      logger.info(`Invalidated ${allOldKeys.length} previous sessions for user ${userId}`);
+    }
+
     const accessToken = jwt.sign(
       {
-        id: user._id.toString(),
+        id: userId,
         email: user.email,
         name: user.name,
       },
@@ -139,45 +153,51 @@ class AuthService {
     for (const key of refreshKeys) {
       await redis.del(key);
     }
+
+    // Trigger security event for cache purging across services
+    await publishSecurityEvent({ userId, event: 'LOGOUT_ALL' });
   }
 
   async forgotPassword(email: string) {
-  const user = await User.findOne({ email });
-  if (!user) return; 
+    const user = await User.findOne({ email });
+    if (!user) return;
 
-  const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = crypto.randomBytes(32).toString('hex');
 
-  await redis.setex(
-    `reset_password:${resetToken}`,
-    15 * 60, 
-    user._id.toString()
-  );
+    await redis.setex(
+      `reset_password:${resetToken}`,
+      15 * 60,
+      user._id.toString()
+    );
 
-  await sendResetEmail(user.email, resetToken);
-}
-
-async resetPassword(token: string, newPassword: string) {
-  const redisKey = `reset_password:${token}`;
-  const userId = await redis.get(redisKey);
-
-  if (!userId) {
-    throw createError('Invalid or expired reset token', 400);
+    await sendResetEmail(user.email, resetToken);
   }
 
-  const user = await User.findById(userId);
-  if (!user) throw createError('User not found', 404);
+  async resetPassword(token: string, newPassword: string) {
+    const redisKey = `reset_password:${token}`;
+    const userId = await redis.get(redisKey);
 
-  const passwordHash = await bcrypt.hash(newPassword, 10);
-  user.password = passwordHash;
-  await user.save();
+    if (!userId) {
+      throw createError('Invalid or expired reset token', 400);
+    }
 
-  await redis.del(redisKey);
-  const authKeys = await redis.keys(`auth:${userId}:*`);
-  const refreshKeys = await redis.keys(`refresh:${userId}:*`);
-  for (const key of [...authKeys, ...refreshKeys]) {
-    await redis.del(key);
+    const user = await User.findById(userId);
+    if (!user) throw createError('User not found', 404);
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    user.password = passwordHash;
+    await user.save();
+
+    await redis.del(redisKey);
+    const authKeys = await redis.keys(`auth:${userId}:*`);
+    const refreshKeys = await redis.keys(`refresh:${userId}:*`);
+    for (const key of [...authKeys, ...refreshKeys]) {
+      await redis.del(key);
+    }
+
+    // Trigger security event for cache purging across services
+    await publishSecurityEvent({ userId: userId.toString(), event: 'PASSWORD_CHANGED' });
   }
-}
 }
 
 export default AuthService;

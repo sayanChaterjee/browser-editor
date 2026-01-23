@@ -9,6 +9,7 @@ import { userRouter } from './routes/user.route';
 import mongoose from 'mongoose';
 import { startConsumer } from './events/consumer';
 import { setupGracefulShutdown } from './utils/shutdown';
+import { correlationMiddleware } from './middlewares/correlation.middleware';
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(helmet({
 }));
 app.use(cors());
 app.use(express.json());
+app.use(correlationMiddleware);
 
 app.use('/', userRouter);
 

@@ -30,7 +30,7 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         return res.json(parsed);
       }
-      console.warn('[GET /api/v1/code] Cached projects is not an array, discarding...');
+      logger.warn('[GET /api/v1/code] Cached projects is not an array, discarding...');
       await redis.del(cacheKey);
     }
 
@@ -43,7 +43,7 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json(projects);
   } catch (error) {
-    console.error('[GET /api/v1/code] Error:', error);
+    logger.error('[GET /api/v1/code] Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -75,51 +75,128 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
   }
 });
 
-// POST /save - Create or update a project
-codeRouter.post('/save', verifyToken, async (req: Request, res: Response): Promise<any> => {
+import { sanitizeCode } from '../middlewares/sanitizer.middleware';
+import { conflictLock } from '../middlewares/lock.middleware';
+
+// POST /save - Create or update a project (Write-Behind Pattern)
+codeRouter.post('/save', verifyToken, sanitizeCode, conflictLock, async (req: Request, res: Response): Promise<any> => {
   try {
-    logger.info('[POST /api/v1/code/save] Request body: ' + JSON.stringify({ ...req.body, html: req.body?.html?.substring(0, 50) + '...' }));
     const { name, html, css, js, timeLeft } = projectSchema.parse(req.body);
     const userId = req.userId!;
-    logger.info(`[POST /api/v1/code/save] UserId: ${userId} ProjectName: ${name}`);
 
-    if (!name) {
-      return res.status(400).json({ message: 'Project name is required for saving' });
+    // 1. Identify or Create Project ID
+    let project = await Project.findOne({ userId, name });
+    let projectId = project?._id.toString();
+
+    // 2. Write-Behind Cache Update
+    const projectData = {
+      userId,
+      name,
+      html,
+      css,
+      js,
+      timeLeft,
+      updatedAt: new Date().toISOString()
+    };
+
+    // If project doesn't exist yet, we must create it in DB once to get an ID
+    // or we can generate a temporary UUID. For consistency, let's ensure it exists.
+    if (!project) {
+      project = await Project.create({ ...projectData });
+      projectId = project._id.toString();
     }
 
-    logger.info('[POST /api/v1/code/save] Calling findOneAndUpdate...');
-    const project = await Project.findOneAndUpdate(
-      { userId, name },
-      { html, css, js, timeLeft },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    );
-    logger.info(`[POST /api/v1/code/save] Project saved: ${project?._id}`);
+    const projectCacheKey = `project:${projectId}`;
+    const dirtyKey = `dirty_projects`;
 
-    if (project) {
-      // Update specific project cache
-      const projectCacheKey = `project:${project._id}`;
-      await redis.set(projectCacheKey, JSON.stringify(project), 'EX', 3600);
-      logger.info('[POST /api/v1/code/save] Project cache updated');
+    // Atomic update in Redis
+    await redis.set(projectCacheKey, JSON.stringify({ ...projectData, _id: projectId }), 'EX', 3600);
 
-      // Invalidate user projects list cache
-      const listCacheKey = `user:projects:${userId}`;
-      await redis.del(listCacheKey);
-      logger.info('[POST /api/v1/code/save] Project list cache invalidated');
-    }
+    // Mark as dirty for the flusher worker
+    await redis.sadd(dirtyKey, projectId as string);
 
-    res.json(project);
+    // 3. Version Control: Maintain last 5 Snapshots in Redis
+    const snapshotKey = `project:${projectId}:snapshots`;
+    const snapshot = JSON.stringify({ html, css, js, timestamp: new Date().toISOString() });
+    await redis.lpush(snapshotKey, snapshot);
+    await redis.ltrim(snapshotKey, 0, 4); // Keep only 5
+
+    // 4. Invalidate List Cache
+    const listCacheKey = `user:projects:${userId}`;
+    await redis.del(listCacheKey);
+
+    res.json({ ...projectData, _id: projectId, status: 'saved_to_cache' });
   } catch (error) {
-    console.error('[POST /api/v1/code/save] Error:', error);
+    logger.error('[POST /api/v1/code/save] Error:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ errors: error.errors });
     }
-    res.status(500).json({ message: 'Server error', details: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 import Submission from '../models/submission.model';
 
 // Existing routes...
+
+import jsonpatch from 'fast-json-patch';
+
+// PATCH /sync/:projectId - Incremental Sync (Delta Pattern)
+codeRouter.patch('/sync/:projectId', verifyToken, sanitizeCode, conflictLock, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { projectId } = req.params;
+    const { patches } = req.body; // Array of RFC6902 patches
+
+    if (!Array.isArray(patches)) {
+      return res.status(400).json({ message: 'Patches must be an array' });
+    }
+
+    const projectCacheKey = `project:${projectId}`;
+    const dirtyKey = `dirty_projects`;
+
+    // 1. Get current data (from cache or DB)
+    let cachedData = await redis.get(projectCacheKey);
+    let currentProject;
+
+    if (cachedData) {
+      currentProject = JSON.parse(cachedData);
+    } else {
+      currentProject = await Project.findById(projectId);
+      if (!currentProject || currentProject.userId !== req.userId) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+      currentProject = currentProject.toObject();
+    }
+
+    // 2. Apply Patches
+    const result = jsonpatch.applyPatch(currentProject, patches);
+    const updatedProject = result.newDocument;
+
+    // Ensure userId didn't change (security check)
+    updatedProject.userId = req.userId;
+    updatedProject.updatedAt = new Date().toISOString();
+
+    // 3. Write-Behind Update
+    await redis.set(projectCacheKey, JSON.stringify(updatedProject), 'EX', 3600);
+    await redis.sadd(dirtyKey, projectId as string);
+
+    // 4. Snapshots (optional: every 10 patches or similar, but for now every sync)
+    const snapshotKey = `project:${projectId}:snapshots`;
+    const snapshot = JSON.stringify({
+      html: updatedProject.html,
+      css: updatedProject.css,
+      js: updatedProject.js,
+      timestamp: updatedProject.updatedAt
+    });
+    await redis.lpush(snapshotKey, snapshot);
+    await redis.ltrim(snapshotKey, 0, 4);
+
+    res.json({ ...updatedProject, status: 'synced_delta' });
+  } catch (error: any) {
+    logger.error('[PATCH /api/v1/code/sync] Error:', error);
+    res.status(500).json({ message: 'Incremental sync failed', error: error.message });
+  }
+});
 
 // GET /submissions - Get all user's previous submissions
 codeRouter.get('/submissions', verifyToken, async (req: Request, res: Response): Promise<any> => {

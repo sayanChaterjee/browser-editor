@@ -20,32 +20,42 @@ A professional-grade Browser Editor application built with a microservices archi
 ```mermaid
 graph TD
     subgraph Client Layer
-        Browser[Frontend/Next.js]
-        IDB[(IndexedDB Local)]
+        Browser["Frontend (Next.js)"]
+        IDB[("Local Storage (IndexedDB)")]
         Browser <--> IDB
     end
 
-    subgraph API Layer
-        Gateway[API Gateway]
-        Browser -->|HTTP/JWT| Gateway
+    subgraph API Gateway Layer
+        Gateway["API Gateway (Express)"]
+        Browser -->|"HTTP/HTTPS (JWT)"| Gateway
     end
 
     subgraph Service Layer
-        Gateway --> Auth[Auth Service]
-        Gateway --> User[User Service]
-        Gateway --> Code[Code Service]
+        Gateway --> Auth["Auth Service"]
+        Gateway --> User["User Service"]
+        Gateway --> Code["Code Service"]
         
-        Auth -.->|Kafka: user-registered| Kafka((Kafka Bus))
-        Kafka -.->|Subscribe| User
+        Auth -.->|"Kafka: user-registered"| Kafka(("Kafka Bus"))
+        Kafka -.->|"Subscribe: sync-profile"| User
     end
 
-    subgraph Persistence Layer
-        Auth <--> RedisSession[(Redis Store)]
-        Code <--> RedisCache[(Redis Cache)]
-        Code <--> CodeDB[(MongoDB Code)]
-        User <--> UserDB[(MongoDB Profile)]
+    subgraph Persistence & State Layer
+        Auth <--> RedisSession[("Redis (Auth Tokens)")]
+        Code <--> RedisCache[("Redis (Project Cache)")]
+        Code <--> CodeDB[("MongoDB (Projects)")]
+        User <--> UserDB[("MongoDB (Profiles)")]
     end
 ```
+
+## 🛠️ Infrastructure & Data Flow
+
+| Component | Technology | Role |
+| --------- | ---------- | ---- |
+| **API Gateway** | Node.js/Express | Unified entry point, request proxying, and rate limiting. |
+| **Message Broker** | Kafka | Asynchronous event-driven synchronization (e.g., Auth -> User). |
+| **In-Memory Store** | Redis | JWT blacklisting, refresh token storage, and project metadata caching. |
+| **Main Database** | MongoDB | Persistent storage for user profiles and project code. |
+| **Local Cache** | IndexedDB | Client-side "zero-loss" auto-save mechanism for the editor. |
 
 ## 🛡️ Security & Hardening
 

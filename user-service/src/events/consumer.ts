@@ -1,4 +1,4 @@
-import { Kafka } from 'kafkajs';
+import { Kafka, Producer } from 'kafkajs';
 import { config } from '../config';
 import User from '../models/user.model';
 import logger from '../config/logger';
@@ -9,9 +9,12 @@ const kafka = new Kafka({
 });
 
 const consumer = kafka.consumer({ groupId: 'user-service-group' });
+let dlqProducer: Producer;
 
 export const startConsumer = async () => {
   try {
+    dlqProducer = kafka.producer();
+    await dlqProducer.connect();
     await consumer.connect();
 
     await consumer.subscribe({
@@ -19,7 +22,7 @@ export const startConsumer = async () => {
       fromBeginning: process.env.NODE_ENV !== 'production',
     });
 
-    logger.info('Kafka consumer connected and subscribed');
+    logger.info('Kafka consumer connected and subscribed (with Retries & DLQ)');
 
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
@@ -28,31 +31,65 @@ export const startConsumer = async () => {
         const value = message.value?.toString();
         if (!value) return;
 
+        let data;
         try {
-          const data = JSON.parse(value);
-          if (!data.userId || !data.email) {
-            logger.warn('Invalid user-registered payload', data);
-            return;
-          }
-
-          logger.info(
-            `Consumed ${topic}[${partition}] offset ${message.offset} for ${data.email}`
-          );
-
-          await User.findOneAndUpdate(
-            { _id: data.userId },
-            {
-              $set: {
-                name: data.name,
-                email: data.email,
-              },
-            },
-            { upsert: true, new: true }
-          );
-
-          logger.info(`User ${data.email} synced successfully`);
+          data = JSON.parse(value);
         } catch (err) {
-          logger.error('Error processing Kafka message', err);
+          logger.error('Failed to parse Kafka message', err);
+          return;
+        }
+
+        // Processing with Retry Strategy
+        const MAX_RETRIES = 3;
+        let attempt = 0;
+        let success = false;
+
+        while (attempt < MAX_RETRIES && !success) {
+          try {
+            attempt++;
+            if (!data.userId || !data.email) {
+              throw new Error('Invalid user-registered payload');
+            }
+
+            logger.info(`Processing ${topic} attempt ${attempt} for ${data.email}`);
+
+            await User.findOneAndUpdate(
+              { _id: data.userId },
+              {
+                $set: {
+                  name: data.name,
+                  email: data.email,
+                },
+              },
+              { upsert: true, new: true }
+            );
+
+            logger.info(`User ${data.email} synced successfully on attempt ${attempt}`);
+            success = true;
+          } catch (err: any) {
+            logger.error(`Error processing attempt ${attempt}: ${err.message}`);
+            if (attempt < MAX_RETRIES) {
+              const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          }
+        }
+
+        if (!success) {
+          logger.error(`Message failed after ${MAX_RETRIES} attempts. Sending to DLQ.`);
+          await dlqProducer.send({
+            topic: 'user-registered-dlq',
+            messages: [
+              {
+                key: message.key,
+                value: JSON.stringify({
+                  originalPayload: data,
+                  error: 'Failed after max retries',
+                  failedAt: new Date().toISOString()
+                })
+              }
+            ]
+          });
         }
       },
     });
@@ -66,7 +103,8 @@ export const disconnectConsumer = async () => {
   try {
     logger.info('Disconnecting Kafka consumer...');
     await consumer.disconnect();
-    logger.info('Kafka consumer disconnected');
+    if (dlqProducer) await dlqProducer.disconnect();
+    logger.info('Kafka consumer and DLQ producer disconnected');
   } catch (err) {
     logger.error('Error during Kafka disconnection', err);
   }

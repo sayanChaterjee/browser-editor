@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
 
       setSuccess(true);
     } catch (error) {
-      console.error(error);
+      console.warn('Forgot password attempt failed');
       setError("Server error");
     } finally {
       setLoading(false);
