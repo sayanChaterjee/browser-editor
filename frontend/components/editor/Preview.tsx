@@ -23,11 +23,7 @@ export default function Preview({ html, css, js }: Props) {
       }
       ${css}
     </style>
-  </head>
-  <body>
-    ${html}
     <script>
-      ${js}
       // Security: Prevent navigation via links
       document.addEventListener('click', (e) => {
         const link = e.target.closest('a');
@@ -36,7 +32,17 @@ export default function Preview({ html, css, js }: Props) {
           window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
         }
       }, true);
-    <\/script>
+    </script>
+  </head>
+  <body>
+    ${html}
+    <script>
+      try {
+        ${js}
+      } catch (err) {
+        console.error("Preview Error:", err);
+      }
+    </script>
   </body>
 </html>
 `;

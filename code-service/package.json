@@ -23,6 +23,7 @@
     "isomorphic-dompurify": "^2.35.0",
     "jsdom": "^27.4.0",
     "jsonwebtoken": "^9.0.3",
+    "kafkajs": "^2.2.4",
     "lodash": "^4.17.23",
     "mongoose": "^9.0.2",
     "node-cron": "^4.2.1",

@@ -49,6 +49,7 @@ export function useProjectManager({
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [isCreatingProject, setIsCreatingProject] = useState(false);
     const [isModalCancelable, setIsModalCancelable] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const initData = async () => {
@@ -96,7 +97,41 @@ export function useProjectManager({
                         let targetProject = data[0];
                         if (requestedProjectId) {
                             const found = data.find((p) => p._id === requestedProjectId);
-                            if (found) targetProject = found;
+                            if (found) {
+                                // Fetch full details to ensure we have the latest code, 
+                                // especially if the list was stale due to flusher delay
+                                try {
+                                    const fullRes = await fetch(
+                                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/${requestedProjectId}`,
+                                        { headers: { Authorization: `Bearer ${token}` } }
+                                    );
+                                    if (fullRes.ok) {
+                                        const fullProject = await fullRes.json();
+                                        setProjectId(fullProject._id);
+                                        setProjectName(fullProject.name);
+
+                                        const localData = await getLocalProject(fullProject._id);
+                                        if (localData && new Date(localData.updatedAt) > new Date(fullProject.updatedAt)) {
+                                            setHtml(localData.html);
+                                            setCss(localData.css);
+                                            setJs(localData.js);
+                                        } else {
+                                            setHtml(fullProject.html || INITIAL_HTML);
+                                            setCss(fullProject.css || INITIAL_CSS);
+                                            setJs(fullProject.js || INITIAL_JS);
+                                        }
+
+                                        if (fullProject.timeLeft !== undefined) {
+                                            setTimeLeft(fullProject.timeLeft);
+                                        }
+                                        setIsLoading(false);
+                                        return; // Skip the default behavior below
+                                    }
+                                } catch (err) {
+                                    console.error("Failed to fetch full project details", err);
+                                }
+                                targetProject = found;
+                            }
                         }
 
                         setProjectId(targetProject._id);
@@ -108,9 +143,9 @@ export function useProjectManager({
                             setCss(localData.css);
                             setJs(localData.js);
                         } else {
-                            setHtml(targetProject.html || "");
-                            setCss(targetProject.css || "");
-                            setJs(targetProject.js || "");
+                            setHtml(targetProject.html || INITIAL_HTML);
+                            setCss(targetProject.css || INITIAL_CSS);
+                            setJs(targetProject.js || INITIAL_JS);
                         }
 
                         if (targetProject.timeLeft !== undefined) {
@@ -124,6 +159,8 @@ export function useProjectManager({
                 }
             } catch (error) {
                 console.error("Failed to fetch projects", error);
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -247,5 +284,6 @@ export function useProjectManager({
         setIsModalCancelable,
         handleCreateProject,
         saveCode,
+        isLoading,
     };
 }

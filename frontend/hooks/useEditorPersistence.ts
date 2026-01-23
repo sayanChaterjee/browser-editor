@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { saveLocalProject } from "../lib/indexedDB";
 
 interface PersistenceProps {
     html: string;
@@ -8,7 +9,9 @@ interface PersistenceProps {
     js: string;
     timeLeft: number;
     projectName: string;
+    projectId: string | null;
     contestStarted: boolean;
+    isLoading: boolean;
     onLoadFromIDB?: (data: any) => void;
 }
 
@@ -18,53 +21,34 @@ export function useEditorPersistence({
     js,
     timeLeft,
     projectName,
+    projectId,
     contestStarted,
+    isLoading,
     onLoadFromIDB,
 }: PersistenceProps) {
-    const idbRef = useRef<IDBDatabase | null>(null);
     const syncRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Initialize IndexedDB
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const request = indexedDB.open("EditorDB", 1);
-        request.onupgradeneeded = (e: any) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains("code")) {
-                db.createObjectStore("code", { keyPath: "id" });
-            }
-        };
-        request.onsuccess = (e: any) => {
-            idbRef.current = e.target.result;
-            loadFromIDB();
-        };
-    }, []);
-
-    const saveToIDB = () => {
-        if (!idbRef.current) return;
+    const saveToIDB = async () => {
+        if (isLoading || !projectId) return;
         try {
-            const transaction = idbRef.current.transaction("code", "readwrite");
-            const store = transaction.objectStore("code");
-            store.put({ id: "current", html, css, js, timeLeft, updatedAt: Date.now() });
+            await saveLocalProject({
+                id: projectId,
+                name: projectName,
+                html,
+                css,
+                js,
+                updatedAt: new Date().toISOString(),
+                isSynced: true // For now, we'll mark as synced immediately
+            });
         } catch (err) {
             console.error("IDB Save failed", err);
         }
     };
 
-    const loadFromIDB = () => {
-        if (!idbRef.current) return;
-        const transaction = idbRef.current.transaction("code", "readonly");
-        const store = transaction.objectStore("code");
-        const request = store.get("current");
-        request.onsuccess = (e: any) => {
-            const data = e.target.result;
-            if (data && onLoadFromIDB) {
-                onLoadFromIDB(data);
-            }
-        };
-    };
-
     const syncToBackend = async () => {
+        // Prevent sync if loading or no project active
+        if (isLoading || !projectId || !projectName) return;
+
         const token = localStorage.getItem("token");
         if (!token) return;
 
@@ -85,17 +69,19 @@ export function useEditorPersistence({
         }
     };
 
-    // 2s Auto-save to IndexedDB
+    // 2s Auto-save to IndexedDB (only if NOT loading and project exists)
     useEffect(() => {
+        if (isLoading || !projectId) return;
+
         const interval = setInterval(() => {
             saveToIDB();
         }, 2000);
         return () => clearInterval(interval);
-    }, [html, css, js, timeLeft]);
+    }, [html, css, js, timeLeft, isLoading, projectId]);
 
     // 10s Periodic Sync to Backend
     useEffect(() => {
-        if (!contestStarted) return;
+        if (!contestStarted || isLoading || !projectId) return;
 
         syncRef.current = setInterval(() => {
             syncToBackend();
@@ -104,7 +90,7 @@ export function useEditorPersistence({
         return () => {
             if (syncRef.current) clearInterval(syncRef.current);
         };
-    }, [contestStarted, html, css, js, timeLeft, projectName]);
+    }, [contestStarted, html, css, js, timeLeft, projectName, isLoading, projectId]);
 
-    return { saveToIDB, loadFromIDB, syncToBackend };
+    return { saveToIDB, syncToBackend };
 }

@@ -83,6 +83,7 @@ export default function EditorLayout() {
     setIsModalCancelable,
     handleCreateProject,
     saveCode,
+    isLoading,
   } = useProjectManager({
     onLogout: logoutUser,
     contestDuration: CONTEST_DURATION,
@@ -101,7 +102,9 @@ export default function EditorLayout() {
     js,
     timeLeft,
     projectName,
+    projectId,
     contestStarted,
+    isLoading,
     onLoadFromIDB: () => {},
   });
 

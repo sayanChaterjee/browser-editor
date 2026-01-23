@@ -70,7 +70,11 @@ export function useContestSecurity({
             }
         }, 1000);
 
-        // 2. Keyboard Shortcuts
+        const handleContextMenu = (e: MouseEvent) => {
+            e.preventDefault();
+            return false;
+        };
+
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
                 e.preventDefault();
@@ -78,10 +82,14 @@ export function useContestSecurity({
                 return false;
             }
 
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const ctrlKey = isMac ? e.metaKey : e.ctrlKey;
+
             if (
                 e.key === "F12" ||
-                (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
-                (e.ctrlKey && e.key === "u")
+                (ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
+                (ctrlKey && (e.key === "u" || e.key === "U")) ||
+                (ctrlKey && (e.key === "s" || e.key === "S"))
             ) {
                 e.preventDefault();
                 violate();
@@ -97,7 +105,7 @@ export function useContestSecurity({
             }
         };
 
-        // 4. Window Focus Loss
+        // ... existing handlers ...
         const handleBlur = () => {
             if (isQuittingRef.current || violationLock.current || ignoreNextBlur.current) {
                 if (ignoreNextBlur.current) {
@@ -106,16 +114,14 @@ export function useContestSecurity({
                 return;
             }
 
-            // Small delay to let document.activeElement update
             setTimeout(() => {
                 if (document.activeElement?.tagName === "IFRAME") {
-                    return; // Focus moved to preview iframe, ignore
+                    return;
                 }
                 violate();
             }, 100);
         };
 
-        // 5. Fullscreen Exit
         const handleFullscreenChange = () => {
             if (isQuittingRef.current) return;
             if (!document.fullscreenElement && !violationLock.current && !showWarningModal) {
@@ -123,7 +129,6 @@ export function useContestSecurity({
             }
         };
 
-        // 6. Page Hide
         const handlePageHide = () => {
             if (!isQuittingRef.current && !violationLock.current) {
                 violate();
@@ -136,6 +141,7 @@ export function useContestSecurity({
             }
         };
 
+        document.addEventListener("contextmenu", handleContextMenu);
         document.addEventListener("fullscreenchange", handleFullscreenChange);
         document.addEventListener("visibilitychange", handleVisibilityChange);
         document.addEventListener("keydown", handleKeyDown);
@@ -145,6 +151,7 @@ export function useContestSecurity({
 
         return () => {
             if (securityLoopRef.current) clearInterval(securityLoopRef.current);
+            document.removeEventListener("contextmenu", handleContextMenu);
             document.removeEventListener("fullscreenchange", handleFullscreenChange);
             document.removeEventListener("visibilitychange", handleVisibilityChange);
             document.removeEventListener("keydown", handleKeyDown);

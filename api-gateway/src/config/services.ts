@@ -77,12 +77,33 @@ class ServiceProxy {
 
       // 2. Circuit Breaker Integration
       const breaker = new CircuitBreaker(
-        async (req: Request, res: Response, next: any) => {
+        (req: Request, res: Response, next: any) => {
           return new Promise((resolve, reject) => {
+            const onEnd = () => {
+              cleanup();
+              resolve(true);
+            };
+
+            const onError = (err: Error) => {
+              cleanup();
+              reject(err);
+            };
+
+            const cleanup = () => {
+              res.removeListener('finish', onEnd);
+              res.removeListener('close', onEnd);
+              res.removeListener('error', onError);
+            };
+
+            res.on('finish', onEnd);
+            res.on('close', onEnd);
+            res.on('error', onError);
+
             // @ts-ignore
             proxyMiddleware(req, res, (err) => {
-              if (err) reject(err);
-              else resolve(true);
+              if (err) {
+                onError(err);
+              }
             });
           });
         },
