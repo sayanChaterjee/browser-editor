@@ -13,39 +13,54 @@ export default function Preview({ html, css, js }: Props) {
 
   const srcDoc = `
 <!DOCTYPE html>
-<html>
-  <head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-      body {
-        margin: 0;
-        padding: 16px;
-        font-family: sans-serif;
-      }
-      ${css}
+        body { 
+          margin: 0; 
+          padding: 16px; 
+          font-family: sans-serif; 
+          background-color: white;
+          color: black;
+        }
+        ${css}
     </style>
     <script>
-      // Security: Prevent navigation via links
-      document.addEventListener('click', (e) => {
-        const link = e.target.closest('a');
-        if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
-          e.preventDefault();
-          window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
-        }
-      }, true);
+        // System Injection: Visibility Change Listener (Anti-Cheating)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                window.parent.postMessage({ 
+                    type: 'CONTEST_VIOLATION', 
+                    reason: 'TAB_SWITCH',
+                    timestamp: new Date().toISOString()
+                }, '*');
+            }
+        });
+
+        // Security: Prevent navigation via links
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
+                e.preventDefault();
+                window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
+            }
+        }, true);
+
+        window.onload = () => {
+            try {
+                ${js}
+            } catch (err) {
+                console.error("Preview Error:", err);
+            }
+        };
     </script>
-  </head>
-  <body>
+</head>
+<body>
     ${html}
-    <script>
-      try {
-        ${js}
-      } catch (err) {
-        console.error("Preview Error:", err);
-      }
-    </script>
-  </body>
-</html>
-`;
+</body>
+</html>`;
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {

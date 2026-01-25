@@ -51,6 +51,10 @@ export function useProjectManager({
     const [isModalCancelable, setIsModalCancelable] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
 
+    const [lastSyncedHtml, setLastSyncedHtml] = useState("");
+    const [lastSyncedCss, setLastSyncedCss] = useState("");
+    const [lastSyncedJs, setLastSyncedJs] = useState("");
+
     useEffect(() => {
         const initData = async () => {
             const token = localStorage.getItem("token");
@@ -115,10 +119,19 @@ export function useProjectManager({
                                             setHtml(localData.html);
                                             setCss(localData.css);
                                             setJs(localData.js);
+                                            setLastSyncedHtml(localData.html);
+                                            setLastSyncedCss(localData.css);
+                                            setLastSyncedJs(localData.js);
                                         } else {
-                                            setHtml(fullProject.html || INITIAL_HTML);
-                                            setCss(fullProject.css || INITIAL_CSS);
-                                            setJs(fullProject.js || INITIAL_JS);
+                                            const h = fullProject.html?.trim() ? fullProject.html : INITIAL_HTML;
+                                            const c = fullProject.css || INITIAL_CSS;
+                                            const j = fullProject.js || INITIAL_JS;
+                                            setHtml(h);
+                                            setCss(c);
+                                            setJs(j);
+                                            setLastSyncedHtml(h);
+                                            setLastSyncedCss(c);
+                                            setLastSyncedJs(j);
                                         }
 
                                         if (fullProject.timeLeft !== undefined) {
@@ -142,10 +155,19 @@ export function useProjectManager({
                             setHtml(localData.html);
                             setCss(localData.css);
                             setJs(localData.js);
+                            setLastSyncedHtml(localData.html);
+                            setLastSyncedCss(localData.css);
+                            setLastSyncedJs(localData.js);
                         } else {
-                            setHtml(targetProject.html || INITIAL_HTML);
-                            setCss(targetProject.css || INITIAL_CSS);
-                            setJs(targetProject.js || INITIAL_JS);
+                            const h = targetProject.html?.trim() ? targetProject.html : INITIAL_HTML;
+                            const c = targetProject.css || INITIAL_CSS;
+                            const j = targetProject.js || INITIAL_JS;
+                            setHtml(h);
+                            setCss(c);
+                            setJs(j);
+                            setLastSyncedHtml(h);
+                            setLastSyncedCss(c);
+                            setLastSyncedJs(j);
                         }
 
                         if (targetProject.timeLeft !== undefined) {
@@ -166,6 +188,51 @@ export function useProjectManager({
 
         initData();
     }, [router, requestedProjectId]);
+
+    // Fragment-Based Auto-Sync Logic (Write-Behind)
+    useEffect(() => {
+        if (!projectId || isLoading) return;
+
+        // Don't sync if nothing changed since last sync
+        if (html === lastSyncedHtml && css === lastSyncedCss && js === lastSyncedJs) {
+            return;
+        }
+
+        const syncDebounce = setTimeout(async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            const payload: any = {};
+            if (html !== lastSyncedHtml) payload.html = html;
+            if (css !== lastSyncedCss) payload.css = css;
+            if (js !== lastSyncedJs) payload.js = js;
+
+            try {
+                const res = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/sync/${projectId}`,
+                    {
+                        method: "PATCH",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify(payload),
+                    }
+                );
+
+                if (res.ok) {
+                    setLastSyncedHtml(html);
+                    setLastSyncedCss(css);
+                    setLastSyncedJs(js);
+                    console.log("Auto-sync: Successfully updated fragments.");
+                }
+            } catch (err) {
+                console.error("Auto-sync failed:", err);
+            }
+        }, 1500); // 1.5s debounce to minimize requests while typing
+
+        return () => clearTimeout(syncDebounce);
+    }, [html, css, js, projectId, isLoading, lastSyncedHtml, lastSyncedCss, lastSyncedJs]);
 
     const handleCreateProject = async (name: string) => {
         setIsCreatingProject(true);
@@ -245,7 +312,10 @@ export function useProjectManager({
                     },
                     body: JSON.stringify({
                         name: projectName,
-                        ...currentData
+                        html,
+                        css,
+                        js,
+                        timeLeft: currentData.timeLeft
                     }),
                 }
             );

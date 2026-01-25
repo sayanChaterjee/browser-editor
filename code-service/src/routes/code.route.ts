@@ -88,36 +88,39 @@ codeRouter.post('/save', verifyToken, sanitizeCode, conflictLock, async (req: Re
     let project = await Project.findOne({ userId, name });
     let projectId = project?._id.toString();
 
-    // 2. Write-Behind Cache Update
-    const projectData = {
-      userId,
-      name,
-      html,
-      css,
-      js,
-      timeLeft,
+    // 2. Write-Behind Cache Update: Store fragments in a Redis Hash
+    const fragments = {
+      html: html || '',
+      css: css || '',
+      js: js || '',
       updatedAt: new Date().toISOString()
     };
 
     // If project doesn't exist yet, we must create it in DB once to get an ID
-    // or we can generate a temporary UUID. For consistency, let's ensure it exists.
     if (!project) {
-      project = await Project.create({ ...projectData });
+      project = await Project.create({
+        userId,
+        name,
+        ...fragments,
+        timeLeft
+      });
       projectId = project._id.toString();
     }
 
-    const projectCacheKey = `project:${projectId}`;
+    const bufferKey = `project:buffer:${projectId}`;
     const dirtyKey = `dirty_projects`;
 
-    // Atomic update in Redis
-    await redis.set(projectCacheKey, JSON.stringify({ ...projectData, _id: projectId }), 'EX', 3600);
+    // Atomic update in Redis Hash
+    await redis.hset(bufferKey, fragments);
+    // Set expiry for the buffer (e.g., 1 hour)
+    await redis.expire(bufferKey, 3600);
 
     // Mark as dirty for the flusher worker
     await redis.sadd(dirtyKey, projectId as string);
 
     // 3. Version Control: Maintain last 5 Snapshots in Redis
     const snapshotKey = `project:${projectId}:snapshots`;
-    const snapshot = JSON.stringify({ html, css, js, timestamp: new Date().toISOString() });
+    const snapshot = JSON.stringify({ ...fragments, timestamp: fragments.updatedAt });
     await redis.lpush(snapshotKey, snapshot);
     await redis.ltrim(snapshotKey, 0, 4); // Keep only 5
 
@@ -125,7 +128,7 @@ codeRouter.post('/save', verifyToken, sanitizeCode, conflictLock, async (req: Re
     const listCacheKey = `user:projects:${userId}`;
     await redis.del(listCacheKey);
 
-    res.json({ ...projectData, _id: projectId, status: 'saved_to_cache' });
+    res.json({ ...fragments, userId, name, _id: projectId, status: 'saved_to_cache' });
   } catch (error) {
     logger.error('[POST /api/v1/code/save] Error:', error);
     if (error instanceof z.ZodError) {
@@ -151,50 +154,100 @@ codeRouter.patch('/sync/:projectId', verifyToken, sanitizeCode, conflictLock, as
       return res.status(400).json({ message: 'Patches must be an array' });
     }
 
-    const projectCacheKey = `project:${projectId}`;
+    const bufferKey = `project:buffer:${projectId}`;
     const dirtyKey = `dirty_projects`;
 
-    // 1. Get current data (from cache or DB)
-    let cachedData = await redis.get(projectCacheKey);
-    let currentProject;
+    // Check if we have fields directly (Partial Update) or RFC6902 patches
+    const { html, css, js } = req.body;
+    let updatedFragments: any = {};
 
-    if (cachedData) {
-      currentProject = JSON.parse(cachedData);
-    } else {
-      currentProject = await Project.findById(projectId);
-      if (!currentProject || currentProject.userId !== req.userId) {
-        return res.status(404).json({ message: 'Project not found' });
+    if (html !== undefined || css !== undefined || js !== undefined) {
+      // Partial update via direct fields
+      if (html !== undefined) updatedFragments.html = html;
+      if (css !== undefined) updatedFragments.css = css;
+      if (js !== undefined) updatedFragments.js = js;
+      updatedFragments.updatedAt = new Date().toISOString();
+
+      await redis.hset(bufferKey, updatedFragments);
+    } else if (Array.isArray(req.body.patches)) {
+      // Fallback to RFC6902 patches if provided
+      const patches = req.body.patches;
+      let currentData = await redis.hgetall(bufferKey);
+
+      if (Object.keys(currentData).length === 0) {
+        const project = await Project.findById(projectId);
+        if (!project || project.userId !== req.userId) {
+          return res.status(404).json({ message: 'Project not found' });
+        }
+        currentData = {
+          html: project.html,
+          css: project.css,
+          js: project.js,
+          updatedAt: project.updatedAt.toISOString()
+        };
       }
-      currentProject = currentProject.toObject();
+
+      const result = jsonpatch.applyPatch(currentData, patches);
+      updatedFragments = result.newDocument;
+      updatedFragments.updatedAt = new Date().toISOString();
+
+      await redis.hset(bufferKey, updatedFragments);
+    } else {
+      return res.status(400).json({ message: 'Invalid sync data' });
     }
 
-    // 2. Apply Patches
-    const result = jsonpatch.applyPatch(currentProject, patches);
-    const updatedProject = result.newDocument;
-
-    // Ensure userId didn't change (security check)
-    updatedProject.userId = req.userId;
-    updatedProject.updatedAt = new Date().toISOString();
-
-    // 3. Write-Behind Update
-    await redis.set(projectCacheKey, JSON.stringify(updatedProject), 'EX', 3600);
+    // 3. Mark as dirty
     await redis.sadd(dirtyKey, projectId as string);
 
-    // 4. Snapshots (optional: every 10 patches or similar, but for now every sync)
+    // 4. Snapshots
     const snapshotKey = `project:${projectId}:snapshots`;
     const snapshot = JSON.stringify({
-      html: updatedProject.html,
-      css: updatedProject.css,
-      js: updatedProject.js,
-      timestamp: updatedProject.updatedAt
+      html: updatedFragments.html,
+      css: updatedFragments.css,
+      js: updatedFragments.js,
+      timestamp: updatedFragments.updatedAt
     });
     await redis.lpush(snapshotKey, snapshot);
     await redis.ltrim(snapshotKey, 0, 4);
 
-    res.json({ ...updatedProject, status: 'synced_delta' });
+    res.json({ ...updatedFragments, status: 'synced_fragment' });
   } catch (error: any) {
     logger.error('[PATCH /api/v1/code/sync] Error:', error);
     res.status(500).json({ message: 'Incremental sync failed', error: error.message });
+  }
+});
+
+import { CodeUtils } from '../utils/codeUtils';
+
+// GET /preview/:projectId - Get assembled HTML preview for the iframe
+codeRouter.get('/preview/:projectId', async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { projectId } = req.params;
+    const bufferKey = `project:buffer:${projectId}`;
+
+    // Attempt to get from buffer first
+    let data = await redis.hgetall(bufferKey);
+
+    if (Object.keys(data).length === 0) {
+      const project = await Project.findById(projectId);
+      if (!project) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+      data = {
+        html: project.html,
+        css: project.css,
+        js: project.js
+      };
+    }
+
+    const fullHtml = CodeUtils.generateFullPreview(data.html || '', data.css || '', data.js || '');
+
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(fullHtml);
+  } catch (error) {
+    logger.error('[GET /api/v1/code/preview] Error:', error);
+    res.status(500).json({ message: 'Failed to generate preview' });
   }
 });
 

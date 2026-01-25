@@ -16,18 +16,25 @@ export const startFlusherWorker = () => {
             logger.info(`Flusher: Found ${projectIds.length} dirty projects to sync to MongoDB.`);
 
             for (const projectId of projectIds) {
-                const cacheKey = `project:${projectId}`;
-                const cachedData = await redis.get(cacheKey);
+                const bufferKey = `project:buffer:${projectId}`;
+                const cachedFragments = await redis.hgetall(bufferKey);
 
-                if (cachedData) {
-                    const projectData = JSON.parse(cachedData);
-                    const { _id, ...updateData } = projectData;
+                if (Object.keys(cachedFragments).length > 0) {
+                    // Sync only the fragments and updatedAt
+                    const { html, css, js, updatedAt } = cachedFragments;
 
-                    await Project.findByIdAndUpdate(projectId, updateData);
+                    await Project.findByIdAndUpdate(projectId, {
+                        $set: {
+                            ...(html !== undefined && { html }),
+                            ...(css !== undefined && { css }),
+                            ...(js !== undefined && { js }),
+                            ...(updatedAt !== undefined && { updatedAt: new Date(updatedAt) })
+                        }
+                    });
 
                     // Remove from dirty set once synced
                     await redis.srem(dirtyKey, projectId);
-                    logger.debug(`Flusher: Synced project ${projectId} to MongoDB.`);
+                    logger.debug(`Flusher: Synced fragments for project ${projectId} to MongoDB.`);
                 }
             }
 
