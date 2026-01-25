@@ -1,96 +1,118 @@
 # CEditor
 
-A professional-grade Browser Editor application built with a microservices architecture, featuring aggressive contest security, multi-layered data persistence, and unified JWT authentication.
+A professional-grade Browser Editor application built with a microservices architecture, featuring aggressive contest security, a fragment-based assembly engine, and multi-layered data persistence.
 
 ## 🚀 Services Overview
 
 | Service Name | Port | Description |
 | ------------ | ---- | ----------- |
-| **API Gateway** | 3000 | Entry point for all requests, handles routing, rate limiting, and CORS. |
-| **Auth Service** | 3001 | Handles user authentication (JWT), registration, and token management via Redis. |
-| **User Service** | 3002 | Manages user profiles and synchronization via Kafka events. |
-| **Code Service** | 3003 | Manages code storage, project metadata, and contest timer persistence. |
-| **Frontend** | 3005* | Next.js application with built-in auth middleware and security deterrents. |
+| **API Gateway** | 3000 | Entry point for all requests, handles routing, rate limiting, and security headers. |
+| **Auth Service** | 3001 | Handles JWT authentication (Access/Refresh), registration, and session management. |
+| **User Service** | 3002 | Manages user profiles with Kafka-driven synchronization. |
+| **Code Service** | 3003 | **Core Engine**: Handles fragment-based storage, assembly, and Redis write-behind sync. |
+| **Frontend** | 3005* | Next.js (App Router) with hardened security deterrents and local IndexedDB. |
 
-> [!NOTE]
-> *Frontend port may vary if run locally (typically 3000, 3004, or 3005). The API Gateway at 3000 acts as the unified reverse proxy for all backend services.
+## 🏗️ Architecture: Fragment-Based Wrapper Approach
 
-## 🏗️ Architecture
+The application uses a **Fragment-Based Wrapper Approach** to ensure code isolation, security, and flexible preview rendering.
 
 ```mermaid
 graph TD
-    subgraph Client Layer
-        Browser["Frontend (Next.js)"]
-        IDB[("Local Storage (IndexedDB)")]
-        Browser <--> IDB
+    subgraph Client
+        Editor[Monaco Editor] -->|Debounced Fragments| Hook[useProjectManager]
+        Hook -->|PATCH /sync| Gateway
+        Preview[Iframe Container] <-->|postMessage| Editor
     end
 
-    subgraph API Gateway Layer
-        Gateway["API Gateway (Express)"]
-        Browser -->|"HTTP/HTTPS (JWT)"| Gateway
-    end
-
-    subgraph Service Layer
-        Gateway --> Auth["Auth Service"]
-        Gateway --> User["User Service"]
-        Gateway --> Code["Code Service"]
+    subgraph "Code Service (Assembly Engine)"
+        Gateway --> Routes
+        Routes --> Sanitizer[Fragment Sanitizer]
+        Sanitizer --> RedisHash[("Redis Hash Buffer")]
+        RedisHash --> Flusher[Write-Behind Worker]
+        Flusher --> MongoDB[("MongoDB Persistence")]
         
-        Auth -.->|"Kafka: user-registered"| Kafka(("Kafka Bus"))
-        Kafka -.->|"Subscribe: sync-profile"| User
-    end
-
-    subgraph Persistence & State Layer
-        Auth <--> RedisSession[("Redis (Auth Tokens)")]
-        Code <--> RedisCache[("Redis (Project Cache)")]
-        Code <--> CodeDB[("MongoDB (Projects)")]
-        User <--> UserDB[("MongoDB (Profiles)")]
+        Routes --> Assembly[Template Engine]
+        Assembly -->|Full HTML| Preview
     end
 ```
 
-## 🛠️ Infrastructure & Data Flow
+### 🧩 Granular Functionality
 
-| Component | Technology | Role |
-| --------- | ---------- | ---- |
-| **API Gateway** | Node.js/Express | Unified entry point, request proxying, and rate limiting. |
-| **Message Broker** | Kafka | Asynchronous event-driven synchronization (e.g., Auth -> User). |
-| **In-Memory Store** | Redis | JWT blacklisting, refresh token storage, and project metadata caching. |
-| **Main Database** | MongoDB | Persistent storage for user profiles and project code. |
-| **Local Cache** | IndexedDB | Client-side "zero-loss" auto-save mechanism for the editor. |
+#### 1. Storage & Separation
+- **Fragment Extraction**: The backend automatically identifies and strips `<html>`, `<head>`, and `<body>` tags from user input, storing only the inner fragments.
+- **Dedicated Fields**: user code is persisted as three distinct components:
+  - `html`: Sanitized <body> content.
+  - `css`: Extracted `<style>` tag contents.
+  - `js`: Extracted `<script>` tag contents.
 
-## 🛡️ Security & Hardening
+#### 2. Redis Write-Behind Strategy
+- **Low-Latency Updates**: Frontend sends small PATCH requests containing only modified fragments (e.g., only CSS changes).
+- **Redis Buffering**: Updates are stored in a Redis Hash (`project:buffer:{id}`). This minimizes database I/O and provides near-instant synchronization.
+- **The Flusher**: A background worker performs bulk updates from Redis to MongoDB every 60 seconds using optimized `$set` operations.
 
-### 🔒 API & Auth Security
-- **Unified Gateway**: All services are protected behind the API Gateway.
-- **JWT Authentication**: Secure token-based auth with short-lived access tokens and Redis-backed refresh tokens.
-- **Environment Isolation**: Secrets are managed via `.env` files (excluded from git).
-- **Hardened Cookies**: `httpOnly` and `sameSite: lax` flags on all sensitive cookies, with `secure` flags enabled in production.
-- **Rate Limiting**: Integrated rate limiting at the Gateway level to prevent brute-force attacks.
+#### 3. Secure Assembly Engine
+- **The Wrapper**: All previews are generated using a controlled `<!DOCTYPE html>` template.
+- **System Injections**: Non-removable scripts are injected for:
+    - **Visibility Monitoring**: Detects tab switching and sends violations to the parent.
+    - **Navigation Blocking**: Prevents accidental page escapes via link clicks.
+    - **Error Catching**: Proxies console errors and runtime exceptions.
 
-### 🛡️ Contest Security Deterrents
-- **Console Deterrent**: Real-time `debugger` loop detects and penalizes devtool usage.
-- **Keyboard Lockdown**: Blocks common developer shortcuts (F12, Ctrl+Shift+I, etc.).
-- **Focus Tracking**: Automatic strike system for tab/window switching or exiting fullscreen.
-- **Strict Enforcement**: Users get 3 warnings; the 4th violation triggers an automatic logout.
-- **Submit Restriction**: Submission is strictly allowed only during active contest mode.
+## 🛡️ Security Hardening
 
-## 💾 Multi-Layer Persistence
-- **IndexedDB**: Local auto-save every 2 seconds for zero-loss recovery.
-- **Periodic Sync**: Background synchronization to MongoDB every 10 seconds.
-- **Redis Caching**: `code-service` implements multi-layer caching for project lists and details.
-- **Mandatory Projects**: Users must have a project to enter the editor; contests force fresh project creation.
+### 🔒 Content & Platform Security
+- **Strict Sanitization**: Powered by `isomorphic-dompurify`. Removes all `script`, `style`, and `iframe` tags from the HTML fragment, preventing XSS while keeping styles/scripts in their "owned" fields.
+- **Iframe Sandboxing**: Previews are served with `sandbox="allow-scripts"`.
+- **MIME Sniffing Prevention**: Preview endpoint enforces `X-Content-Type-Options: nosniff`.
+- **Focus Tracking**: Strike system (3 warnings) for tab switching or exiting fullscreen.
 
-## 🛠️ Tech Stack
+### 🛡️ Contest Deterrents
+- **Console Lockdown**: Real-time `debugger` loop detects and penalizes devtool usage.
+- **Keyboard Lockdown**: Blocks `F12`, `Ctrl+Shift+I`, `Alt+Tab` (via blur detection).
+- **Anti-Cheating**: `visibilitychange` events are proxied from the preview iframe to the monitoring system.
 
-- **Frontend**: Next.js (App Router), React, Monaco Editor, IndexedDB.
-- **Backend**: Node.js, TypeScript, Express.js, Winston Logger.
-- **Data**: MongoDB (Mongoose), Redis (ioredis).
-- **Messaging**: Kafka (kafkajs).
-- **DevOps**: Docker, Docker Compose.
+## 💾 Data Persistence Layers
+- **L1: Monaco Memory**: Immediate local state.
+- **L2: IndexedDB**: Client-side backup every 2s for crash recovery.
+- **L3: Redis Buffer**: In-memory fragment buffer for high-frequency updates.
+- **L4: MongoDB**: Final persistent storage with revision snapshots.
+
+## 🔑 Authentication & Data Flow
+
+CEditor uses a multi-service authentication handshake to ensure security and data consistency.
+
+### 🔄 Auth Handshake & Header Injection
+1.  **Credential Submission**: User provides `email` and `password` via the login form.
+2.  **Token Issuance**: `Auth Service` validates credentials and returns a JWT **Access Token**.
+3.  **Gateway Injection**: For every request to the backend, the **API Gateway** intercepts the JWT, verifies it via `authMiddleware`, and injects the `x-user-id` header.
+4.  **Downstream Consumption**: Internal services (Code, User) never see the JWT; they rely on the trusted `x-user-id` header for all user-specific operations.
+
+### 📡 Data Synchronization Matrix
+
+The system employs multiple "Write-Behind" and "Auto-Save" layers to ensure zero data loss:
+
+| Flow | Interval | Mechanism | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Monaco ➞ IndexedDB** | **2 Seconds** | Periodic Interval | Client-side crash recovery. |
+| **Monaco ➞ Redis Buffer** | **1.5s (Idle)** | Debounced PATCH | High-frequency fragment buffering. |
+| **Monaco ➞ MongoDB** | **10 Seconds** | Periodic Background Sync | Durable storage during active coding. |
+| **Redis ➞ MongoDB** | **60 Seconds** | Cron Worker (Flusher) | Bulk synchronization of fragment hashes. |
+
+## 🖱️ User Interaction Logic
+
+Granular behavior for core UI actions:
+
+| Action | Button | Detailed Workflow |
+| :--- | :--- | :--- |
+| **New Project** | `+ New Project` | Triggers a `POST /api/v1/code/save`. Initializes a unique project ID and fragment skeleton in MongoDB. |
+| **Start Contest** | `Start Contest` | Fires `onContestStart`. Locks the keyboard/console deterred mode and activates the 10s periodic backend sync. |
+| **Manual Save** | `💾 Save` | Forces an immediate `POST /api/v1/code/save`. Overrides the debounce timers and writes directly to both Redis and MongoDB. |
+| **Submission** | `🚀 Submit` | Captures a final state of all fragments, current `timeLeft`, and `strikeCount`. Sends to `POST /api/v1/code/submit`, creating an immutable contest record. |
+| **Tab Switch** | *(Auto)* | Triggered by `visibilitychange`. The assembled iframe sends a `postMessage` to the parent, incrementing the strike counter. |
 
 ## 🚦 Getting Started
 
 ### 1. Environment Setup
-Rename `.env.example` to `.env` in the root directory and update secrets:
+Rename `.env.example` to `.env` and configure:
 ```bash
 cp .env.example .env
 ```
@@ -99,13 +121,8 @@ cp .env.example .env
 ```bash
 docker-compose up --build
 ```
-- **Gateway**: [http://localhost:3000](http://localhost:3000)
-- **Kafka UI**: [http://localhost:8080](http://localhost:8080)
-- **Redis UI**: [http://localhost:8001](http://localhost:8001)
 
-## ⚠️ Troubleshooting
-
-- **503 Errors**: Check if services are healthy in Docker.
-- **Kafka Sync**: Ensure topics are created if profile data doesn't appear immediately.
-- **CORS**: Gateway handles preflight; services use secure origin allow-lists.
-
+## 🛠️ Tech Stack
+- **Frontend**: Next.js, Monaco, IndexedDB, Tailwind CSS.
+- **Backend**: Node.js/TypeScript, Express, Winston.
+- **Infrastructure**: MongoDB, Redis, Kafka, Docker.
