@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
 import helmet from 'helmet';
-import cors from 'cors';
 import { config } from './config';
 import logger from './config/logger';
 import { userRouter } from './routes/user.route';
@@ -16,7 +15,7 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(cors());
+
 app.use(express.json());
 app.use(correlationMiddleware);
 

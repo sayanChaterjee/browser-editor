@@ -1,18 +1,73 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { verifyToken } from '../middlewares/auth.middleware';
 import User from '../models/user.model';
+import logger from '../config/logger';
 
 const userRouter = Router();
 
-userRouter.get('/profile', verifyToken, async (req, res) => {
+userRouter.get('/profile', verifyToken, async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.userId);
+    const user = await User.findById((req as any).userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
     res.json(user);
   } catch (error) {
+    logger.error('Error fetching user profile:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+userRouter.post('/profile', async (req: Request, res: Response) => {
+  try {
+    const { userId, email, name } = req.body;
+    const sagaId = req.headers['x-saga-id'];
+
+    if (!userId || !email) {
+      return res.status(400).json({ message: 'userId and email are required' });
+    }
+
+    logger.info(`Creating user profile for saga: ${sagaId}, userId: ${userId}`);
+
+    const existingUser = await User.findById(userId);
+    if (existingUser) {
+      logger.warn(`User profile already exists for ${userId}`);
+      return res.status(200).json(existingUser);
+    }
+
+    const user = await User.create({
+      _id: userId,
+      email,
+      name: name || email.split('@')[0],
+    });
+
+    logger.info(`User profile created: ${user._id}`);
+    res.status(201).json(user);
+  } catch (error: any) {
+    logger.error('Error creating user profile:', error);
+    res.status(500).json({ message: 'Failed to create profile', error: error.message });
+  }
+});
+
+userRouter.delete('/profile/:userId', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const sagaId = req.headers['x-saga-id'];
+
+    logger.info(`Deleting user profile for saga: ${sagaId}, userId: ${userId}`);
+
+    const user = await User.findByIdAndDelete(userId);
+
+    if (!user) {
+      logger.warn(`User profile not found for deletion: ${userId}`);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    logger.info(`User profile deleted: ${userId}`);
+    res.json({ message: 'Profile deleted successfully' });
+  } catch (error: any) {
+    logger.error('Error deleting user profile:', error);
+    res.status(500).json({ message: 'Failed to delete profile', error: error.message });
   }
 });
 

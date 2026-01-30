@@ -19,7 +19,6 @@ export default function DeviceRestriction({ children }: { children: React.ReactN
   if (isMobile) {
     return (
       <div className="fixed inset-0 z-[100000] bg-black flex flex-col items-center justify-center p-6 text-center overflow-hidden">
-        {/* Decorative Background Elements */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#00ffcc]/10 blur-[120px] rounded-full" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
         
@@ -51,8 +50,7 @@ export default function DeviceRestriction({ children }: { children: React.ReactN
             </a>
           </div>
         </div>
-        
-        {/* Aesthetics: Tilted Code snippet background */}
+
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none -z-1 flex items-center justify-center rotate-12 scale-150">
            <pre className="text-xs text-white">
              {`function Restricted() {

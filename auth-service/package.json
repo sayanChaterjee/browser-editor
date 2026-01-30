@@ -12,8 +12,8 @@
     "test": "jest"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
-    "bcryptjs": "^3.0.3",
+    "axios": "^1.13.4",
+    "better-auth": "^1.4.17",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
@@ -21,8 +21,8 @@
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "ioredis": "^5.5.0",
-    "jsonwebtoken": "^9.0.3",
     "kafkajs": "^2.2.4",
+    "mongodb": "^7.0.0",
     "mongoose": "^9.0.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.12",
@@ -35,12 +35,10 @@
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
-    "@types/bcrypt": "^5.0.2",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/jest": "^27.5.2",
-    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.0.3",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^7.0.5",

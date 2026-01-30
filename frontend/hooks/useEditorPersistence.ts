@@ -38,7 +38,7 @@ export function useEditorPersistence({
                 css,
                 js,
                 updatedAt: new Date().toISOString(),
-                isSynced: true // For now, we'll mark as synced immediately
+                isSynced: true
             });
         } catch (err) {
             console.error("IDB Save failed", err);
@@ -46,7 +46,6 @@ export function useEditorPersistence({
     };
 
     const syncToBackend = async () => {
-        // Prevent sync if loading or no project active
         if (isLoading || !projectId || !projectName) return;
 
         const token = localStorage.getItem("token");

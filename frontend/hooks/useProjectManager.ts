@@ -57,17 +57,11 @@ export function useProjectManager({
 
     useEffect(() => {
         const initData = async () => {
-            const token = localStorage.getItem("token");
-            if (!token) {
-                router.push("/login");
-                return;
-            }
-
             // 1. Fetch User Profile
             try {
                 const profRes = await fetch(
                     `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/user/profile`,
-                    { headers: { Authorization: `Bearer ${token}` } }
+                    { credentials: 'include' }
                 );
                 if (profRes.ok) {
                     const profText = await profRes.text();
@@ -91,7 +85,7 @@ export function useProjectManager({
             try {
                 const res = await fetch(
                     `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code`,
-                    { headers: { Authorization: `Bearer ${token}` } }
+                    { credentials: 'include' }
                 );
                 if (res.ok) {
                     const data = await res.json();
@@ -107,7 +101,7 @@ export function useProjectManager({
                                 try {
                                     const fullRes = await fetch(
                                         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/${requestedProjectId}`,
-                                        { headers: { Authorization: `Bearer ${token}` } }
+                                        { credentials: 'include' }
                                     );
                                     if (fullRes.ok) {
                                         const fullProject = await fullRes.json();
@@ -199,9 +193,6 @@ export function useProjectManager({
         }
 
         const syncDebounce = setTimeout(async () => {
-            const token = localStorage.getItem("token");
-            if (!token) return;
-
             const payload: any = {};
             if (html !== lastSyncedHtml) payload.html = html;
             if (css !== lastSyncedCss) payload.css = css;
@@ -214,8 +205,8 @@ export function useProjectManager({
                         method: "PATCH",
                         headers: {
                             "Content-Type": "application/json",
-                            Authorization: `Bearer ${token}`,
                         },
+                        credentials: 'include',
                         body: JSON.stringify(payload),
                     }
                 );
@@ -237,22 +228,13 @@ export function useProjectManager({
     const handleCreateProject = async (name: string) => {
         setIsCreatingProject(true);
 
-        const token = localStorage.getItem("token");
-        if (!token) {
-            if (setIgnoreNextBlur) setIgnoreNextBlur(true);
-            alert("You must be logged in to create a project");
-            setIsCreatingProject(false);
-            setShowCreateModal(false);
-            return;
-        }
-
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/save`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     name,
                     html: INITIAL_HTML,
@@ -298,9 +280,6 @@ export function useProjectManager({
     };
 
     const saveCode = async (currentData: { html: string; css: string; js: string; timeLeft: number }) => {
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
         try {
             const res = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/save`,
@@ -308,8 +287,8 @@ export function useProjectManager({
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
                     },
+                    credentials: 'include',
                     body: JSON.stringify({
                         name: projectName,
                         html,

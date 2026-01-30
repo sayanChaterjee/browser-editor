@@ -1,128 +1,810 @@
-# CEditor
+# CEditor - Browser-Based Code Editor with Microservices Architecture
 
-A professional-grade Browser Editor application built with a microservices architecture, featuring aggressive contest security, a fragment-based assembly engine, and multi-layered data persistence.
+> A production-ready code editor with contest security, real-time collaboration, and enterprise-grade microservices architecture.
 
-## 🚀 Services Overview
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
+[![Better-Auth](https://img.shields.io/badge/Better--Auth-OAuth-green)](https://better-auth.com/)
 
-| Service Name | Port | Description |
-| ------------ | ---- | ----------- |
-| **API Gateway** | 3000 | Entry point for all requests, handles routing, rate limiting, and security headers. |
-| **Auth Service** | 3001 | Handles JWT authentication (Access/Refresh), registration, and session management. |
-| **User Service** | 3002 | Manages user profiles with Kafka-driven synchronization. |
-| **Code Service** | 3003 | **Core Engine**: Handles fragment-based storage, assembly, and Redis write-behind sync. |
-| **Frontend** | 3005* | Next.js (App Router) with hardened security deterrents and local IndexedDB. |
+---
 
-## 🏗️ Architecture: Fragment-Based Wrapper Approach
+## 📑 Table of Contents
 
-The application uses a **Fragment-Based Wrapper Approach** to ensure code isolation, security, and flexible preview rendering.
+- [Architecture Overview](#-architecture-overview)
+- [Services](#-services)
+- [Tech Stack](#-tech-stack)
+- [Quick Start](#-quick-start)
+- [Environment Setup](#-environment-setup)
+- [API Documentation](#-api-documentation)
+- [Design Patterns](#-design-patterns)
+- [Security](#-security)
+- [Deployment](#-deployment)
+
+---
+
+## 🏗️ Architecture Overview
+
+### High-Level System Architecture
 
 ```mermaid
-graph TD
-    subgraph Client
-        Editor[Monaco Editor] -->|Debounced Fragments| Hook[useProjectManager]
-        Hook -->|PATCH /sync| Gateway
-        Preview[Iframe Container] <-->|postMessage| Editor
+graph TB
+    subgraph Client[\"🌐 Client Layer\"]
+        Browser[\"Web Browser\"]
+        FE[\"Next.js Frontend<br/>Port: 3005\"]
     end
 
-    subgraph "Code Service (Assembly Engine)"
-        Gateway --> Routes
-        Routes --> Sanitizer[Fragment Sanitizer]
-        Sanitizer --> RedisHash[("Redis Hash Buffer")]
-        RedisHash --> Flusher[Write-Behind Worker]
-        Flusher --> MongoDB[("MongoDB Persistence")]
-        
-        Routes --> Assembly[Template Engine]
-        Assembly -->|Full HTML| Preview
+    subgraph Gateway[\"🚪 API Gateway\"]
+        AG[\"API Gateway<br/>Port: 3000<br/>• Circuit Breaker<br/>• Rate Limiting<br/>• Auth Middleware\"]
     end
+
+    subgraph Services[\"🔧 Microservices\"]
+        Auth[\"Auth Service<br/>Port: 3001<br/>• JWT/OAuth<br/>• Session Mgmt\"]
+        User[\"User Service<br/>Port: 3002<br/>• Profile CRUD<br/>• Kafka Consumer\"]
+        Code[\"Code Service<br/>Port: 3003<br/>• Project CRUD<br/>• Redis Caching<br/>• Background Workers\"]
+    end
+
+    subgraph Infrastructure[\"💾 Infrastructure\"]
+        Mongo[(\"MongoDB Atlas<br/>• auth_db<br/>• user_db<br/>• code_db\")]
+        Redis[(\"Redis<br/>Port: 6379<br/>Caching + Buffering\")]
+        Kafka[(\"Kafka<br/>Port: 9094<br/>Event Streaming\")]
+    end
+
+    Browser --\u003e FE
+    FE --\"HTTP/REST\"--\u003e AG
+    AG --\u003e Auth
+    AG --\u003e User  
+    AG --\u003e Code
+    
+    Auth --\u003e Mongo
+    User --\u003e Mongo
+    Code --\u003e Mongo
+    
+    Auth --\u003e Redis
+    Code --\u003e Redis
+    
+    Auth --\"Events\"--\u003e Kafka
+    User --\"Subscribe\"--\u003e Kafka
+    Code --\"Subscribe\"--\u003e Kafka
+    
+    style Client fill:#e1f5ff
+    style Gateway fill:#fff3cd
+    style Services fill:#d4edda
+    style Infrastructure fill:#f8d7da
 ```
 
-### 🧩 Granular Functionality
+### Service-Level Architecture Breakdown
 
-#### 1. Storage & Separation
-- **Fragment Extraction**: The backend automatically identifies and strips `<html>`, `<head>`, and `<body>` tags from user input, storing only the inner fragments.
-- **Dedicated Fields**: user code is persisted as three distinct components:
-  - `html`: Sanitized <body> content.
-  - `css`: Extracted `<style>` tag contents.
-  - `js`: Extracted `<script>` tag contents.
+```mermaid
+graph LR
+    subgraph AG[\"API Gateway :3000\"]
+        Router[\"Express Router\"]
+        CircuitB[\"Circuit Breaker<br/>(Opossum)\"]
+        RateLimit[\"Rate Limiter\"]
+        AuthMW[\"Auth Middleware\"]
+    end
 
-#### 2. Redis Write-Behind Strategy
-- **Low-Latency Updates**: Frontend sends small PATCH requests containing only modified fragments (e.g., only CSS changes).
-- **Redis Buffering**: Updates are stored in a Redis Hash (`project:buffer:{id}`). This minimizes database I/O and provides near-instant synchronization.
-- **The Flusher**: A background worker performs bulk updates from Redis to MongoDB every 60 seconds using optimized `$set` operations.
+    subgraph AuthSvc[\"Auth Service :3001\"]
+        BetterAuth[\"Better-Auth\"]
+        GoogleOAuth[\"Google OAuth\"]
+        EmailPwd[\"Email/Password\"]
+        SessionMgr[\"Session Manager\"]
+    end
 
-#### 3. Secure Assembly Engine
-- **The Wrapper**: All previews are generated using a controlled `<!DOCTYPE html>` template.
-- **System Injections**: Non-removable scripts are injected for:
-    - **Visibility Monitoring**: Detects tab switching and sends violations to the parent.
-    - **Navigation Blocking**: Prevents accidental page escapes via link clicks.
-    - **Error Catching**: Proxies console errors and runtime exceptions.
+    subgraph UserSvc[\"User Service :3002\"]
+        ProfileAPI[\"Profile API\"]
+        KafkaConsumer1[\"Kafka Consumer\"]
+        UserDB[(\"user_db\")]
+    end
 
-## 🛡️ Security Hardening
+    subgraph CodeSvc[\"Code Service :3003\"]
+        ProjectAPI[\"Project API\"]
+        Sanitizer[\"Code Sanitizer\"]
+        RedisBuffer[\"Redis Buffer\"]
+        Flusher[\"Flusher Worker\"]
+        Janitor[\"Janitor Worker\"]
+        CodeDB[(\"code_db\")]
+    end
 
-### 🔒 Content & Platform Security
-- **Strict Sanitization**: Powered by `isomorphic-dompurify`. Removes all `script`, `style`, and `iframe` tags from the HTML fragment, preventing XSS while keeping styles/scripts in their "owned" fields.
-- **Iframe Sandboxing**: Previews are served with `sandbox="allow-scripts"`.
-- **MIME Sniffing Prevention**: Preview endpoint enforces `X-Content-Type-Options: nosniff`.
-- **Focus Tracking**: Strike system (3 warnings) for tab switching or exiting fullscreen.
+    Router --\u003e CircuitB
+    CircuitB --\u003e AuthMW
+    AuthMW --\u003e RateLimit
+    
+    RateLimit --\"/auth/*\"--\u003e BetterAuth
+    RateLimit --\"/user/*\"--\u003e ProfileAPI
+    RateLimit --\"/code/*\"--\u003e ProjectAPI
+    
+    BetterAuth --\u003e GoogleOAuth
+    BetterAuth --\u003e EmailPwd
+    BetterAuth --\u003e SessionMgr
+    
+    ProfileAPI --\u003e UserDB
+    KafkaConsumer1 --\u003e UserDB
+    
+    ProjectAPI --\u003e Sanitizer
+    Sanitizer --\u003e RedisBuffer
+    RedisBuffer --\u003e Flusher
+    Flusher --\u003e CodeDB
+    Janitor --\u003e CodeDB
+```
 
-### 🛡️ Contest Deterrents
-- **Console Lockdown**: Real-time `debugger` loop detects and penalizes devtool usage.
-- **Keyboard Lockdown**: Blocks `F12`, `Ctrl+Shift+I`, `Alt+Tab` (via blur detection).
-- **Anti-Cheating**: `visibilitychange` events are proxied from the preview iframe to the monitoring system.
+### Data Flow: User Registration (Saga Pattern)
 
-## 💾 Data Persistence Layers
-- **L1: Monaco Memory**: Immediate local state.
-- **L2: IndexedDB**: Client-side backup every 2s for crash recovery.
-- **L3: Redis Buffer**: In-memory fragment buffer for high-frequency updates.
-- **L4: MongoDB**: Final persistent storage with revision snapshots.
+```mermaid
+sequenceDiagram
+    participant Client
+    participant AG as API Gateway
+    participant Auth as Auth Service
+    participant Saga as Saga Coordinator
+    participant User as User Service
+    participant Code as Code Service
+    participant Kafka
+    participant DB as MongoDB
 
-## 🔑 Authentication & Data Flow
+    Client-\u003e\u003eAG: POST /api/auth/sign-up/email
+    AG-\u003e\u003eAuth: Forward with validation
+    Auth-\u003e\u003eDB: Create user account
+    Auth-\u003e\u003eSaga: Start registration saga
+    
+    Saga-\u003e\u003eUser: Step 1: Create profile
+    User-\u003e\u003eDB: Insert user profile
+    User--\u003e\u003eSaga: Profile created ✓
+    Saga-\u003e\u003eKafka: Publish step-completed event
+    
+    Saga-\u003e\u003eCode: Step 2: Create default project
+    Code-\u003e\u003eDB: Insert starter project
+    Code--\u003e\u003eSaga: Project created ✓
+    Saga-\u003e\u003eKafka: Publish saga-completed event
+    
+    Saga--\u003e\u003eAuth: Saga completed ✓
+    Auth--\u003e\u003eAG: Return session + user data
+    AG--\u003e\u003eClient: 200 OK + auth cookie
+    
+    Note over Saga,Code: On failure, automatic<br/>compensation (rollback)
+```
 
-CEditor uses a multi-service authentication handshake to ensure security and data consistency.
+### Code Persistence: Multi-Layer Strategy
 
-### 🔄 Auth Handshake & Header Injection
-1.  **Credential Submission**: User provides `email` and `password` via the login form.
-2.  **Token Issuance**: `Auth Service` validates credentials and returns a JWT **Access Token**.
-3.  **Gateway Injection**: For every request to the backend, the **API Gateway** intercepts the JWT, verifies it via `authMiddleware`, and injects the `x-user-id` header.
-4.  **Downstream Consumption**: Internal services (Code, User) never see the JWT; they rely on the trusted `x-user-id` header for all user-specific operations.
+```mermaid
+graph LR
+    subgraph Editor[\"Monaco Editor\"]
+        E[\"Code Changes\"]
+    end
 
-### 📡 Data Synchronization Matrix
+    subgraph L1[\"L1: Client RAM\"]
+        Memory[\"Editor State<br/>Instant\"]
+    end
 
-The system employs multiple "Write-Behind" and "Auto-Save" layers to ensure zero data loss:
+    subgraph L2[\"L2: IndexedDB\"]
+        IDB[\"Browser Storage<br/>Every 2s\"]
+    end
 
-| Flow | Interval | Mechanism | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Monaco ➞ IndexedDB** | **2 Seconds** | Periodic Interval | Client-side crash recovery. |
-| **Monaco ➞ Redis Buffer** | **1.5s (Idle)** | Debounced PATCH | High-frequency fragment buffering. |
-| **Monaco ➞ MongoDB** | **10 Seconds** | Periodic Background Sync | Durable storage during active coding. |
-| **Redis ➞ MongoDB** | **60 Seconds** | Cron Worker (Flusher) | Bulk synchronization of fragment hashes. |
+    subgraph L3[\"L3: Redis\"]
+        RedisHash[\"Fragment Buffer<br/>Debounced 1.5s\"]
+    end
 
-## 🖱️ User Interaction Logic
+    subgraph L4[\"L4: MongoDB\"]
+        Mongo[\"Persistent DB<br/>Every 60s\"]
+    end
 
-Granular behavior for core UI actions:
+    E --\u003e Memory
+    Memory --\"Auto-save\"--\u003e IDB
+    Memory --\"PATCH /sync\"--\u003e RedisHash
+    RedisHash --\"Flusher Worker\"--\u003e Mongo
+    
+    style L1 fill:#e3f2fd
+    style L2 fill:#f3e5f5
+    style L3 fill:#fff3e0
+    style L4 fill:#e8f5e9
+```
 
-| Action | Button | Detailed Workflow |
-| :--- | :--- | :--- |
-| **New Project** | `+ New Project` | Triggers a `POST /api/v1/code/save`. Initializes a unique project ID and fragment skeleton in MongoDB. |
-| **Start Contest** | `Start Contest` | Fires `onContestStart`. Locks the keyboard/console deterred mode and activates the 10s periodic backend sync. |
-| **Manual Save** | `💾 Save` | Forces an immediate `POST /api/v1/code/save`. Overrides the debounce timers and writes directly to both Redis and MongoDB. |
-| **Submission** | `🚀 Submit` | Captures a final state of all fragments, current `timeLeft`, and `strikeCount`. Sends to `POST /api/v1/code/submit`, creating an immutable contest record. |
-| **Tab Switch** | *(Auto)* | Triggered by `visibilitychange`. The assembled iframe sends a `postMessage` to the parent, incrementing the strike counter. |
+---
 
-## 🚦 Getting Started
+## 🔧 Services
 
-### 1. Environment Setup
-Rename `.env.example` to `.env` and configure:
+### 1. **API Gateway** (Port 3000)
+
+**Responsibilities:**
+- Request routing and load balancing
+- Authentication verification
+- Circuit breaker pattern (prevents cascade failures)
+- Rate limiting (100 req/min per IP)
+- CORS handling
+- Request/response logging
+
+**Key Features:**
+- Better-auth session verification
+- x-user-id header injection for downstream services
+- Aggregator pattern for dashboard endpoint
+- Health check aggregation
+
+**Technologies:** Express, Opossum (Circuit Breaker), Express-rate-limit
+
+---
+
+### 2. **Auth Service** (Port 3001)
+
+**Responsibilities:**
+- User registration and login
+- Session management (Better-Auth)
+- OAuth integration (Google)
+- Password reset flows
+- Token generation and validation
+
+**Authentication Methods:**
+1. **Email/Password** - Traditional auth with bcrypt
+2. **Google OAuth** - Social login integration
+
+**Key Features:**
+- MongoDB session storage
+- HTTP-only secure cookies
+- Automatic session expiry (7 days)
+- Rate limiting on auth endpoints
+- Email verification support (Resend)
+
+**Technologies:** Better-Auth, Mongoose, Resend, Kafka Producer
+
+---
+
+### 3. **User Service** (Port 3002)
+
+**Responsibilities:**
+- User profile CRUD operations
+- Profile data management
+- Kafka event consumption for user sync
+
+**API Endpoints:**
+- `GET /profile` - Get user profile
+- `POST /profile` - Create profile (saga-triggered)
+- `DELETE /profile/:userId` - Delete profile (compensation)
+
+**Technologies:** Express, Mongoose, Kafka Consumer
+
+---
+
+### 4. **Code Service** (Port 3003)
+
+**Responsibilities:**
+- Project CRUD operations
+- Code fragment storage and assembly
+- Redis write-behind caching
+- Snapshot versioning
+- Background workers (Flusher, Janitor)
+
+**API Endpoints:**
+- `GET /` - List all user projects
+- `GET /:projectId` - Get project by ID
+- `POST /save` - Create/update project
+- `PATCH /sync/:projectId` - Incremental sync (RFC6902 patches)
+- `GET /preview/:projectId` - Generate HTML preview
+- `POST /submit` - Contest submission
+- `DELETE /:projectId` - Delete project
+
+**Background Workers:**
+1. **Flusher** - Syncs Redis buffer to MongoDB every 60s
+2. **Janitor** - Cleans up stale/expired projects daily
+
+**Technologies:** Express, Mongoose, Redis (ioredis), Kafka Consumer, fast-json-patch
+
+---
+
+## 💻 Tech Stack
+
+### Frontend
+- **Framework:** Next.js 15 (App Router)
+- **Editor:** Monaco Editor
+- **Styling:** Tailwind CSS
+- **State:** React Hooks
+- **Storage:** IndexedDB (idb library)
+- **HTTP Client:** Fetch API
+
+### Backend
+| Layer | Technologies |
+|-------|-------------|
+| **Runtime** | Node.js 20, TypeScript 5 |
+| **Web Framework** | Express 5 |
+| **Authentication** | Better-Auth (OAuth + Email) |
+| **Database** | MongoDB Atlas (Mongoose ODM) |
+| **Caching** | Redis (ioredis) |
+| **Messaging** | Kafka.js |
+| **Logging** | Winston |
+| **Validation** | Zod |
+| **Sanitization** | isomorphic-dompurify |
+
+### Infrastructure
+- **Containerization:** Docker + Docker Compose
+- **Reverse Proxy:** API Gateway (Express)
+- **Message Broker:** Apache Kafka 3.7
+- **Cache Store:** Redis Stack 6.2
+- **Database:** MongoDB Atlas
+
+### DevOps
+- **CI/CD:** Docker multi-stage builds
+- **Logging:** Structured JSON logs (Winston)
+- **Monitoring:** Health check endpoints
+- **Process Management:** Graceful shutdown handlers
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Docker & Docker Compose
+- Node.js 20+ (for local development)
+- MongoDB Atlas account (or local MongoDB)
+- Google Cloud Console account (for OAuth)
+
+### 1. Clone Repository
 ```bash
+git clone https://github.com/yourusername/browser-editor.git
+cd browser-editor
+```
+
+### 2. Environment Configuration
+```bash
+# Copy environment template
 cp .env.example .env
+
+# Edit .env with your credentials
+nano .env
 ```
 
-### 2. Running with Docker
+**Required credentials:**
+- MongoDB Atlas connection strings (3 databases)
+- Better-Auth secret (32+ chars)
+- Redis password
+- Google OAuth credentials (optional)  
+- Resend API key (optional, for emails)
+
+### 3. Start with Docker
 ```bash
+# Build and start all services
 docker-compose up --build
+
+# Or run in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
 ```
 
-## 🛠️ Tech Stack
-- **Frontend**: Next.js, Monaco, IndexedDB, Tailwind CSS.
-- **Backend**: Node.js/TypeScript, Express, Winston.
-- **Infrastructure**: MongoDB, Redis, Kafka, Docker.
+### 4. Access Services
+- **Frontend:** http://localhost:3005
+- **API Gateway:** http://localhost:3000
+- **Kafka UI:** http://localhost:8080
+- **Redis Insight:** http://localhost:8001
+
+---
+
+## ⚙️ Environment Setup
+
+### Complete Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+#### Database Connections
+```bash
+# MongoDB Atlas (create 3 separate databases)
+AUTH_DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/ceditor_auth
+USER_DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/ceditor_user
+CODE_DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/ceditor_code
+```
+
+#### Redis Configuration
+```bash
+REDIS_PASSWORD=your-strong-password-here
+```
+
+#### Authentication Secrets
+```bash
+# Generate with: openssl rand -base64 32
+BETTER_AUTH_SECRET=your-secret-min-32-chars
+BETTER_AUTH_URL=http://localhost:3000
+
+# JWT secrets (legacy, mainly for API Gateway)
+JWT_SECRET=$(openssl rand -hex 64)
+```
+
+#### Google OAuth (Optional)
+Get credentials from [Google Cloud Console](https://console.cloud.google.com/):
+
+1. Create OAuth 2.0 Client ID
+2. Application type: Web application
+3. Authorized redirect URIs:
+   - Development: `http://localhost:3000/api/auth/callback/google`
+   - Production: `https://yourdomain.com/api/auth/callback/google`
+
+```bash
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+```
+
+#### Email Service (Optional)
+```bash
+# Get from https://resend.com/api-keys
+RESEND_API_KEY=re_your_api_key
+```
+
+---
+
+## 📡 API Documentation
+
+### Base URLs
+- **Gateway:** `http://localhost:3000`
+- **Auth:** `http://localhost:3001` (internal)
+- **User:** `http://localhost:3002` (internal)
+- **Code:** `http://localhost:3003` (internal)
+
+> **Note:** All client requests should go through the API Gateway. Direct service access is for internal communication only.
+
+### Authentication Endpoints
+
+#### Register with Email
+```http
+POST /api/auth/sign-up/email
+Content-Type: application/json
+
+{
+  \"email\": \"user@example.com\",
+  \"password\": \"SecurePass123!\",
+  \"name\": \"John Doe\"
+}
+```
+
+#### Login with Email
+```http
+POST /api/auth/sign-in/email
+Content-Type: application/json
+
+{
+  \"email\": \"user@example.com\",
+  \"password\": \"SecurePass123!\"
+}
+```
+
+#### Google OAuth Login
+```http
+GET /api/auth/login/google
+# Redirects to Google OAuth consent screen
+```
+
+#### Get Current Session
+```http
+GET /api/auth/session
+Cookie: better-auth.session_token=xxx
+```
+
+### User Endpoints
+
+#### Get Profile
+```http
+GET /api/v1/user/profile
+Cookie: better-auth.session_token=xxx
+```
+
+### Code/Project Endpoints
+
+#### List Projects
+```http
+GET /api/v1/code
+Cookie: better-auth.session_token=xxx
+```
+
+#### Create Project
+```http
+POST /api/v1/code/save
+Content-Type: application/json
+Cookie: better-auth.session_token=xxx
+
+{
+  \"name\": \"My Project\",
+  \"html\": \"<h1>Hello World</h1>\",
+  \"css\": \"body { margin: 0; }\",
+  \"js\": \"console.log('Hi');\"
+}
+```
+
+#### Get Project
+```http
+GET /api/v1/code/:projectId
+Cookie: better-auth.session_token=xxx
+```
+
+#### Incremental Sync (Delta Updates)
+```http
+PATCH /api/v1/code/sync/:projectId
+Content-Type: application/json
+Cookie: better-auth.session_token=xxx
+
+{
+  \"html\": \"<h1>Updated</h1>\",
+  \"css\": \"body { margin: 20px; }\"
+}
+```
+
+#### Dashboard (Aggregator)
+```http
+GET /api/v1/dashboard
+Cookie: better-auth.session_token=xxx
+
+# Returns:
+{
+  \"user\": { /* user profile */ },
+  \"projects\": [ /* projects array */ ],
+  \"timestamp\": \"2026-01-30T12:00:00Z\"
+}
+```
+
+---
+
+## 🎨 Design Patterns
+
+### 1. **Saga Pattern** (Distributed Transactions)
+**Location:** `auth-service/src/sagas/`
+
+**Purpose:** Ensure data consistency across microservices during user registration.
+
+**Flow:**
+1. Create user in auth-service
+2. Create profile in user-service
+3. Create default project in code-service
+4. On failure: automatic compensation (rollback)
+
+### 2. **Circuit Breaker Pattern**
+**Location:** `api-gateway/src/config/services.ts`
+
+**Purpose:** Prevent cascade failures when downstream services are unavailable.
+
+**Configuration:**
+- Timeout: 5000ms
+- Error threshold: 50%
+- Reset timeout: 30s
+- Fallback responses provided
+
+### 3. **Aggregator Pattern**
+**Location:** `api-gateway/src/app.ts` (Dashboard endpoint)
+
+**Purpose:** Combine data from multiple services into a single response.
+
+**Example:** Dashboard endpoint fetches user profile + projects in parallel.
+
+### 4. **Write-Behind Caching**
+**Location:** `code-service/src/routes/code.route.ts`
+
+**Purpose:** Reduce database I/O by buffering writes in Redis.
+
+**Flow:**
+1. Client updates → Redis hash
+2. Background worker (every 60s) → MongoDB
+3. Cache invalidation on read
+
+---
+
+## 🔐 Security
+
+### Authentication
+- ✅ HTTP-only secure cookies (Better-Auth)
+- ✅ Session expiry (7 days)
+- ✅ Cookie cache (5 minutes)
+- ✅ CSRF protection
+- ✅ Bcrypt password hashing
+
+### API Security
+- ✅ Rate limiting (100 req/min)
+- ✅ Helmet.js security headers
+- ✅ CORS configured
+- ✅ Input validation (Zod)
+- ✅ XSS protection (DOMPurify)
+
+### Infrastructure
+- ✅ Redis authentication
+- ✅ MongoDB Atlas network isolation
+- ✅ No hardcoded credentials
+- ✅ Environment variable isolation
+- ✅ Docker secret management
+
+### Contest Security (Frontend)
+- ✅ Fullscreen lock
+- ✅ Tab switch detection
+- ✅ DevTools detection
+- ✅ Clipboard restrictions
+- ✅ Strike system (3 warnings → disqualification)
+
+---
+
+## 📂 Project Structure
+
+```
+browser-editor/
+├── api-gateway/              # API Gateway service
+│   ├── src/
+│   │   ├── app.ts           # Express app with routing
+│   │   ├── config/
+│   │   │   ├── services.ts  # Circuit breaker config
+│   │   │   └── logger.ts    # Winston logger
+│   │   └── middlewares/
+│   │       ├── auth.middleware.ts
+│   │       └── correlation.middleware.ts
+│   └── Dockerfile
+│
+├── auth-service/             # Authentication service
+│   ├── src/
+│   │   ├── app.ts
+│   │   ├── lib/
+│   │   │   └── auth.ts      # Better-Auth configuration
+│   │   ├── sagas/           # Saga pattern implementation
+│   │   │   ├── saga-coordinator.ts
+│   │   │   └── user-registration.saga.ts
+│   │   └── routes/
+│   └── Dockerfile
+│
+├── user-service/             # User profile service
+│   ├── src/
+│   │   ├── app.ts
+│   │   ├── models/
+│   │   │   └── user.model.ts
+│   │   ├── routes/
+│   │   │   └── user.route.ts
+│   │   └── events/
+│   │       └── consumer.ts   # Kafka consumer
+│   └── Dockerfile
+│
+├── code-service/             # Code/project service
+│   ├── src/
+│   │   ├── app.ts
+│   │   ├── models/
+│   │   │   ├── project.model.ts
+│   │   │   └── submission.model.ts
+│   │   ├── routes/
+│   │   │   └── code.route.ts
+│   │   ├── scripts/
+│   │   │   ├── flusher.worker.ts  # Redis→MongoDB sync
+│   │   │   └── janitor.worker.ts  # Cleanup worker
+│   │   └── middlewares/
+│   │       ├── sanitizer.middleware.ts
+│   │       └── lock.middleware.ts
+│   └── Dockerfile
+│
+├── frontend/                 # Next.js frontend
+│   ├── app/
+│   │   ├── (auth)/          # Auth pages
+│   │   ├── editor/          # Code editor
+│   │   └── profile/         # User profile
+│   ├── components/
+│   ├── hooks/
+│   │   └── useProjectManager.ts
+│   └── lib/
+│       └── auth-client.ts   # Better-Auth client
+│
+├── docker-compose.yml        # Service orchestration
+├── .env.example              # Environment template
+└── README.md
+```
+
+---
+
+## 🚢 Deployment
+
+### Docker Deployment
+
+#### Production Build
+```bash
+# Build optimized images
+docker-compose -f docker-compose.prod.yml build
+
+# Start services
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+#### Environment for Production
+Set the following in production `.env`:
+```bash
+NODE_ENV=production
+BETTER_AUTH_URL=https://yourdomain.com
+FRONTEND_URL=https://yourdomain.com
+```
+
+### Cloud Deployment Checklist
+
+- [ ] Set up MongoDB Atlas production cluster
+- [ ] Configure Redis with persistence
+- [ ] Set up Kafka cluster (AWS MSK / Confluent Cloud)
+- [ ] Enable HTTPS/TLS
+- [ ] Configure proper CORS origins
+- [ ] Set up monitoring (Prometheus/Grafana)
+- [ ] Configure log aggregation
+- [ ] Set up backup strategy
+- [ ] Enable auto-scaling for code-service
+- [ ] Configure CDN for frontend assets
+
+---
+
+## 🧪 Testing
+
+### API Endpoint Testing
+```bash
+# Run automated test script
+bash test-api-endpoints.sh
+```
+
+### Manual Testing
+```bash
+# Health check
+curl http://localhost:3000/health
+
+# Register user
+curl -X POST http://localhost:3000/api/auth/sign-up/email \\
+  -H \"Content-Type: application/json\" \\
+  -H \"Origin: http://localhost:3000\" \\
+  -d '{\"email\":\"test@example.com\",\"password\":\"Test1234!\",\"name\":\"Test User\"}'
+
+# List projects
+curl http://localhost:3000/api/v1/code \\
+  -b cookies.txt
+```
+
+---
+
+## 📊 Monitoring
+
+### Health Checks
+- API Gateway: `GET /health`
+- Auth Service: `GET /health`
+- User Service: `GET /health`
+- Code Service: `GET /health`
+
+### Metrics to Monitor
+- Request rate (API Gateway)
+- Error rate per service
+- Response time (P50, P95, P99)
+- Redis cache hit ratio
+- Kafka consumer lag
+- MongoDB connection pool usage
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+---
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+---
+
+## 🆘 Troubleshooting
+
+### Service won't start
+```bash
+# Check logs
+docker-compose logs -f <service-name>
+
+# Restart specific service
+docker-compose restart <service-name>
+```
+
+### Kafka connection errors
+Kafka takes ~20-30 seconds to initialize on cold start. This is normal behavior.
+
+### better-auth CORS errors
+Ensure `Origin` header is set in requests. Browser automatically sends this; curl requires manual `-H \"Origin: http://localhost:3000\"`.
+
+### Frontend shows \"Service Degraded\"
+Circuit breaker has tripped. Check if backend services are running: `docker ps`
+
+---
+
+## 📧 Contact
+
+For support or questions, please open an issue on GitHub.
+
+---
+
+**Built with ❤️ using TypeScript, Next.js, and Docker**

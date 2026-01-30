@@ -48,6 +48,30 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
   }
 });
 
+// GET /submissions - Get all user's previous submissions
+codeRouter.get('/submissions', verifyToken, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const userId = req.userId!;
+    const submissions = await Submission.find({ userId }).sort({ createdAt: -1 });
+    res.json(submissions);
+  } catch (error) {
+    logger.error('[GET /api/v1/code/submissions] Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /submissions/:projectId - Get submissions for a specific project
+codeRouter.get('/submissions/:projectId', verifyToken, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { projectId } = req.params;
+    const submissions = await Submission.find({ projectId, userId: req.userId }).sort({ createdAt: -1 });
+    res.json(submissions);
+  } catch (error) {
+    logger.error('[GET /api/v1/code/submissions/:projectId] Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // GET /:projectId - Get a specific project (Cache First)
 codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
@@ -71,6 +95,7 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
 
     res.json(project);
   } catch (error) {
+    logger.error(`[GET /api/v1/code/:projectId] Error for projectId ${req.params.projectId}:`, error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -148,17 +173,16 @@ import jsonpatch from 'fast-json-patch';
 codeRouter.patch('/sync/:projectId', verifyToken, sanitizeCode, conflictLock, async (req: Request, res: Response): Promise<any> => {
   try {
     const { projectId } = req.params;
-    const { patches } = req.body; // Array of RFC6902 patches
+    const { patches, html, css, js } = req.body;
 
-    if (!Array.isArray(patches)) {
-      return res.status(400).json({ message: 'Patches must be an array' });
+    if (!Array.isArray(patches) && html === undefined && css === undefined && js === undefined) {
+      return res.status(400).json({ message: 'Invalid sync data: either patches or fragments must be provided' });
     }
 
     const bufferKey = `project:buffer:${projectId}`;
     const dirtyKey = `dirty_projects`;
 
     // Check if we have fields directly (Partial Update) or RFC6902 patches
-    const { html, css, js } = req.body;
     let updatedFragments: any = {};
 
     if (html !== undefined || css !== undefined || js !== undefined) {
@@ -169,9 +193,8 @@ codeRouter.patch('/sync/:projectId', verifyToken, sanitizeCode, conflictLock, as
       updatedFragments.updatedAt = new Date().toISOString();
 
       await redis.hset(bufferKey, updatedFragments);
-    } else if (Array.isArray(req.body.patches)) {
+    } else if (Array.isArray(patches)) {
       // Fallback to RFC6902 patches if provided
-      const patches = req.body.patches;
       let currentData = await redis.hgetall(bufferKey);
 
       if (Object.keys(currentData).length === 0) {
@@ -251,28 +274,6 @@ codeRouter.get('/preview/:projectId', async (req: Request, res: Response): Promi
   }
 });
 
-// GET /submissions - Get all user's previous submissions
-codeRouter.get('/submissions', verifyToken, async (req: Request, res: Response): Promise<any> => {
-  try {
-    const userId = req.userId!;
-    const submissions = await Submission.find({ userId }).sort({ createdAt: -1 });
-    res.json(submissions);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// GET /submissions/:projectId - Get submissions for a specific project
-codeRouter.get('/submissions/:projectId', verifyToken, async (req: Request, res: Response): Promise<any> => {
-  try {
-    const { projectId } = req.params;
-    const submissions = await Submission.find({ projectId, userId: req.userId }).sort({ createdAt: -1 });
-    res.json(submissions);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 // POST /submit - Submit a snapshot of the current code
 codeRouter.post('/submit', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
@@ -295,6 +296,7 @@ codeRouter.post('/submit', verifyToken, async (req: Request, res: Response): Pro
 
     res.status(201).json(submission);
   } catch (error) {
+    logger.error('[POST /api/v1/code/submit] Error:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ errors: error.errors });
     }

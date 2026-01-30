@@ -18,6 +18,7 @@ import FileTabs from "./FileTabs";
 import { useProjectManager } from "../../hooks/useProjectManager";
 import { useContestTimer } from "../../hooks/useContestTimer";
 import { useContestSecurity } from "../../hooks/useContestSecurity";
+import { signOut } from "../../lib/auth-client";
 
 const MAX_WARNINGS = 4;
 const CONTEST_DURATION = 180 * 60;
@@ -29,10 +30,9 @@ export default function EditorLayout() {
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [isContestPending, setIsContestPending] = useState(false);
 
-  const logoutUser = () => {
+  const logoutUser = async () => {
     stopTimer();
-    localStorage.clear();
-    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    await signOut();
     router.push("/login");
   };
 
@@ -151,9 +151,6 @@ export default function EditorLayout() {
     setIgnoreNextBlur(true);
 
     if (confirm("Are you sure you want to submit? This will save your progress and exit.")) {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
       try {
         // First save to standard save endpoint
         await saveCode({ html, css, js, timeLeft });
@@ -163,8 +160,8 @@ export default function EditorLayout() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
+          credentials: 'include',
           body: JSON.stringify({ projectId, html, css, js, timeLeft }),
         });
 

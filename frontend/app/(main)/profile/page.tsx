@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Project {
   _id: string;
@@ -13,80 +14,61 @@ interface Project {
   updatedAt: string;
 }
 
-interface UserProfile {
-  name: string;
-  email: string;
-  createdAt: string;
-}
-
 export default function ProfilePage() {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const { user, isLoading, isAuthenticated } = useAuth();
+  
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [fetchingProjects, setFetchingProjects] = useState(true);
 
+  // Redirect if not authenticated
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
+    if (!isLoading && !isAuthenticated) {
       router.push("/login");
-      return;
     }
+  }, [isLoading, isAuthenticated, router]);
 
-    const fetchData = async () => {
+  // Fetch projects when user is available
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchProjects = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
         
-        // Fetch Profile
-        const profRes = await fetch(`${apiUrl}/api/v1/user/profile`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (profRes.status === 401) {
-          localStorage.clear();
-          document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-          router.push("/login");
-          return;
-        }
-
-        if (profRes.ok) {
-          const profData = await profRes.json();
-          setUser(profData);
-        }
-
-        // Fetch Projects
+        // Fetch with credentials (cookies) - no Authorization header needed
         const projRes = await fetch(`${apiUrl}/api/v1/code`, {
-          headers: { Authorization: `Bearer ${token}` }
+          credentials: 'include', // Include cookies
         });
+        
         if (projRes.ok) {
           const projData = await projRes.json();
-          if (Array.isArray(projData)) {
-            setProjects(projData);
-          } else {
-            setProjects([]);
-          }
+          setProjects(Array.isArray(projData) ? projData : []);
         } else {
+          console.error("Failed to fetch projects:", projRes.status);
+          setProjects([]);
         }
       } catch (err) {
         console.error("Profile page load failed", err);
       } finally {
-        setLoading(false);
+        setFetchingProjects(false);
       }
     };
 
-    fetchData();
-  }, [router, pathname]);
+    fetchProjects();
+  }, [user, pathname]);
 
   const deleteProject = async (projectId: string) => {
     if (!confirm("Are you sure you want to delete this project?")) return;
 
-    const token = localStorage.getItem("token");
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
       const res = await fetch(`${apiUrl}/api/v1/code/${projectId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: 'include', // Include cookies
       });
+      
       if (res.ok) {
         setProjects(projects.filter(p => p._id !== projectId));
         alert("Project deleted successfully");
@@ -96,7 +78,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) {
+  if (isLoading || fetchingProjects) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-56px)] text-white text-xl">
         Loading Profile...
@@ -104,14 +86,18 @@ export default function ProfilePage() {
     );
   }
 
+  if (!user) {
+    return null; // Will redirect
+  }
+
   return (
     <div className="py-10 px-5 max-w-[1000px] mx-auto min-h-[calc(100vh-56px)]">
       <div className="bg-gradient-to-br from-[#1e293b] to-[#0f172a] p-10 rounded-[24px] border border-[#334155] mb-10 text-center shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
         <div className="w-[100px] h-[100px] bg-gradient-to-br from-[#38bdf8] to-[#2563eb] rounded-full flex items-center justify-center text-[42px] font-bold text-white mx-auto mb-5 shadow-[0_0_25px_rgba(56,189,248,0.4)]">
-          {user?.name?.[0]?.toUpperCase() || 'U'}
+          {user.name?.[0]?.toUpperCase() || 'U'}
         </div>
-        <h1 className="text-[28px] font-extrabold text-[#f8fafc] mb-2 tracking-tight">{user?.name}</h1>
-        <p className="text-[#94a3b8] text-[15px] mb-6">{user?.email}</p>
+        <h1 className="text-[28px] font-extrabold text-[#f8fafc] mb-2 tracking-tight">{user.name}</h1>
+        <p className="text-[#94a3b8] text-[15px] mb-6">{user.email}</p>
         
         <div className="flex justify-center gap-10 mt-2.5">
             <div className="text-center">
@@ -121,7 +107,7 @@ export default function ProfilePage() {
             <div className="h-10 w-[1px] bg-[#334155]"></div>
             <div className="text-center">
                 <p className="text-[#10b981] font-extrabold text-[22px] mb-1">Active</p>
-                <p className="text-[#64748b] text-[11px] font-semibold uppercase tracking-widest">Member Since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '2026'}</p>
+                <p className="text-[#64748b] text-[11px] font-semibold uppercase tracking-widest">Member Since {user.createdAt ? new Date(user.createdAt).getFullYear() : '2026'}</p>
             </div>
         </div>
       </div>
@@ -147,7 +133,7 @@ export default function ProfilePage() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {Array.isArray(projects) && projects.map((proj) => (
+            {projects.map((proj) => (
               <div 
                 key={proj._id} 
                 className="group bg-[#1e293b] px-6 py-5 rounded-2xl border border-[#334155] flex justify-between items-center transition-all relative overflow-hidden hover:border-[#38bdf8]/50"

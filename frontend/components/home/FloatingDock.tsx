@@ -1,33 +1,24 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { FloatingDock } from "@/components/ui/floating-dock";
 import {
   IconBrandGithub,
-  IconBrandX,
-  IconExchange,
   IconHome,
-  IconNewSection,
   IconTerminal2,
   IconUser,
   IconLogin,
   IconUserPlus,
   IconLogout,
 } from "@tabler/icons-react";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { signOut } from "@/lib/auth-client";
 
 export function FloatingDockDemo() {
-  const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsLoggedIn(!!token);
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.clear();
-    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  const handleLogout = async () => {
+    await signOut();
     window.location.href = "/login";
   };
 
@@ -46,7 +37,9 @@ export function FloatingDockDemo() {
       ),
       href: "/editor",
     },
-    ...(isLoggedIn
+    ...(isLoading
+      ? []
+      : isAuthenticated
       ? [
           {
             title: "Profile",
@@ -91,9 +84,7 @@ export function FloatingDockDemo() {
 
   return (
     <div className="fixed top-6 left-0 right-0 flex items-center justify-center z-[1000]">
-      <FloatingDock
-        items={links}
-      />
+      <FloatingDock items={links} />
     </div>
   );
 }

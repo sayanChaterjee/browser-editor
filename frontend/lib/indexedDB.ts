@@ -5,7 +5,7 @@ const STORE_NAME = 'projects';
 const VERSION = 1;
 
 export interface LocalProject {
-    id: string; // This matches the backend _id
+    id: string;
     name: string;
     html: string;
     css: string;

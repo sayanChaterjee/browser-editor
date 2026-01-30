@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
 import helmet from 'helmet';
-import cors from 'cors';
 import { config } from './config';
 import logger from './config/logger';
 import { codeRouter } from './routes/code.route';
@@ -15,15 +14,15 @@ const app = express();
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(cors());
+// CORS is handled by API Gateway, no need for it here
 app.use(express.json());
 app.use(correlationMiddleware);
-
-app.use('/', codeRouter);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: config.SERVICE_NAME });
 });
+
+app.use('/', codeRouter);
 
 import { startSecurityConsumer } from './events/consumers/security.consumer';
 

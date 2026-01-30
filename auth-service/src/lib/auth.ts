@@ -1,0 +1,68 @@
+import { betterAuth } from "better-auth";
+import { mongodbAdapter } from "better-auth/adapters/mongodb";
+import mongoose from "mongoose";
+import { config } from "../config";
+
+// Lazy initialization - create auth instance after DB connection
+let authInstance: any = null;
+
+export function getAuth() {
+    if (!authInstance) {
+        if (!mongoose.connection.db) {
+            throw new Error("MongoDB connection not established. Cannot initialize better-auth.");
+        }
+
+        authInstance = betterAuth({
+            database: mongodbAdapter(mongoose.connection.db),
+
+            // Email and password authentication
+            emailAndPassword: {
+                enabled: true,
+                autoSignIn: true,
+            },
+
+            // Social authentication providers
+            socialProviders: {
+                google: {
+                    clientId: process.env.GOOGLE_CLIENT_ID || "",
+                    clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+                    enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+                },
+            },
+
+            // Session configuration
+            session: {
+                expiresIn: 60 * 60 * 24 * 7, // 7 days
+                updateAge: 60 * 60 * 24,
+                cookieCache: {
+                    enabled: true,
+                    maxAge: 60 * 5,
+                },
+            },
+
+            // Trust the proxy (API Gateway)
+            advanced: {
+                useSecureCookies: process.env.NODE_ENV === "production",
+            },
+
+            // Base URL for redirects and email links
+            baseURL: config.BASE_URL || "http://localhost:3000",
+
+            // Trusted origins (frontend URLs)
+            trustedOrigins: [
+                "http://localhost:3005",
+                "http://localhost:3006",
+                "http://localhost:3004", // Add dev port
+                process.env.FRONTEND_URL || "",
+            ].filter(Boolean),
+
+            // Secret for session encryption
+            secret: process.env.BETTER_AUTH_SECRET || config.JWT_SECRET,
+        });
+    }
+
+    return authInstance;
+}
+
+// Export type for use in the app
+export type Auth = ReturnType<typeof getAuth>;

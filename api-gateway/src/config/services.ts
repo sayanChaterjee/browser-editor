@@ -8,9 +8,12 @@ import { ProxyErrorResponse, ServiceConfig } from '../types/index';
 class ServiceProxy {
   private static readonly serviceConfigs: ServiceConfig[] = [
     {
-      path: '/api/v1/auth',
+      path: '/api/auth',
       url: config.AUTH_SERVICE_URL,
-      pathRewrite: { '^/api/v1/auth': '' },
+      // http-proxy-middleware strips '/api/auth' first, leaving us with the remaining path
+      // We need to prepend '/api/auth' back to whatever remains
+      // Example: '/api/auth/sign-up/email' -> '/sign-up/email' (after strip) -> '/api/auth/sign-up/email' (after rewrite)
+      pathRewrite: { '^/': '/api/auth/' },
       name: 'auth-service',
       timeout: 5000,
     },

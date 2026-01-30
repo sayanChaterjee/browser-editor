@@ -36,29 +36,23 @@ export default function LoginPage() {
     if (newErrors.email || newErrors.password) return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
+      const { signIn } = await import("../../../lib/auth-client");
+      
+      const result = await signIn.email({
+        email,
+        password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Invalid login credentials");
+      if (result.error) {
+        alert(result.error.message || "Invalid login credentials");
         return;
       }
 
-      localStorage.setItem("token", data.accessToken);
-      // Set cookie for middleware access
-      document.cookie = `token=${data.accessToken}; path=/; max-age=86400; SameSite=Strict`;
-      
       window.dispatchEvent(new Event("authChange"));
       alert("Login successful");
       router.push("/editor");
     } catch (error) {
-      console.warn('Login attempt failed');
+      console.warn('Login attempt failed:', error);
       alert("Server error");
     }
   };
@@ -111,10 +105,6 @@ export default function LoginPage() {
         >
           Login
         </button>
-
-        <div className="flex justify-between text-[12px] mt-3 text-[#aaa]">
-          <Link href="/forgot-password" title="Forgot Password" className="text-[#aaa] no-underline hover:underline">Forgot Password</Link>
-        </div>
 
         <div className="mt-5 text-[12px] text-[#aaa]">
           Don't have an account? <a href="/register" className="text-white font-bold no-underline ml-1 hover:underline">REGISTER HERE</a>

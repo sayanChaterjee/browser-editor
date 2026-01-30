@@ -4,7 +4,6 @@ interface Config {
   DATABASE_URL: string;
   REDIS_URL: string;
   KAFKA_BROKER: string;
-  JWT_SECRET: string;
   LOG_LEVEL: string;
 }
 
@@ -14,7 +13,6 @@ export const config: Config = {
   DATABASE_URL: process.env.DATABASE_URL || '',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   KAFKA_BROKER: process.env.KAFKA_BROKER || 'localhost:9092',
-  JWT_SECRET: process.env.JWT_SECRET || 'your-default-secret-key',
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
 };
 

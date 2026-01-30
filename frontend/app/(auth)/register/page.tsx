@@ -69,34 +69,23 @@ const validatePassword = (value: string) => {
     if (Object.values(newErrors).some((err) => err !== "")) return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: username,
-          email,
-          password,
-        }),
+      const { signUp } = await import("../../../lib/auth-client");
+      
+      const result = await signUp.email({
+        email,
+        password,
+        name: username,
       });
 
-      const text = await res.text();
-      let data;
-
-      try {
-        data = JSON.parse(text);
-      } catch {
-        alert("Unexpected server response");
-        return;
-      }
-
-      if (!res.ok) {
-        alert(data.message || "Invalid input");
+      if (result.error) {
+        alert(result.error.message || "Registration failed");
         return;
       }
 
       alert("Registration successful 🎉");
-      window.location.href = "/login";
-    } catch {
+      window.location.href = "/editor";
+    } catch (error) {
+      console.warn("Registration attempt failed:", error);
       alert("Server error");
     }
   };

@@ -8,9 +8,12 @@ export interface IUser extends Document<string> {
 }
 
 const UserSchema: Schema = new Schema({
-  _id: { type: String, required: true }, // Manually set ID from event
+  _id: { type: String, required: true },
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  collection: 'user' // Use better-auth collection name (singular)
+});
 
 export default mongoose.model<IUser>('User', UserSchema);
