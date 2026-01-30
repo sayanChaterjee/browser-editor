@@ -134,33 +134,54 @@ graph LR
 sequenceDiagram
     participant Client
     participant AG as API Gateway
-    participant Auth as Auth Service
+    participant Auth as Auth Service (Better Auth)
     participant Saga as Saga Coordinator
     participant User as User Service
     participant Code as Code Service
     participant Kafka
     participant DB as MongoDB
 
-    Client-\u003e\u003eAG: POST /api/auth/sign-up/email
-    AG-\u003e\u003eAuth: Forward with validation
-    Auth-\u003e\u003eDB: Create user account
-    Auth-\u003e\u003eSaga: Start registration saga
+    Client->>+AG: POST /api/auth/sign-up/email
+    AG->>+Auth: Proxy Request
+    Auth->>DB: Create User Account
+    Auth->>Saga: Initialize Registration Saga
     
-    Saga-\u003e\u003eUser: Step 1: Create profile
-    User-\u003e\u003eDB: Insert user profile
-    User--\u003e\u003eSaga: Profile created ✓
-    Saga-\u003e\u003eKafka: Publish step-completed event
+    Saga->>User: Step 1: Create Profile
+    User->>DB: Save Profile
+    User-->>Saga: Profile Created ✓
+    Saga->>Kafka: Publish 'user-registered' Event
     
-    Saga-\u003e\u003eCode: Step 2: Create default project
-    Code-\u003e\u003eDB: Insert starter project
-    Code--\u003e\u003eSaga: Project created ✓
-    Saga-\u003e\u003eKafka: Publish saga-completed event
+    Saga->>Code: Step 2: Initialize Starter Project
+    Code->>DB: Create Base Project
+    Code-->>Saga: Project Created ✓
+    Saga->>Kafka: Publish 'saga-completed' Event
     
-    Saga--\u003e\u003eAuth: Saga completed ✓
-    Auth--\u003e\u003eAG: Return session + user data
-    AG--\u003e\u003eClient: 200 OK + auth cookie
+    Saga-->>Auth: Saga Success ✓
+    Auth-->>AG: 200 OK + Session Cookie
+    AG-->>-Client: Registration Complete 🎉
     
-    Note over Saga,Code: On failure, automatic<br/>compensation (rollback)
+    Note over Saga,Code: On any step failure, Saga<br/>triggers compensation (rollback)
+```
+
+### Social Auth Flow: Google OAuth
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant FE as Frontend
+    participant AG as API Gateway
+    participant Auth as Auth Service
+    participant Google as Google OAuth
+
+    User->>FE: Click "Continue with Google"
+    FE->>AG: GET /api/auth/login/social?provider=google
+    AG->>Auth: Forward to Better Auth
+    Auth-->>User: Redirect to Google Consent
+    User->>Google: Authenticate
+    Google-->>Auth: Callback with Code
+    Auth->>Google: Exchange Code for Token
+    Auth->>Saga: Trigger Registration Saga (if new user)
+    Auth-->>FE: Redirect with Session Cookie
 ```
 
 ### Code Persistence: Multi-Layer Strategy
@@ -236,13 +257,15 @@ graph LR
 2. **Google OAuth** - Social login integration
 
 **Key Features:**
-- MongoDB session storage
+- Better-auth social & email/password providers
+- Distributed registration sagas (Saga Coordinator)
+- MongoDB session & adapter storage
 - HTTP-only secure cookies
 - Automatic session expiry (7 days)
 - Rate limiting on auth endpoints
 - Email verification support (Resend)
 
-**Technologies:** Better-Auth, Mongoose, Resend, Kafka Producer
+**Technologies:** Better-Auth, Mongoose, Resend, Kafka Producer, Saga Coordination Logic
 
 ---
 
@@ -401,8 +424,8 @@ REDIS_PASSWORD=your-strong-password-here
 BETTER_AUTH_SECRET=your-secret-min-32-chars
 BETTER_AUTH_URL=http://localhost:3000
 
-# JWT secrets (legacy, mainly for API Gateway)
-JWT_SECRET=$(openssl rand -hex 64)
+# x-user-id Header (API Gateway -> Services)
+# Ensure API Gateway is configured with the same secret if using legacy JWT verification
 ```
 
 #### Google OAuth (Optional)
@@ -794,9 +817,14 @@ docker-compose restart <service-name>
 Kafka takes ~20-30 seconds to initialize on cold start. This is normal behavior.
 
 ### better-auth CORS errors
-Ensure `Origin` header is set in requests. Browser automatically sends this; curl requires manual `-H \"Origin: http://localhost:3000\"`.
+Ensure `Origin` header is set in requests. Browser automatically sends this; curl requires manual `-H "Origin: http://localhost:3000"`.
 
-### Frontend shows \"Service Degraded\"
+### Google OAuth Redirect Failures
+1. Ensure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct in `.env`.
+2. Verify that `http://localhost:3000/api/auth/callback/google` is added as an Authorized Redirect URI in the Google Cloud Console.
+3. Check `BETTER_AUTH_URL` in `auth-service` environment; it should point to the API Gateway (`http://localhost:3000`).
+
+### Frontend shows "Service Degraded"
 Circuit breaker has tripped. Check if backend services are running: `docker ps`
 
 ---

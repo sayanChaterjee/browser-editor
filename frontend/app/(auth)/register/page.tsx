@@ -179,6 +179,31 @@ const validatePassword = (value: string) => {
           </button>
         </form>
 
+        <div className="flex items-center my-5">
+           <div className="flex-1 border-t border-[#333]"></div>
+           <span className="px-3 text-[#aaa] text-[12px]">OR</span>
+           <div className="flex-1 border-t border-[#333]"></div>
+        </div>
+
+        <button
+          className="w-full p-[10px] bg-white text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer flex items-center justify-center gap-2 hover:bg-[#f0f0f0] transition-colors mb-4"
+          onClick={async () => {
+             try {
+               const { signIn } = await import("../../../lib/auth-client");
+               await signIn.social({
+                 provider: "google",
+                 callbackURL: "/editor"
+               });
+             } catch (error) {
+               console.error("Google login failed:", error);
+               alert("Google login failed");
+             }
+          }}
+        >
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-[18px] h-[18px]" />
+          Continue with Google
+        </button>
+
         <p className="mt-5 text-[12px] text-[#aaa]">
           Already have an account?
           <a href="/login" className="text-white font-bold no-underline ml-1 hover:underline"> LOGIN</a>
