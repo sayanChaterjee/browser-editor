@@ -29,43 +29,43 @@
 
 ```mermaid
 graph TB
-    subgraph Client[\"🌐 Client Layer\"]
-        Browser[\"Web Browser\"]
-        FE[\"Next.js Frontend<br/>Port: 3005\"]
+    subgraph Client["🌐 Client Layer"]
+        Browser["Web Browser"]
+        FE["Next.js Frontend<br/>Port: 3005"]
     end
 
-    subgraph Gateway[\"🚪 API Gateway\"]
-        AG[\"API Gateway<br/>Port: 3000<br/>• Circuit Breaker<br/>• Rate Limiting<br/>• Auth Middleware\"]
+    subgraph Gateway["🚪 API Gateway"]
+        AG["API Gateway<br/>Port: 3000<br/>• Circuit Breaker<br/>• Rate Limiting<br/>• Auth Middleware"]
     end
 
-    subgraph Services[\"🔧 Microservices\"]
-        Auth[\"Auth Service<br/>Port: 3001<br/>• JWT/OAuth<br/>• Session Mgmt\"]
-        User[\"User Service<br/>Port: 3002<br/>• Profile CRUD<br/>• Kafka Consumer\"]
-        Code[\"Code Service<br/>Port: 3003<br/>• Project CRUD<br/>• Redis Caching<br/>• Background Workers\"]
+    subgraph Services["🔧 Microservices"]
+        Auth["Auth Service<br/>Port: 3001<br/>• JWT/OAuth<br/>• Session Mgmt"]
+        User["User Service<br/>Port: 3002<br/>• Profile CRUD<br/>• Kafka Consumer"]
+        Code["Code Service<br/>Port: 3003<br/>• Project CRUD<br/>• Redis Caching<br/>• Background Workers"]
     end
 
-    subgraph Infrastructure[\"💾 Infrastructure\"]
-        Mongo[(\"MongoDB Atlas<br/>• auth_db<br/>• user_db<br/>• code_db\")]
-        Redis[(\"Redis<br/>Port: 6379<br/>Caching + Buffering\")]
-        Kafka[(\"Kafka<br/>Port: 9094<br/>Event Streaming\")]
+    subgraph Infrastructure["💾 Infrastructure"]
+        Mongo[("MongoDB Atlas<br/>• auth_db<br/>• user_db<br/>• code_db")]
+        Redis[("Redis<br/>Port: 6379<br/>Caching + Buffering")]
+        Kafka[("Kafka<br/>Port: 9094<br/>Event Streaming")]
     end
 
-    Browser --\u003e FE
-    FE --\"HTTP/REST\"--\u003e AG
-    AG --\u003e Auth
-    AG --\u003e User  
-    AG --\u003e Code
+    Browser --> FE
+    FE --"HTTP/REST"--> AG
+    AG --> Auth
+    AG --> User  
+    AG --> Code
     
-    Auth --\u003e Mongo
-    User --\u003e Mongo
-    Code --\u003e Mongo
+    Auth --> Mongo
+    User --> Mongo
+    Code --> Mongo
     
-    Auth --\u003e Redis
-    Code --\u003e Redis
+    Auth --> Redis
+    Code --> Redis
     
-    Auth --\"Events\"--\u003e Kafka
-    User --\"Subscribe\"--\u003e Kafka
-    Code --\"Subscribe\"--\u003e Kafka
+    Auth --"Events"--> Kafka
+    User --"Subscribe"--> Kafka
+    Code --"Subscribe"--> Kafka
     
     style Client fill:#e1f5ff
     style Gateway fill:#fff3cd
@@ -77,55 +77,55 @@ graph TB
 
 ```mermaid
 graph LR
-    subgraph AG[\"API Gateway :3000\"]
-        Router[\"Express Router\"]
-        CircuitB[\"Circuit Breaker<br/>(Opossum)\"]
-        RateLimit[\"Rate Limiter\"]
-        AuthMW[\"Auth Middleware\"]
+    subgraph AG["API Gateway :3000"]
+        Router["Express Router"]
+        CircuitB["Circuit Breaker<br/>(Opossum)"]
+        RateLimit["Rate Limiter"]
+        AuthMW["Auth Middleware"]
     end
 
-    subgraph AuthSvc[\"Auth Service :3001\"]
-        BetterAuth[\"Better-Auth\"]
-        GoogleOAuth[\"Google OAuth\"]
-        EmailPwd[\"Email/Password\"]
-        SessionMgr[\"Session Manager\"]
+    subgraph AuthSvc["Auth Service :3001"]
+        BetterAuth["Better-Auth"]
+        GoogleOAuth["Google OAuth"]
+        EmailPwd["Email/Password"]
+        SessionMgr["Session Manager"]
     end
 
-    subgraph UserSvc[\"User Service :3002\"]
-        ProfileAPI[\"Profile API\"]
-        KafkaConsumer1[\"Kafka Consumer\"]
-        UserDB[(\"user_db\")]
+    subgraph UserSvc["User Service :3002"]
+        ProfileAPI["Profile API"]
+        KafkaConsumer1["Kafka Consumer"]
+        UserDB[("user_db")]
     end
 
-    subgraph CodeSvc[\"Code Service :3003\"]
-        ProjectAPI[\"Project API\"]
-        Sanitizer[\"Code Sanitizer\"]
-        RedisBuffer[\"Redis Buffer\"]
-        Flusher[\"Flusher Worker\"]
-        Janitor[\"Janitor Worker\"]
-        CodeDB[(\"code_db\")]
+    subgraph CodeSvc["Code Service :3003"]
+        ProjectAPI["Project API"]
+        Sanitizer["Code Sanitizer"]
+        RedisBuffer["Redis Buffer"]
+        Flusher["Flusher Worker"]
+        Janitor["Janitor Worker"]
+        CodeDB[("code_db")]
     end
 
-    Router --\u003e CircuitB
-    CircuitB --\u003e AuthMW
-    AuthMW --\u003e RateLimit
+    Router --> CircuitB
+    CircuitB --> AuthMW
+    AuthMW --> RateLimit
     
-    RateLimit --\"/auth/*\"--\u003e BetterAuth
-    RateLimit --\"/user/*\"--\u003e ProfileAPI
-    RateLimit --\"/code/*\"--\u003e ProjectAPI
+    RateLimit --"/auth/*"--> BetterAuth
+    RateLimit --"/user/*"--> ProfileAPI
+    RateLimit --"/code/*"--> ProjectAPI
     
-    BetterAuth --\u003e GoogleOAuth
-    BetterAuth --\u003e EmailPwd
-    BetterAuth --\u003e SessionMgr
+    BetterAuth --> GoogleOAuth
+    BetterAuth --> EmailPwd
+    BetterAuth --> SessionMgr
     
-    ProfileAPI --\u003e UserDB
-    KafkaConsumer1 --\u003e UserDB
+    ProfileAPI --> UserDB
+    KafkaConsumer1 --> UserDB
     
-    ProjectAPI --\u003e Sanitizer
-    Sanitizer --\u003e RedisBuffer
-    RedisBuffer --\u003e Flusher
-    Flusher --\u003e CodeDB
-    Janitor --\u003e CodeDB
+    ProjectAPI --> Sanitizer
+    Sanitizer --> RedisBuffer
+    RedisBuffer --> Flusher
+    Flusher --> CodeDB
+    Janitor --> CodeDB
 ```
 
 ### Data Flow: User Registration (Saga Pattern)
@@ -188,30 +188,30 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    subgraph Editor[\"Monaco Editor\"]
-        E[\"Code Changes\"]
+    subgraph Editor["Monaco Editor"]
+        E["Code Changes"]
     end
 
-    subgraph L1[\"L1: Client RAM\"]
-        Memory[\"Editor State<br/>Instant\"]
+    subgraph L1["L1: Client RAM"]
+        Memory["Editor State<br/>Instant"]
     end
 
-    subgraph L2[\"L2: IndexedDB\"]
-        IDB[\"Browser Storage<br/>Every 2s\"]
+    subgraph L2["L2: IndexedDB"]
+        IDB["Browser Storage<br/>Every 2s"]
     end
 
-    subgraph L3[\"L3: Redis\"]
-        RedisHash[\"Fragment Buffer<br/>Debounced 1.5s\"]
+    subgraph L3["L3: Redis"]
+        RedisHash["Fragment Buffer<br/>Debounced 1.5s"]
     end
 
-    subgraph L4[\"L4: MongoDB\"]
-        Mongo[\"Persistent DB<br/>Every 60s\"]
+    subgraph L4["L4: MongoDB"]
+        Mongo["Persistent DB<br/>Every 60s"]
     end
 
-    E --\u003e Memory
-    Memory --\"Auto-save\"--\u003e IDB
-    Memory --\"PATCH /sync\"--\u003e RedisHash
-    RedisHash --\"Flusher Worker\"--\u003e Mongo
+    E --> Memory
+    Memory --"Auto-save"--> IDB
+    Memory --"PATCH /sync"--> RedisHash
+    RedisHash --"Flusher Worker"--> Mongo
     
     style L1 fill:#e3f2fd
     style L2 fill:#f3e5f5
@@ -468,9 +468,9 @@ POST /api/auth/sign-up/email
 Content-Type: application/json
 
 {
-  \"email\": \"user@example.com\",
-  \"password\": \"SecurePass123!\",
-  \"name\": \"John Doe\"
+  "email": "user@example.com",
+  "password": "SecurePass123!",
+  "name": "John Doe"
 }
 ```
 
@@ -480,8 +480,8 @@ POST /api/auth/sign-in/email
 Content-Type: application/json
 
 {
-  \"email\": \"user@example.com\",
-  \"password\": \"SecurePass123!\"
+  "email": "user@example.com",
+  "password": "SecurePass123!"
 }
 ```
 
@@ -520,10 +520,10 @@ Content-Type: application/json
 Cookie: better-auth.session_token=xxx
 
 {
-  \"name\": \"My Project\",
-  \"html\": \"<h1>Hello World</h1>\",
-  \"css\": \"body { margin: 0; }\",
-  \"js\": \"console.log('Hi');\"
+  "name": "My Project",
+  "html": "<h1>Hello World</h1>",
+  "css": "body { margin: 0; }",
+  "js": "console.log('Hi');"
 }
 ```
 
@@ -540,8 +540,8 @@ Content-Type: application/json
 Cookie: better-auth.session_token=xxx
 
 {
-  \"html\": \"<h1>Updated</h1>\",
-  \"css\": \"body { margin: 20px; }\"
+  "html": "<h1>Updated</h1>",
+  "css": "body { margin: 20px; }"
 }
 ```
 
@@ -552,9 +552,9 @@ Cookie: better-auth.session_token=xxx
 
 # Returns:
 {
-  \"user\": { /* user profile */ },
-  \"projects\": [ /* projects array */ ],
-  \"timestamp\": \"2026-01-30T12:00:00Z\"
+  "user": { /* user profile */ },
+  "projects": [ /* projects array */ ],
+  "timestamp": "2026-01-30T12:00:00Z"
 }
 ```
 
@@ -757,9 +757,9 @@ curl http://localhost:3000/health
 
 # Register user
 curl -X POST http://localhost:3000/api/auth/sign-up/email \\
-  -H \"Content-Type: application/json\" \\
-  -H \"Origin: http://localhost:3000\" \\
-  -d '{\"email\":\"test@example.com\",\"password\":\"Test1234!\",\"name\":\"Test User\"}'
+  -H "Content-Type: application/json" \\
+  -H "Origin: http://localhost:3000" \\
+  -d '{"email":"test@example.com","password":"Test1234!","name":"Test User"}'
 
 # List projects
 curl http://localhost:3000/api/v1/code \\
