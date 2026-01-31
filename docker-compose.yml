@@ -9,6 +9,11 @@ services:
     ports:
       - "6379:6379"
       - "8001:8001"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     volumes:
       - redis_data:/data
 
@@ -30,6 +35,11 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "9092" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka-ui:
     image: provectuslabs/kafka-ui
@@ -40,12 +50,13 @@ services:
       - KAFKA_CLUSTERS_0_NAME=localCluster
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
 
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
-    restart: on-failure # Automatically restart if it boots too fast for other services
+    restart: on-failure
     ports:
       - "3000:3000"
     environment:
@@ -58,10 +69,19 @@ services:
       - ALLOWED_ORIGINS=http://localhost:3001,http://localhost:3005,http://localhost:3000,http://localhost:3004,http://localhost:3006
       - DEFAULT_TIMEOUT=30000
     depends_on:
-      - redis
-      - auth-service
-      - user-service
-      - code-service
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      code-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', (e) => process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   auth-service:
     build: ./auth-service
@@ -80,7 +100,15 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - FRONTEND_URL=http://localhost:3005
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', (e) => process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   user-service:
     build: ./user-service
@@ -94,7 +122,15 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - KAFKA_BROKER=kafka:9092
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', (e) => process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   code-service:
     build: ./code-service
@@ -107,6 +143,16 @@ services:
       - DATABASE_URL=${CODE_DATABASE_URL}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - KAFKA_BROKER=kafka:9092
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3003/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', (e) => process.exit(1))" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 volumes:
   redis_data:

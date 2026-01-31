@@ -119,7 +119,7 @@ export default function LoginPage() {
               const { signIn } = await import("../../../lib/auth-client");
               await signIn.social({
                 provider: "google",
-                callbackURL: "/editor"
+                callbackURL: window.location.origin + "/editor"
               });
             } catch (error) {
               console.error("Google login failed:", error);

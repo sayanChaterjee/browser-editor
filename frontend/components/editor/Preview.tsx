@@ -11,56 +11,88 @@ type Props = {
 export default function Preview({ html, css, js }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const srcDoc = `
+  // Intelligent srcDoc generation
+  let srcDoc = "";
+  const hasBody = html.toLowerCase().includes("<body");
+
+  const systemStyles = `
+    body { 
+      margin: 0; 
+      padding: 16px; 
+      font-family: sans-serif; 
+      background-color: white;
+      color: black;
+    }
+    ${css}
+  `;
+
+  const systemScripts = `
+    // System Injection: Visibility Change Listener (Anti-Cheating)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            window.parent.postMessage({ 
+                type: 'CONTEST_VIOLATION', 
+                reason: 'TAB_SWITCH',
+                timestamp: new Date().toISOString()
+            }, '*');
+        }
+    });
+
+    // Security: Prevent navigation via links
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
+            e.preventDefault();
+            window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
+        }
+    }, true);
+
+    window.onerror = (msg, url, lineNo, columnNo, error) => {
+        console.error("Preview Error:", msg, error);
+        return false;
+    };
+
+    window.onload = () => {
+        try {
+            ${js}
+        } catch (err) {
+            console.error("Execution Error:", err);
+        }
+    };
+  `;
+
+  if (hasBody) {
+    // Inject scripts and styles into the existing document
+    // We'll try to find </body> and inject scripts before it, and <head> for styles
+    srcDoc = html;
+    
+    if (srcDoc.toLowerCase().includes("</head>")) {
+        srcDoc = srcDoc.replace(/<\/head>/i, `<style>${systemStyles}</style></head>`);
+    } else if (srcDoc.toLowerCase().includes("<html")) {
+        srcDoc = srcDoc.replace(/<html[^>]*>/i, `$&<head><style>${systemStyles}</style></head>`);
+    }
+
+    if (srcDoc.toLowerCase().includes("</body>")) {
+        srcDoc = srcDoc.replace(/<\/body>/i, `<script>${systemScripts}</script></body>`);
+    } else {
+        srcDoc += `<script>${systemScripts}</script>`;
+    }
+  } else {
+    // Use boilerplate for fragments
+    srcDoc = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { 
-          margin: 0; 
-          padding: 16px; 
-          font-family: sans-serif; 
-          background-color: white;
-          color: black;
-        }
-        ${css}
-    </style>
-    <script>
-        // System Injection: Visibility Change Listener (Anti-Cheating)
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                window.parent.postMessage({ 
-                    type: 'CONTEST_VIOLATION', 
-                    reason: 'TAB_SWITCH',
-                    timestamp: new Date().toISOString()
-                }, '*');
-            }
-        });
-
-        // Security: Prevent navigation via links
-        document.addEventListener('click', (e) => {
-            const link = e.target.closest('a');
-            if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
-                e.preventDefault();
-                window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
-            }
-        }, true);
-
-        window.onload = () => {
-            try {
-                ${js}
-            } catch (err) {
-                console.error("Preview Error:", err);
-            }
-        };
-    </script>
+    <style>${systemStyles}</style>
 </head>
 <body>
     ${html}
+    <script>${systemScripts}</script>
 </body>
 </html>`;
+  }
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {

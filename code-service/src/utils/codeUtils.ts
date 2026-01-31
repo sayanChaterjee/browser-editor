@@ -52,44 +52,63 @@ export class CodeUtils {
      * Assembles fragments into a full HTML document with system injections.
      */
     static generateFullPreview(html: string, css: string, js: string): string {
+        const hasBody = html.toLowerCase().includes("<body");
+        const systemStyles = `body { margin: 0; padding: 16px; font-family: sans-serif; } ${css}`;
+        const systemScripts = `
+            // System Injection: Visibility Change Listener (Anti-Cheating)
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    window.parent.postMessage({ 
+                        type: 'CONTEST_VIOLATION', 
+                        reason: 'TAB_SWITCH',
+                        timestamp: new Date().toISOString()
+                    }, '*');
+                }
+            });
+
+            // Security: Prevent navigation via links
+            document.addEventListener('click', (e) => {
+                const link = (e.target as HTMLElement).closest('a');
+                if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
+                    e.preventDefault();
+                    window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
+                }
+            }, true);
+
+            window.onload = () => {
+                try {
+                    ${js}
+                } catch (err) {
+                    console.error("Preview Error:", err);
+                }
+            };
+        `;
+
+        if (hasBody) {
+            let srcDoc = html;
+            if (srcDoc.toLowerCase().includes("</head>")) {
+                srcDoc = srcDoc.replace(/<\/head>/i, `<style>${systemStyles}</style></head>`);
+            } else if (srcDoc.toLowerCase().includes("<html")) {
+                srcDoc = srcDoc.replace(/<html[^>]*>/i, `$&<head><style>${systemStyles}</style></head>`);
+            }
+
+            if (srcDoc.toLowerCase().includes("</body>")) {
+                srcDoc = srcDoc.replace(/<\/body>/i, `<script>${systemScripts}</script></body>`);
+            } else {
+                srcDoc += `<script>${systemScripts}</script>`;
+            }
+            return srcDoc;
+        }
+
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { margin: 0; padding: 16px; font-family: sans-serif; }
-        ${css}
+        ${systemStyles}
     </style>
-    <script>
-        // System Injection: Visibility Change Listener (Anti-Cheating)
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                window.parent.postMessage({ 
-                    type: 'CONTEST_VIOLATION', 
-                    reason: 'TAB_SWITCH',
-                    timestamp: new Date().toISOString()
-                }, '*');
-            }
-        });
-
-        // Security: Prevent navigation via links
-        document.addEventListener('click', (e) => {
-            const link = (e.target as HTMLElement).closest('a');
-            if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
-                e.preventDefault();
-                window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
-            }
-        }, true);
-
-        window.onload = () => {
-            try {
-                ${js}
-            } catch (err) {
-                console.error("Preview Error:", err);
-            }
-        };
-    </script>
+    <script>${systemScripts}</script>
 </head>
 <body>
     ${html}
