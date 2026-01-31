@@ -14,7 +14,7 @@ export const config: Config = {
   SERVICE_NAME: require('../../package.json').name,
   PORT: Number(process.env.PORT) || 3000,
   DEFAULT_TIMEOUT: Number(process.env.DEFAULT_TIMEOUT || '30000'),
-  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:3001,http://localhost:3004,http://localhost:3005',
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3001,http://localhost:3005,http://localhost:3000,http://localhost:3004,http://localhost:3006',
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   AUTH_SERVICE_URL: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',

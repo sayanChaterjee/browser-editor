@@ -40,18 +40,20 @@ export const startConsumer = async () => {
         }
 
         // Processing with Retry Strategy
-        const MAX_RETRIES = 3;
+        // Processing with Robust Retry Strategy & Jitter
+        const MAX_RETRIES = 5;
         let attempt = 0;
         let success = false;
+        let lastError: any = null;
 
         while (attempt < MAX_RETRIES && !success) {
           try {
             attempt++;
             if (!data.userId || !data.email) {
-              throw new Error('Invalid user-registered payload');
+              throw new Error('Invalid user-registered payload: missing userId or email');
             }
 
-            logger.info(`Processing ${topic} attempt ${attempt} for ${data.email}`);
+            logger.info(`[${topic}] Processing sync attempt ${attempt}/${MAX_RETRIES} for ${data.email}`);
 
             await User.findOneAndUpdate(
               { _id: data.userId },
@@ -61,22 +63,27 @@ export const startConsumer = async () => {
                   email: data.email,
                 },
               },
-              { upsert: true, new: true }
+              { upsert: true, new: true, runValidators: true }
             );
 
-            logger.info(`User ${data.email} synced successfully on attempt ${attempt}`);
+            logger.info(`[${topic}] User ${data.email} synced successfully on attempt ${attempt}`);
             success = true;
           } catch (err: any) {
-            logger.error(`Error processing attempt ${attempt}: ${err.message}`);
+            lastError = err;
+            logger.error(`[${topic}] Sync attempt ${attempt} failed: ${err.message}`);
+
             if (attempt < MAX_RETRIES) {
-              const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+              // Exponential backoff + jitter to prevent thundering herd
+              const jitter = Math.random() * 1000;
+              const delay = Math.pow(2, attempt) * 1000 + jitter;
+              logger.info(`[${topic}] Retrying in ${Math.round(delay)}ms...`);
               await new Promise(resolve => setTimeout(resolve, delay));
             }
           }
         }
 
         if (!success) {
-          logger.error(`Message failed after ${MAX_RETRIES} attempts. Sending to DLQ.`);
+          logger.error(`[${topic}] Message failed after ${MAX_RETRIES} attempts. Sending to DLQ. Reason: ${lastError?.message || 'Unknown'}`);
           await dlqProducer.send({
             topic: 'user-registered-dlq',
             messages: [
@@ -84,8 +91,9 @@ export const startConsumer = async () => {
                 key: message.key,
                 value: JSON.stringify({
                   originalPayload: data,
-                  error: 'Failed after max retries',
-                  failedAt: new Date().toISOString()
+                  error: lastError?.message || 'Failed after max retries',
+                  failedAt: new Date().toISOString(),
+                  retryAttempts: MAX_RETRIES
                 })
               }
             ]
