@@ -36,11 +36,11 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
-      - key: KAFKA_CA_CERT
+      - key: KAFKA_CA_CERT_PATH
         sync: false
-      - key: KAFKA_SERVICE_KEY
+      - key: KAFKA_SERVICE_KEY_PATH
         sync: false
-      - key: KAFKA_SERVICE_CERT
+      - key: KAFKA_SERVICE_CERT_PATH
         sync: false
       - key: BETTER_AUTH_SECRET
         sync: false
@@ -70,11 +70,11 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
-      - key: KAFKA_CA_CERT
+      - key: KAFKA_CA_CERT_PATH
         sync: false
-      - key: KAFKA_SERVICE_KEY
+      - key: KAFKA_SERVICE_KEY_PATH
         sync: false
-      - key: KAFKA_SERVICE_CERT
+      - key: KAFKA_SERVICE_CERT_PATH
         sync: false
       - key: LOG_LEVEL
         value: info
@@ -94,11 +94,11 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
-      - key: KAFKA_CA_CERT
+      - key: KAFKA_CA_CERT_PATH
         sync: false
-      - key: KAFKA_SERVICE_KEY
+      - key: KAFKA_SERVICE_KEY_PATH
         sync: false
-      - key: KAFKA_SERVICE_CERT
+      - key: KAFKA_SERVICE_CERT_PATH
         sync: false
       - key: LOG_LEVEL
         value: info

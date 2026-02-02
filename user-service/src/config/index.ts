@@ -6,6 +6,9 @@ interface Config {
   KAFKA_CA_CERT: string;
   KAFKA_SERVICE_KEY: string;
   KAFKA_SERVICE_CERT: string;
+  KAFKA_CA_CERT_PATH: string;
+  KAFKA_SERVICE_KEY_PATH: string;
+  KAFKA_SERVICE_CERT_PATH: string;
   LOG_LEVEL: string;
   REDIS_URL: string;
 }
@@ -18,6 +21,9 @@ export const config: Config = {
   KAFKA_CA_CERT: process.env.KAFKA_CA_CERT || '',
   KAFKA_SERVICE_KEY: process.env.KAFKA_SERVICE_KEY || '',
   KAFKA_SERVICE_CERT: process.env.KAFKA_SERVICE_CERT || '',
+  KAFKA_CA_CERT_PATH: process.env.KAFKA_CA_CERT_PATH || '',
+  KAFKA_SERVICE_KEY_PATH: process.env.KAFKA_SERVICE_KEY_PATH || '',
+  KAFKA_SERVICE_CERT_PATH: process.env.KAFKA_SERVICE_CERT_PATH || '',
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   REDIS_URL: process.env.REDIS_URL || 'http://localhost:6379',
 };
