@@ -8,9 +8,6 @@ export const authClient = createAuthClient({
     // CRITICAL: Enable credentials for cross-origin requests
     fetchOptions: {
         credentials: "include", // Send cookies with cross-origin requests
-        headers: {
-            "Content-Type": "application/json",
-        },
     },
 });
 
