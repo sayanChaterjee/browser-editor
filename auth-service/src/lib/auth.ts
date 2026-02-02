@@ -27,6 +27,7 @@ export function getAuth() {
                     clientId: process.env.GOOGLE_CLIENT_ID || "",
                     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
                     enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+                    redirectURI: "https://api-gateway-rq2x.onrender.com/api/auth/callback/google"
                 },
             },
 
@@ -50,8 +51,8 @@ export function getAuth() {
                 }
             },
 
-            // Base URL for redirects and email links
-            baseURL: config.BASE_URL || "http://localhost:3000",
+            // Base URL should be the Render API Gateway URL
+            baseURL: "https://api-gateway-rq2x.onrender.com",
 
             // Trusted origins (frontend URLs)
             trustedOrigins: [
