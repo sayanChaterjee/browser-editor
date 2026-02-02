@@ -43,6 +43,9 @@ class ServiceProxy {
       pathRewrite: service.pathRewrite,
       timeout: service.timeout || config.DEFAULT_TIMEOUT,
       logger: logger,
+      // CRITICAL: Preserve cookies for auth
+      cookieDomainRewrite: false,
+      preserveHeaderKeyCase: true,
       on: {
         error: ServiceProxy.handleProxyError,
         proxyReq: (proxyReq, req: any) => {
@@ -57,6 +60,19 @@ class ServiceProxy {
           }
           if (req.headers['x-correlation-id']) {
             proxyReq.setHeader('x-correlation-id', req.headers['x-correlation-id']);
+          }
+
+          // Forward cookies from client to auth service
+          if (req.headers.cookie) {
+            proxyReq.setHeader('cookie', req.headers.cookie);
+          }
+        },
+        proxyRes: (proxyRes, req: any, res: any) => {
+          // CRITICAL: Forward Set-Cookie headers from auth service to client
+          // This is essential for OAuth session cookies to work
+          const setCookieHeaders = proxyRes.headers['set-cookie'];
+          if (setCookieHeaders) {
+            res.setHeader('set-cookie', setCookieHeaders);
           }
         },
       },

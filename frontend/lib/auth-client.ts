@@ -5,6 +5,13 @@ const authBaseURL = baseURL.endsWith("/api/auth") ? baseURL : `${baseURL.replace
 
 export const authClient = createAuthClient({
     baseURL: authBaseURL,
+    // CRITICAL: Enable credentials for cross-origin requests
+    fetchOptions: {
+        credentials: "include", // Send cookies with cross-origin requests
+        headers: {
+            "Content-Type": "application/json",
+        },
+    },
 });
 
 export const { signIn, signUp, signOut, useSession } = authClient;
