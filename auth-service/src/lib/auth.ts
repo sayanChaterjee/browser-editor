@@ -48,9 +48,10 @@ export function getAuth() {
                     enabled: true,
                 },
                 defaultCookieAttributes: {
-                    sameSite: "none", // Required for cross-site (Vercel -> Render)
-                    secure: true,      // SameSite=None REQUIRES Secure=true
-                    httpOnly: true,    // Recommended for security
+                    sameSite: "none",     // Required for cross-site (Vercel -> Render)
+                    secure: true,         // SameSite=None REQUIRES Secure=true
+                    httpOnly: true,       // Recommended for security
+                    partitioned: true,    // Chrome CHIPS - required for third-party cookies
                 }
             },
 
