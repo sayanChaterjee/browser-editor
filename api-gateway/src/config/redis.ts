@@ -3,11 +3,11 @@ import { config } from '.';
 import logger from './logger';
 
 // Singleton Redis client
-class RedisClient {
+export class RedisClient {
   private static instance: Redis;
   private static isConnected = false;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): Redis {
     if (!RedisClient.instance) {
@@ -47,6 +47,14 @@ class RedisClient {
 
   public static isReady(): boolean {
     return RedisClient.isConnected;
+  }
+
+  public static async disconnect(): Promise<void> {
+    if (RedisClient.instance) {
+      await RedisClient.instance.quit();
+      RedisClient.isConnected = false;
+      logger.info('Redis connection closed gracefully');
+    }
   }
 }
 

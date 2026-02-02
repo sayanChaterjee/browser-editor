@@ -1,0 +1,78 @@
+services:
+  # 1. API GATEWAY (Public)
+  - type: web
+    name: api-gateway
+    runtime: docker
+    rootDir: services/api-gateway # Adjusted to monorepo structure
+    plan: free
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: AUTH_SERVICE_URL
+        value: http://auth-service:3001
+      - key: USER_SERVICE_URL
+        value: http://user-service:3002
+      - key: CODE_SERVICE_URL
+        value: http://code-service:3003
+      - key: REDIS_URL
+        sync: false
+
+  # 2. AUTH SERVICE (Private)
+  - type: pserv
+    name: auth-service
+    runtime: docker
+    rootDir: services/auth-service
+    plan: free
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL # Your MongoDB Atlas URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: KAFKA_BROKER
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        sync: false
+      - key: BETTER_AUTH_URL
+        sync: false # Set this to your Frontend URL in the dashboard
+
+  # 3. CODE SERVICE (Private)
+  - type: pserv
+    name: code-service
+    runtime: docker
+    rootDir: services/code-service
+    plan: free
+    envVars:
+      - key: PORT
+        value: 3003
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: KAFKA_BROKER
+        sync: false
+
+  # 4. USER SERVICE (Private)
+  - type: pserv
+    name: user-service
+    runtime: docker
+    rootDir: services/user-service
+    plan: free
+    envVars:
+      - key: PORT
+        value: 3002
+      - key: DATABASE_URL
+        sync: false
+      - key: KAFKA_BROKER
+        sync: false
+
+  # 5. FRONTEND (Public)
+  - type: web
+    name: frontend
+    runtime: docker
+    rootDir: frontend
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # Point to the public URL of your api-gateway

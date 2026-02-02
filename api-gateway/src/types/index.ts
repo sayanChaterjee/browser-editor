@@ -2,7 +2,7 @@
 export interface ServiceConfig {
   path: string;
   url: string;
-  pathRewrite: Record<string, string>;
+  pathRewrite?: Record<string, string>; // Optional - if not provided, path is preserved
   name: string;
   timeout?: number;
 }

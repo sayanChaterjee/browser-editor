@@ -4,23 +4,33 @@ interface Config {
   DATABASE_URL: string;
   REDIS_URL: string;
   KAFKA_BROKER: string;
-  JWT_SECRET: string;
-  JWT_EXPIRES_IN: string;
-  REFRESH_TOKEN_EXPIRES_IN?: string;
+  KAFKA_CA_CERT: string;
+  KAFKA_SERVICE_KEY: string;
+  KAFKA_SERVICE_CERT: string;
   LOG_LEVEL: string;
   ALLOWED_ORIGINS: string;
+  BASE_URL: string;
+  JWT_SECRET: string;
+  RESEND_API_KEY: string;
 }
 
 export const config: Config = {
   SERVICE_NAME: require('../../package.json').name,
   PORT: Number(process.env.PORT) || 3001,
   DATABASE_URL:
-    process.env.DATABASE_URL || 'postgres://user:password@localhost:5432/auth',
+    process.env.DATABASE_URL || '',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   KAFKA_BROKER: process.env.KAFKA_BROKER || 'localhost:9092',
-  JWT_SECRET: process.env.JWT_SECRET || 'your-default-secret-key',
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '15m',
-  REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
+  KAFKA_CA_CERT: process.env.KAFKA_CA_CERT || '',
+  KAFKA_SERVICE_KEY: process.env.KAFKA_SERVICE_KEY || '',
+  KAFKA_SERVICE_CERT: process.env.KAFKA_SERVICE_CERT || '',
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
+  BASE_URL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+  JWT_SECRET: process.env.BETTER_AUTH_SECRET || '',
+  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
 };
+
+if (!process.env.DATABASE_URL) {
+  console.warn('[WARN] DATABASE_URL is missing. Please set it in .env');
+}

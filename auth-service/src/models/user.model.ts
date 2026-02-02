@@ -2,6 +2,12 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    // Better-auth required fields
+    id: {
+      type: String,
+      unique: true,
+      sparse: true, // Allow MongoDB to use _id if id is not set
+    },
     email: {
       type: String,
       required: true,
@@ -9,13 +15,20 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    password: {
-      type: String,
-      required: true,
+    emailVerified: {
+      type: Boolean,
+      default: false,
     },
     name: {
       type: String,
       required: true,
+    },
+    image: {
+      type: String,
+    },
+    // Legacy fields - keep for compatibility
+    password: {
+      type: String,
     },
     lastLogin: {
       type: Date,
@@ -24,7 +37,11 @@ const userSchema = new mongoose.Schema(
     resetPasswordToken: String,
     resetPasswordExpiresAt: Date,
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    collection: 'user' // Use better-auth collection name (singular)
+  }
 );
 
 export const User = mongoose.model("User", userSchema);
+
