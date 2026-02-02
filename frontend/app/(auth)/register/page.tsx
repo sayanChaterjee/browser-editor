@@ -190,9 +190,9 @@ const validatePassword = (value: string) => {
           onClick={async () => {
             try {
               const { signIn } = await import("../../../lib/auth-client");
+              // Backend handles OAuth flow and redirects to /editor after success
               await signIn.social({
                 provider: "google",
-                callbackURL: "/editor"
               });
             } catch (error) {
               console.error("Google login failed:", error);

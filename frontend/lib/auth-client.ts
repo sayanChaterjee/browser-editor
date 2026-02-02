@@ -1,14 +1,15 @@
 import { createAuthClient } from "better-auth/react";
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-const authBaseURL = process.env.NEXT_PUBLIC_API_URL || "https://browser-editor-cyan.vercel.app";
+// CRITICAL: Use backend URL directly for OAuth flow
+// OAuth must be initiated from the backend domain that owns the session
+const authBaseURL = process.env.NEXT_PUBLIC_AUTH_URL || "https://api-gateway-rq2x.onrender.com";
 
 export const authClient = createAuthClient({
-    // Use frontend URL - Next.js rewrites will proxy /api/* to backend
-    // This makes cookies same-site instead of cross-domain
+    // Point directly to backend - OAuth flow must start from the server that sets cookies
+    // sameSite: "none" cookies allow cross-domain session sharing
     baseURL: authBaseURL,
     fetchOptions: {
-        credentials: "include",
+        credentials: "include", // Send cookies cross-domain
     },
 });
 

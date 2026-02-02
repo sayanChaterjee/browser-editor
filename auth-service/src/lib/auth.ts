@@ -27,9 +27,9 @@ export function getAuth() {
                     clientId: process.env.GOOGLE_CLIENT_ID || "",
                     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
                     enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-                    // CRITICAL: Use Vercel URL to maintain same-site context
-                    // Next.js rewrites will proxy this to the actual backend
-                    redirectURI: "https://browser-editor-cyan.vercel.app/api/auth/callback/google"
+                    // CRITICAL: Use backend URL - OAuth callback MUST go to the server that owns the session
+                    // This ensures the state cookie set by backend can be verified on callback
+                    redirectURI: "https://api-gateway-rq2x.onrender.com/api/auth/callback/google"
                 },
             },
 
@@ -43,30 +43,31 @@ export function getAuth() {
                 },
             },
 
-            // Trust the proxy (API Gateway + Next.js rewrites)
+            // Trust the proxy (API Gateway + Cloudflare)
             advanced: {
                 useSecureCookies: true,
                 crossSite: {
-                    enabled: true, // Required for OAuth flow
+                    enabled: true, // Required for cross-domain OAuth flow
                 },
                 defaultCookieAttributes: {
-                    // MUST use "none" for OAuth state cookie to survive Google redirect
-                    // With Next.js rewrites + Vercel baseURL, browser sees same domain
+                    // CRITICAL: sameSite "none" required for cross-domain OAuth
+                    // Frontend (Vercel) needs to read cookies set by backend (Render)
                     sameSite: "none",
-                    secure: true,
+                    secure: true, // Required when sameSite is "none"
                     httpOnly: true,
                 }
             },
 
-            // CRITICAL: Use Vercel URL so cookies are scoped to the domain users see
-            // Next.js rewrites proxy /api/* to the actual backend
-            baseURL: "https://browser-editor-cyan.vercel.app",
+            // CRITICAL: Use backend URL - this is where OAuth flow is handled
+            // After successful OAuth, backend will redirect user to frontend
+            baseURL: "https://api-gateway-rq2x.onrender.com",
 
-            // Trusted origins
+            // Trusted origins - allow requests from frontend
             trustedOrigins: [
                 "http://localhost:3005",
                 "http://localhost:3006",
                 "http://localhost:3004",
+                "http://localhost:3000",
                 "https://browser-editor-cyan.vercel.app",
                 process.env.FRONTEND_URL || "",
             ].filter(Boolean),
@@ -74,7 +75,7 @@ export function getAuth() {
             // Secret for session encryption
             secret: process.env.BETTER_AUTH_SECRET || config.JWT_SECRET,
 
-            // Redirect to frontend after OAuth
+            // Redirect to frontend after successful OAuth
             redirects: {
                 onSignIn: "https://browser-editor-cyan.vercel.app/editor",
                 onSignUp: "https://browser-editor-cyan.vercel.app/editor",
