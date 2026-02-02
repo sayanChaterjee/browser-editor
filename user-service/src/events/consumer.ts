@@ -3,10 +3,21 @@ import { config } from '../config';
 import User from '../models/user.model';
 import logger from '../config/logger';
 
-const kafka = new Kafka({
+const kafkaConfig: any = {
   clientId: config.SERVICE_NAME,
   brokers: [config.KAFKA_BROKER],
-});
+};
+
+if (config.KAFKA_CA_CERT && config.KAFKA_SERVICE_KEY && config.KAFKA_SERVICE_CERT) {
+  kafkaConfig.ssl = {
+    rejectUnauthorized: true,
+    ca: [config.KAFKA_CA_CERT],
+    key: config.KAFKA_SERVICE_KEY,
+    cert: config.KAFKA_SERVICE_CERT,
+  };
+}
+
+const kafka = new Kafka(kafkaConfig);
 
 const consumer = kafka.consumer({ groupId: 'user-service-group' });
 let dlqProducer: Producer;
