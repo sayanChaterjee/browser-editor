@@ -3,6 +3,13 @@ envVarGroups:
     envVars:
       - key: INTERNAL_GATEWAY_SECRET
         generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: KAFKAJS_NO_PARTITIONER_WARNING
+        value: "1"
+
+  - name: kafka-certificates
+    # Secret Files (ca.pem, service.key, service.cert) should be added to this group in Render UI
 
 services:
   # 1. API GATEWAY (Public)
@@ -45,6 +52,7 @@ services:
     plan: free
     envVars:
       - fromGroup: internal-security-group
+      - fromGroup: kafka-certificates
       - key: PORT
         value: 3001
       - key: DATABASE_URL
@@ -72,6 +80,7 @@ services:
     plan: free
     envVars:
       - fromGroup: internal-security-group
+      - fromGroup: kafka-certificates
       - key: PORT
         value: 3003
       - key: DATABASE_URL
@@ -91,6 +100,7 @@ services:
     plan: free
     envVars:
       - fromGroup: internal-security-group
+      - fromGroup: kafka-certificates
       - key: PORT
         value: 3002
       - key: DATABASE_URL
