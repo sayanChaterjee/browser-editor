@@ -42,7 +42,12 @@ export function getAuth() {
 
             // Trust the proxy (API Gateway)
             advanced: {
-                useSecureCookies: process.env.NODE_ENV === "production",
+                useSecureCookies: true, // Force secure cookies for Render & Vercel
+                defaultCookieAttributes: {
+                    sameSite: "none", // Required for cross-site (Vercel -> Render)
+                    secure: true,      // SameSite=None REQUIRES Secure=true
+                    httpOnly: true,    // Recommended for security
+                }
             },
 
             // Base URL for redirects and email links
@@ -53,6 +58,7 @@ export function getAuth() {
                 "http://localhost:3005",
                 "http://localhost:3006",
                 "http://localhost:3004", // Add dev port
+                "https://browser-editor-cyan.vercel.app", // Approved Vercel URL
                 process.env.FRONTEND_URL || "",
             ].filter(Boolean),
 
