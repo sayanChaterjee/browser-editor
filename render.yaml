@@ -3,7 +3,7 @@ services:
   - type: web
     name: api-gateway
     runtime: docker
-    rootDir: services/api-gateway # Adjusted to monorepo structure
+    rootDir: api-gateway
     plan: free
     envVars:
       - key: PORT
@@ -16,32 +16,50 @@ services:
         value: http://code-service:3003
       - key: REDIS_URL
         sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false # Set this to your Vercel frontend URL
+      - key: LOG_LEVEL
+        value: info
 
   # 2. AUTH SERVICE (Private)
   - type: pserv
     name: auth-service
     runtime: docker
-    rootDir: services/auth-service
+    rootDir: auth-service
     plan: free
     envVars:
       - key: PORT
         value: 3001
-      - key: DATABASE_URL # Your MongoDB Atlas URI
+      - key: DATABASE_URL # MongoDB Atlas URI
         sync: false
       - key: REDIS_URL
         sync: false
       - key: KAFKA_BROKER
         sync: false
+      - key: KAFKA_CA_CERT
+        sync: false
+      - key: KAFKA_SERVICE_KEY
+        sync: false
+      - key: KAFKA_SERVICE_CERT
+        sync: false
       - key: BETTER_AUTH_SECRET
         sync: false
       - key: BETTER_AUTH_URL
-        sync: false # Set this to your Frontend URL in the dashboard
+        sync: false # Set this to your Vercel frontend URL
+      - key: RESEND_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: LOG_LEVEL
+        value: info
 
   # 3. CODE SERVICE (Private)
   - type: pserv
     name: code-service
     runtime: docker
-    rootDir: services/code-service
+    rootDir: code-service
     plan: free
     envVars:
       - key: PORT
@@ -52,27 +70,35 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
+      - key: KAFKA_CA_CERT
+        sync: false
+      - key: KAFKA_SERVICE_KEY
+        sync: false
+      - key: KAFKA_SERVICE_CERT
+        sync: false
+      - key: LOG_LEVEL
+        value: info
 
   # 4. USER SERVICE (Private)
   - type: pserv
     name: user-service
     runtime: docker
-    rootDir: services/user-service
+    rootDir: user-service
     plan: free
     envVars:
       - key: PORT
         value: 3002
       - key: DATABASE_URL
         sync: false
+      - key: REDIS_URL
+        sync: false
       - key: KAFKA_BROKER
         sync: false
-
-  # 5. FRONTEND (Public)
-  - type: web
-    name: frontend
-    runtime: docker
-    rootDir: frontend
-    plan: free
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        sync: false # Point to the public URL of your api-gateway
+      - key: KAFKA_CA_CERT
+        sync: false
+      - key: KAFKA_SERVICE_KEY
+        sync: false
+      - key: KAFKA_SERVICE_CERT
+        sync: false
+      - key: LOG_LEVEL
+        value: info
