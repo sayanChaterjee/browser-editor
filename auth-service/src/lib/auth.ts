@@ -41,36 +41,36 @@ export function getAuth() {
                 },
             },
 
-            // Trust the proxy (API Gateway)
+            // Trust the proxy (API Gateway + Next.js rewrites)
             advanced: {
-                useSecureCookies: true, // Force secure cookies for Render & Vercel
+                useSecureCookies: true,
                 crossSite: {
-                    enabled: true,
+                    enabled: true, // Helps with OAuth redirect transition
                 },
                 defaultCookieAttributes: {
-                    sameSite: "none",     // Required for cross-site (Vercel -> Render)
-                    secure: true,         // SameSite=None REQUIRES Secure=true
-                    httpOnly: true,       // Recommended for security
-                    partitioned: true,    // Chrome CHIPS - required for third-party cookies
+                    sameSite: "lax",      // Can use "lax" now - Next.js rewrites make it same-site!
+                    secure: true,
+                    httpOnly: true,
+                    // No "partitioned" needed for same-site cookies
                 }
             },
 
-            // Base URL should be the API Gateway auth endpoint for API calls
+            // Base URL is still the API Gateway for internal routing
             baseURL: "https://api-gateway-rq2x.onrender.com/api/auth",
 
-            // Trusted origins (frontend URLs)
+            // Trusted origins - now the frontend URL
             trustedOrigins: [
                 "http://localhost:3005",
                 "http://localhost:3006",
-                "http://localhost:3004", // Add dev port
-                "https://browser-editor-cyan.vercel.app", // Approved Vercel URL
+                "http://localhost:3004",
+                "https://browser-editor-cyan.vercel.app",
                 process.env.FRONTEND_URL || "",
             ].filter(Boolean),
 
             // Secret for session encryption
             secret: process.env.BETTER_AUTH_SECRET || config.JWT_SECRET,
 
-            // IMPORTANT: Redirect to frontend after OAuth, not API Gateway
+            // Redirect to frontend after OAuth
             redirects: {
                 onSignIn: "https://browser-editor-cyan.vercel.app/editor",
                 onSignUp: "https://browser-editor-cyan.vercel.app/editor",

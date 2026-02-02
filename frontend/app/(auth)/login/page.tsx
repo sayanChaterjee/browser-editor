@@ -139,7 +139,7 @@ export default function LoginPage() {
               const { signIn } = await import("../../../lib/auth-client");
               await signIn.social({
                 provider: "google",
-                callbackURL: "https://browser-editor-cyan.vercel.app/editor"
+                callbackURL: "/editor" // Relative path works now (same-origin)
               });
             } catch (error) {
               console.error("Google login failed:", error);
