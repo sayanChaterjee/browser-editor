@@ -54,7 +54,7 @@ export function getAuth() {
                 }
             },
 
-            // Base URL should be the Render API Gateway URL WITH the /api/auth subpath
+            // Base URL should be the API Gateway auth endpoint for API calls
             baseURL: "https://api-gateway-rq2x.onrender.com/api/auth",
 
             // Trusted origins (frontend URLs)
@@ -69,8 +69,11 @@ export function getAuth() {
             // Secret for session encryption
             secret: process.env.BETTER_AUTH_SECRET || config.JWT_SECRET,
 
-            // Don't override client-provided callbackURL
-            // Let the client control where to redirect after OAuth
+            // IMPORTANT: Redirect to frontend after OAuth, not API Gateway
+            redirects: {
+                onSignIn: "https://browser-editor-cyan.vercel.app/editor",
+                onSignUp: "https://browser-editor-cyan.vercel.app/editor",
+            },
         });
     }
 
