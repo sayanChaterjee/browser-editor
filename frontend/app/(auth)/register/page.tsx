@@ -190,9 +190,11 @@ const validatePassword = (value: string) => {
           onClick={async () => {
             try {
               const { signIn } = await import("../../../lib/auth-client");
-              // Backend handles OAuth flow and redirects to /editor after success
+              // Backend handles OAuth flow and redirects to frontend after success
+              // Must pass absolute URL for cross-domain redirect
               await signIn.social({
                 provider: "google",
+                callbackURL: "https://browser-editor-cyan.vercel.app/editor",
               });
             } catch (error) {
               console.error("Google login failed:", error);
