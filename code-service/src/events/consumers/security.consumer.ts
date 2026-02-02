@@ -12,7 +12,8 @@ const loadCert = (filename: string) => {
     const filePath = path.join(certsDir, filename);
     try {
         if (fs.existsSync(filePath)) {
-            return fs.readFileSync(filePath, 'utf-8');
+            const content = fs.readFileSync(filePath, 'utf-8');
+            return content.trim();
         }
     } catch (err) {
         logger.error(`[Kafka Security Consumer] Error reading cert file ${filename}:`, err);
@@ -27,17 +28,19 @@ const cert = loadCert('service.cert');
 const kafkaConfig: any = {
     clientId: `${config.SERVICE_NAME}-security-consumer`,
     brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
+    connectionTimeout: 10000,
+    authenticationTimeout: 10000,
 };
 
 if (ca && key && cert) {
     kafkaConfig.ssl = {
         rejectUnauthorized: true,
-        ca: [ca],
+        ca: [ca], // Must be an array
         key: key,
         cert: cert,
     };
 } else if (isProduction) {
-    logger.error('[Kafka Security Consumer] Critical SSL certificates missing in production environment!');
+    logger.error('[Kafka Security Consumer] Critical SSL certificates missing in production environment (/etc/secrets)!');
 }
 
 const kafka = new Kafka(kafkaConfig);
@@ -65,10 +68,6 @@ export const startSecurityConsumer = async () => {
                         // Purge project list cache
                         const listCacheKey = `user:projects:${userId}`;
                         await redis.del(listCacheKey);
-
-                        // In an ideal world, we'd also purge specific project caches if we had the IDs,
-                        // or use a versioning/tagging system for cache invalidation.
-                        // For now, purging the list is a good first step.
 
                         logger.info(`Cache purged for user: ${userId}`);
                     }

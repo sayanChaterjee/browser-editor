@@ -12,7 +12,8 @@ const loadCert = (filename: string) => {
   const filePath = path.join(certsDir, filename);
   try {
     if (fs.existsSync(filePath)) {
-      return fs.readFileSync(filePath, 'utf-8');
+      const content = fs.readFileSync(filePath, 'utf-8');
+      return content.trim();
     }
   } catch (err) {
     logger.error(`[Kafka Consumer] Error reading cert file ${filename}:`, err);
@@ -27,17 +28,19 @@ const cert = loadCert('service.cert');
 const kafkaConfig: any = {
   clientId: config.SERVICE_NAME,
   brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
+  connectionTimeout: 10000,
+  authenticationTimeout: 10000,
 };
 
 if (ca && key && cert) {
   kafkaConfig.ssl = {
     rejectUnauthorized: true,
-    ca: [ca],
+    ca: [ca], // Must be an array
     key: key,
     cert: cert,
   };
 } else if (isProduction) {
-  logger.error('[Kafka Consumer] Critical SSL certificates missing in production environment!');
+  logger.error('[Kafka Consumer] Critical SSL certificates missing in production environment (/etc/secrets)!');
 }
 
 const kafka = new Kafka(kafkaConfig);
@@ -74,7 +77,6 @@ export const startConsumer = async () => {
         }
 
         // Processing with Retry Strategy
-        // Processing with Robust Retry Strategy & Jitter
         const MAX_RETRIES = 5;
         let attempt = 0;
         let success = false;
@@ -107,7 +109,6 @@ export const startConsumer = async () => {
             logger.error(`[${topic}] Sync attempt ${attempt} failed: ${err.message}`);
 
             if (attempt < MAX_RETRIES) {
-              // Exponential backoff + jitter to prevent thundering herd
               const jitter = Math.random() * 1000;
               const delay = Math.pow(2, attempt) * 1000 + jitter;
               logger.info(`[${topic}] Retrying in ${Math.round(delay)}ms...`);
