@@ -11,7 +11,6 @@ interface Config {
   ALLOWED_ORIGINS: string;
   BASE_URL: string;
   JWT_SECRET: string;
-  RESEND_API_KEY: string;
 }
 
 export const config: Config = {
@@ -28,7 +27,6 @@ export const config: Config = {
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
   BASE_URL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
   JWT_SECRET: process.env.BETTER_AUTH_SECRET || '',
-  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
 };
 
 if (!process.env.DATABASE_URL) {

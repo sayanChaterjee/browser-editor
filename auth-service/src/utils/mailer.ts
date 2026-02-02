@@ -1,13 +1,16 @@
 import { Resend } from 'resend';
 import { config } from '../config';
 
+// Assuming 'logger' is available or using console.warn as a fallback
+const logger = console;
+
 export const sendResetEmail = async (email: string, token: string) => {
-  if (!config.RESEND_API_KEY) {
-    console.warn('[WARN] RESEND_API_KEY is missing. Reset email will not be sent.');
+  if (!process.env.RESEND_API_KEY) {
+    logger.warn('Email service skipped: RESEND_API_KEY not provided. Reset email will not be sent.');
     return;
   }
 
-  const resend = new Resend(config.RESEND_API_KEY);
+  const resend = new Resend(process.env.RESEND_API_KEY);
   const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
   const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
 
