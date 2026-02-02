@@ -187,17 +187,11 @@ const validatePassword = (value: string) => {
 
         <button
           className="w-full p-[10px] bg-white text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer flex items-center justify-center gap-2 hover:bg-[#f0f0f0] transition-colors mb-4"
-          onClick={async () => {
-             try {
-               const { signIn } = await import("../../../lib/auth-client");
-               await signIn.social({
-                 provider: "google",
-                 callbackURL: window.location.origin + "/editor"
-               });
-             } catch (error) {
-               console.error("Google login failed:", error);
-               alert("Google login failed");
-             }
+          onClick={() => {
+            // Industry standard OAuth flow: Redirect to OAuth endpoint
+            const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+            const callbackURL = encodeURIComponent(window.location.origin + "/editor");
+            window.location.href = `${baseURL}/api/auth/sign-in/google?callbackURL=${callbackURL}`;
           }}
         >
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-[18px] h-[18px]" />
