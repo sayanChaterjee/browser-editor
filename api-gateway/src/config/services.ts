@@ -10,10 +10,9 @@ class ServiceProxy {
     {
       path: '/api/auth',
       url: config.AUTH_SERVICE_URL,
-      // http-proxy-middleware strips '/api/auth' first, leaving us with the remaining path
-      // We need to prepend '/api/auth' back to whatever remains
-      // Example: '/api/auth/sign-up/email' -> '/sign-up/email' (after strip) -> '/api/auth/sign-up/email' (after rewrite)
-      pathRewrite: { '^/': '/api/auth/' },
+      // Don't rewrite the path - auth service expects /api/auth/* routes
+      // API Gateway: /api/auth/sign-in/google -> Auth Service: /api/auth/sign-in/google
+      pathRewrite: undefined,
       name: 'auth-service',
       timeout: 5000,
     },
