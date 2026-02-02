@@ -54,8 +54,8 @@ export function getAuth() {
                 }
             },
 
-            // Base URL should be the Render API Gateway URL
-            baseURL: "https://api-gateway-rq2x.onrender.com",
+            // Base URL should be the Render API Gateway URL WITH the /api/auth subpath
+            baseURL: "https://api-gateway-rq2x.onrender.com/api/auth",
 
             // Trusted origins (frontend URLs)
             trustedOrigins: [

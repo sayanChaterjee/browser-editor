@@ -23,6 +23,8 @@ import { internalSecurity } from './middlewares/internalSecurity.middleware';
 
 const app = express();
 
+app.set("trust proxy", true);
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
