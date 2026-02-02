@@ -1,7 +1,7 @@
 import { Server } from 'http';
 import logger from '../config/logger';
 import { RedisClient } from '../config/redis';
-import { disconnectKafka } from '../events/kafka';
+import { disconnectKafka } from '../config/kafka';
 import { disconnectDB } from '../db/db';
 
 export const setupGracefulShutdown = (server: Server) => {
