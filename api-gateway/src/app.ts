@@ -15,6 +15,7 @@ import { authMiddleware } from "./middlewares/auth.middleware";
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorHandler } from './middlewares/error.middleware';
 import { setupAxiosInterceptors } from './utils/axios-interceptors';
+import internalClient from './utils/internalClient';
 
 // initialize axios interceptors for auto correlation ID injection
 setupAxiosInterceptors();
@@ -80,16 +81,14 @@ app.get("/api/v1/dashboard", async (req: Request, res: Response) => {
     logger.info(`Fetching dashboard data for user: ${userId}`);
 
     const [profileRes, projectsRes] = await Promise.all([
-      axios.get(`${config.USER_SERVICE_URL}/profile`, {
+      internalClient.get(`${config.USER_SERVICE_URL}/profile`, {
         headers: {
           'x-user-id': userId,
-          'x-correlation-id': correlationId
         }
       }),
-      axios.get(`${config.CODE_SERVICE_URL}/`, {
+      internalClient.get(`${config.CODE_SERVICE_URL}/`, {
         headers: {
           'x-user-id': userId,
-          'x-correlation-id': correlationId
         }
       })
     ]);

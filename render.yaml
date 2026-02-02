@@ -9,13 +9,22 @@ services:
       - key: PORT
         value: 10000
       - key: AUTH_SERVICE_URL
-        value: http://auth-service:3001
+        fromService:
+          type: web
+          name: auth-service
+          env: host
       - key: USER_SERVICE_URL
-        value: http://user-service:3002
+        fromService:
+          type: web
+          name: user-service
+          env: host
       - key: CODE_SERVICE_URL
-        value: http://code-service:3003
+        fromService:
+          type: web
+          name: code-service
+          env: host
       - key: INTERNAL_GATEWAY_SECRET
-        sync: false
+        generateValue: true
       - key: REDIS_URL
         sync: false
       - key: ALLOWED_ORIGINS
@@ -23,7 +32,7 @@ services:
       - key: LOG_LEVEL
         value: info
 
-  # 2. AUTH SERVICE (Public - will be proxied by gateway, but Render Free Tier requires web type)
+  # 2. AUTH SERVICE (Public - Web Type for Free Tier)
   - type: web
     name: auth-service
     runtime: docker
@@ -32,14 +41,17 @@ services:
     envVars:
       - key: PORT
         value: 3001
-      - key: DATABASE_URL # MongoDB Atlas URI
+      - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
         sync: false
       - key: KAFKA_BROKER
         sync: false
       - key: INTERNAL_GATEWAY_SECRET
-        sync: false
+        fromService:
+          type: web
+          name: api-gateway
+          env: INTERNAL_GATEWAY_SECRET
       - key: BETTER_AUTH_SECRET
         sync: false
       - key: BETTER_AUTH_URL
@@ -51,7 +63,7 @@ services:
       - key: LOG_LEVEL
         value: info
 
-  # 3. CODE SERVICE (Public - will be proxied by gateway, but Render Free Tier requires web type)
+  # 3. CODE SERVICE (Public - Web Type for Free Tier)
   - type: web
     name: code-service
     runtime: docker
@@ -67,11 +79,14 @@ services:
       - key: KAFKA_BROKER
         sync: false
       - key: INTERNAL_GATEWAY_SECRET
-        sync: false
+        fromService:
+          type: web
+          name: api-gateway
+          env: INTERNAL_GATEWAY_SECRET
       - key: LOG_LEVEL
         value: info
 
-  # 4. USER SERVICE (Public - will be proxied by gateway, but Render Free Tier requires web type)
+  # 4. USER SERVICE (Public - Web Type for Free Tier)
   - type: web
     name: user-service
     runtime: docker
@@ -87,6 +102,9 @@ services:
       - key: KAFKA_BROKER
         sync: false
       - key: INTERNAL_GATEWAY_SECRET
-        sync: false
+        fromService:
+          type: web
+          name: api-gateway
+          env: INTERNAL_GATEWAY_SECRET
       - key: LOG_LEVEL
         value: info
