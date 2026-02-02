@@ -44,6 +44,9 @@ export function getAuth() {
             // Trust the proxy (API Gateway)
             advanced: {
                 useSecureCookies: true, // Force secure cookies for Render & Vercel
+                crossSite: {
+                    enabled: true,
+                },
                 defaultCookieAttributes: {
                     sameSite: "none", // Required for cross-site (Vercel -> Render)
                     secure: true,      // SameSite=None REQUIRES Secure=true
