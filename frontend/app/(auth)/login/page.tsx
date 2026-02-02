@@ -13,7 +13,6 @@ export default function LoginPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
 
-  // Redirect if already logged in
   useEffect(() => {
     if (!isPending && session) {
       router.push("/editor");
@@ -24,8 +23,6 @@ export default function LoginPage() {
 
 
   const validateEmail = (value: string) => {
-    // if (!value.endsWith("@gmail.com"))
-    //   return "Email must be a @gmail.com address";
     return "";
   };
 
@@ -71,7 +68,6 @@ export default function LoginPage() {
   const isFormValid =
     !validateEmail(email) && !validatePassword(password);
 
-  // Show loading while checking session
   if (isPending) {
     return (
       <div className="h-[calc(100vh-50px)] flex items-center justify-center">
@@ -137,8 +133,6 @@ export default function LoginPage() {
           onClick={async () => {
             try {
               const { signIn } = await import("../../../lib/auth-client");
-              // Backend handles OAuth flow and redirects to frontend after success
-              // Must pass absolute URL for cross-domain redirect
               await signIn.social({
                 provider: "google",
                 callbackURL: "https://browser-editor-cyan.vercel.app/editor",
