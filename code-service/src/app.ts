@@ -9,6 +9,8 @@ import mongoose from 'mongoose';
 import { setupGracefulShutdown } from './utils/shutdown';
 import { correlationMiddleware } from './middlewares/correlation.middleware';
 
+import { internalSecurity } from './middlewares/internalSecurity.middleware';
+
 const app = express();
 
 app.use(helmet({
@@ -18,11 +20,12 @@ app.use(helmet({
 app.use(express.json());
 app.use(correlationMiddleware);
 
+// Public health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: config.SERVICE_NAME });
 });
 
-app.use('/', codeRouter);
+app.use('/', internalSecurity, codeRouter);
 
 import { startSecurityConsumer } from './events/consumers/security.consumer';
 

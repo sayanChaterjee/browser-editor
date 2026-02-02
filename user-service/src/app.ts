@@ -10,6 +10,8 @@ import { startConsumer } from './events/consumer';
 import { setupGracefulShutdown } from './utils/shutdown';
 import { correlationMiddleware } from './middlewares/correlation.middleware';
 
+import { internalSecurity } from './middlewares/internalSecurity.middleware';
+
 const app = express();
 
 app.use(helmet({
@@ -19,11 +21,13 @@ app.use(helmet({
 app.use(express.json());
 app.use(correlationMiddleware);
 
-app.use('/', userRouter);
-
+// Public health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: config.SERVICE_NAME });
 });
+
+// Protect all other routes
+app.use('/', internalSecurity, userRouter);
 
 const startServer = async () => {
   try {

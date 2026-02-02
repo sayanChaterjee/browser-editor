@@ -16,6 +16,12 @@ export function setupAxiosInterceptors() {
                 config.headers['x-correlation-id'] = correlationId;
             }
 
+            // Auto-inject internal gateway secret for microservice communication
+            const internalSecret = process.env.INTERNAL_GATEWAY_SECRET;
+            if (internalSecret && config.headers) {
+                config.headers['x-internal-secret'] = internalSecret;
+            }
+
             return config;
         },
         (error) => {

@@ -19,6 +19,7 @@ import { correlationMiddleware } from './middlewares/correlation.middleware';
 import { getAuth } from './lib/auth';
 import { toNodeHandler } from 'better-auth/node';
 import { webhookRouter } from './routes/webhook.route';
+import { internalSecurity } from './middlewares/internalSecurity.middleware';
 
 const app = express();
 
@@ -44,8 +45,8 @@ app.use('/api/auth', (req, res, next) => {
   }
 });
 
-// Mount webhook router for internal events
-app.use('/api', webhookRouter);
+// Apply internal security to all remaining /api routes (webhooks, etc.)
+app.use('/api', internalSecurity, webhookRouter);
 
 // Keep the index router for health checks
 app.use('/', indexRouter);
