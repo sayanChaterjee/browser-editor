@@ -47,10 +47,12 @@ export function getAuth() {
             advanced: {
                 useSecureCookies: true,
                 crossSite: {
-                    enabled: true, // Required for split-domain proxy setups
+                    enabled: true, // Required for OAuth flow
                 },
                 defaultCookieAttributes: {
-                    sameSite: "lax",      // Works because baseURL = Vercel domain
+                    // MUST use "none" for OAuth state cookie to survive Google redirect
+                    // With Next.js rewrites + Vercel baseURL, browser sees same domain
+                    sameSite: "none",
                     secure: true,
                     httpOnly: true,
                 }
