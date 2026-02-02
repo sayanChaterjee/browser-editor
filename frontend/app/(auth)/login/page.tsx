@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "../../../lib/auth-client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -10,6 +11,16 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({ email: "", password: "" });
 
   const router = useRouter();
+  const { data: session, isPending } = useSession();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!isPending && session) {
+      router.push("/editor");
+    }
+  }, [session, isPending, router]);
+
+
 
 
   const validateEmail = (value: string) => {
@@ -59,6 +70,15 @@ export default function LoginPage() {
 
   const isFormValid =
     !validateEmail(email) && !validatePassword(password);
+
+  // Show loading while checking session
+  if (isPending) {
+    return (
+      <div className="h-[calc(100vh-50px)] flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-50px)] flex items-center justify-center">
