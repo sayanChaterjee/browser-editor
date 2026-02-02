@@ -45,20 +45,20 @@ export function getAuth() {
             advanced: {
                 useSecureCookies: true,
                 crossSite: {
-                    enabled: true, // Helps with OAuth redirect transition
+                    enabled: true, // Required for split-domain proxy setups
                 },
                 defaultCookieAttributes: {
-                    sameSite: "lax",      // Can use "lax" now - Next.js rewrites make it same-site!
+                    sameSite: "lax",      // Works because baseURL = Vercel domain
                     secure: true,
                     httpOnly: true,
-                    // No "partitioned" needed for same-site cookies
                 }
             },
 
-            // Base URL is still the API Gateway for internal routing
-            baseURL: "https://api-gateway-rq2x.onrender.com/api/auth",
+            // CRITICAL: Use Vercel URL so cookies are scoped to the domain users see
+            // Next.js rewrites proxy /api/* to the actual backend
+            baseURL: "https://browser-editor-cyan.vercel.app",
 
-            // Trusted origins - now the frontend URL
+            // Trusted origins
             trustedOrigins: [
                 "http://localhost:3005",
                 "http://localhost:3006",

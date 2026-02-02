@@ -5,10 +5,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        // Proxy all /api/* requests to Render backend
+        // Proxy all /api/auth/* requests to Render backend
         // This makes the browser think backend is same-origin
-        source: '/api/:path*',
-        destination: 'https://api-gateway-rq2x.onrender.com/api/:path*',
+        source: '/api/auth/:path*',
+        destination: 'https://api-gateway-rq2x.onrender.com/api/auth/:path*',
       },
     ];
   },
