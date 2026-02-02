@@ -27,7 +27,9 @@ export function getAuth() {
                     clientId: process.env.GOOGLE_CLIENT_ID || "",
                     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
                     enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-                    redirectURI: "https://api-gateway-rq2x.onrender.com/api/auth/callback/google"
+                    // CRITICAL: Use Vercel URL to maintain same-site context
+                    // Next.js rewrites will proxy this to the actual backend
+                    redirectURI: "https://browser-editor-cyan.vercel.app/api/auth/callback/google"
                 },
             },
 
