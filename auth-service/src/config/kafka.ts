@@ -1,21 +1,30 @@
 import { Kafka } from 'kafkajs';
-import { config } from './index';
 import fs from 'fs';
+import path from 'path';
+
+const isProduction = process.env.NODE_ENV === 'production';
+const certsDir = isProduction ? '/etc/secrets' : path.join(process.cwd(), 'certs');
 
 const kafkaConfig: any = {
   clientId: 'auth-service',
-  brokers: [config.KAFKA_BROKER],
+  brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
 };
 
-const getCert = (content: string, path: string) => {
-  if (content) return content;
-  if (path && fs.existsSync(path)) return fs.readFileSync(path, 'utf-8');
+const loadCert = (filename: string) => {
+  const filePath = path.join(certsDir, filename);
+  try {
+    if (fs.existsSync(filePath)) {
+      return fs.readFileSync(filePath, 'utf-8');
+    }
+  } catch (err) {
+    console.error(`[Kafka] Error reading cert file ${filename}:`, err);
+  }
   return null;
 };
 
-const ca = getCert(config.KAFKA_CA_CERT, config.KAFKA_CA_CERT_PATH);
-const key = getCert(config.KAFKA_SERVICE_KEY, config.KAFKA_SERVICE_KEY_PATH);
-const cert = getCert(config.KAFKA_SERVICE_CERT, config.KAFKA_SERVICE_CERT_PATH);
+const ca = loadCert('ca.pem');
+const key = loadCert('service.key');
+const cert = loadCert('service.cert');
 
 if (ca && key && cert) {
   kafkaConfig.ssl = {
@@ -24,6 +33,8 @@ if (ca && key && cert) {
     key: key,
     cert: cert,
   };
+} else if (isProduction) {
+  console.error('[Kafka] Critical SSL certificates missing in production environment!');
 }
 
 const kafka = new Kafka(kafkaConfig);
@@ -31,5 +42,9 @@ const kafka = new Kafka(kafkaConfig);
 export const producer = kafka.producer();
 
 export const connectKafka = async () => {
-  await producer.connect();
+  try {
+    await producer.connect();
+  } catch (err) {
+    console.error('[Kafka] Failed to connect producer:', err);
+  }
 };
