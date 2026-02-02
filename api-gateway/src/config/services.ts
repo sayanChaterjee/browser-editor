@@ -10,9 +10,10 @@ class ServiceProxy {
     {
       path: '/api/auth',
       url: config.AUTH_SERVICE_URL,
-      // Don't rewrite the path - auth service expects /api/auth/* routes
-      // API Gateway: /api/auth/sign-in/google -> Auth Service: /api/auth/sign-in/google
-      pathRewrite: undefined,
+      // Proxy strips '/api/auth' from the request, leaving the rest
+      // We need to add '/api/auth' back for the auth service
+      // Example: /api/auth/sign-in/google -> /sign-in/google (stripped) -> /api/auth/sign-in/google (rewritten)
+      pathRewrite: { '^/': '/api/auth/' },
       name: 'auth-service',
       timeout: 5000,
     },
@@ -50,6 +51,11 @@ class ServiceProxy {
         proxyReq: (proxyReq, req: any) => {
           // 1. Header Hydration: Strip Authorization, inject user context and correlation ID
           proxyReq.removeHeader('Authorization');
+
+          // Debug logging for auth service
+          if (service.name === 'auth-service') {
+            logger.info(`Auth proxy: ${req.method} ${req.url} -> ${proxyReq.path}`);
+          }
 
           if (req.headers['x-user-id']) {
             proxyReq.setHeader('x-user-id', req.headers['x-user-id']);
