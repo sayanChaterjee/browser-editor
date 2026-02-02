@@ -23,8 +23,9 @@ setupAxiosInterceptors();
 
 const app = express();
 
-// Trust proxy - CRITICAL for cookies and OAuth to work behind Render's load balancer
-app.set("trust proxy", 1);
+// Trust proxy - CRITICAL for cookies and OAuth to work behind Cloudflare + Render
+// Use 'true' to trust all proxies in the chain (Cloudflare -> Render)
+app.set("trust proxy", true);
 
 app.use(corsMiddleware);
 
