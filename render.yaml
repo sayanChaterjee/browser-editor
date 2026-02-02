@@ -1,3 +1,9 @@
+envVarGroups:
+  - name: internal-security-group
+    envVars:
+      - key: INTERNAL_GATEWAY_SECRET
+        generateValue: true
+
 services:
   # 1. API GATEWAY (Public)
   - type: web
@@ -6,6 +12,7 @@ services:
     rootDir: api-gateway
     plan: free
     envVars:
+      - fromGroup: internal-security-group
       - key: PORT
         value: 10000
       - key: AUTH_SERVICE_URL
@@ -23,8 +30,6 @@ services:
           type: web
           name: code-service
           property: host
-      - key: INTERNAL_GATEWAY_SECRET
-        generateValue: true
       - key: REDIS_URL
         sync: false
       - key: ALLOWED_ORIGINS
@@ -39,6 +44,7 @@ services:
     rootDir: auth-service
     plan: free
     envVars:
+      - fromGroup: internal-security-group
       - key: PORT
         value: 3001
       - key: DATABASE_URL
@@ -47,11 +53,6 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
-      - key: INTERNAL_GATEWAY_SECRET
-        fromService:
-          type: web
-          name: api-gateway
-          env: INTERNAL_GATEWAY_SECRET
       - key: BETTER_AUTH_SECRET
         sync: false
       - key: BETTER_AUTH_URL
@@ -70,6 +71,7 @@ services:
     rootDir: code-service
     plan: free
     envVars:
+      - fromGroup: internal-security-group
       - key: PORT
         value: 3003
       - key: DATABASE_URL
@@ -78,11 +80,6 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
-      - key: INTERNAL_GATEWAY_SECRET
-        fromService:
-          type: web
-          name: api-gateway
-          env: INTERNAL_GATEWAY_SECRET
       - key: LOG_LEVEL
         value: info
 
@@ -93,6 +90,7 @@ services:
     rootDir: user-service
     plan: free
     envVars:
+      - fromGroup: internal-security-group
       - key: PORT
         value: 3002
       - key: DATABASE_URL
@@ -101,10 +99,5 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
-      - key: INTERNAL_GATEWAY_SECRET
-        fromService:
-          type: web
-          name: api-gateway
-          env: INTERNAL_GATEWAY_SECRET
       - key: LOG_LEVEL
         value: info
