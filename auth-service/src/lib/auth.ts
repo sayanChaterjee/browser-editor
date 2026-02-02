@@ -29,7 +29,7 @@ export function getAuth() {
                     enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
                     // CRITICAL: Use backend URL - OAuth callback MUST go to the server that owns the session
                     // This ensures the state cookie set by backend can be verified on callback
-                    redirectURI: "https://api-gateway-rq2x.onrender.com/api/auth/callback/google"
+                    redirectURI: "https://api-gateway-rq2x.onrender.com/api/auth/callback/google",
                 },
             },
 
