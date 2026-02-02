@@ -55,6 +55,7 @@ export function getAuth() {
                     sameSite: "none",
                     secure: true, // Required when sameSite is "none"
                     httpOnly: true,
+                    path: "/", // CRITICAL: Ensures cookie is accessible across all paths
                 }
             },
 
