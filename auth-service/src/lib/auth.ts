@@ -43,6 +43,21 @@ export function getAuth() {
                 },
             },
 
+            // CHIPS-compatible cookie configuration
+            // Explicit cookie settings for cross-domain authentication
+            cookies: {
+                sessionToken: {
+                    name: "__Secure-better-auth.session_token",
+                    options: {
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: "none",
+                        path: "/",
+                        partitioned: true, // 🔥 CHIPS-compatible - fixes browser warnings
+                    },
+                },
+            },
+
             // Trust the proxy (API Gateway + Cloudflare)
             advanced: {
                 useSecureCookies: true,
