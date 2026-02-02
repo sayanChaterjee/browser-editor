@@ -12,17 +12,17 @@ services:
         fromService:
           type: web
           name: auth-service
-          env: host
+          property: host
       - key: USER_SERVICE_URL
         fromService:
           type: web
           name: user-service
-          env: host
+          property: host
       - key: CODE_SERVICE_URL
         fromService:
           type: web
           name: code-service
-          env: host
+          property: host
       - key: INTERNAL_GATEWAY_SECRET
         generateValue: true
       - key: REDIS_URL
