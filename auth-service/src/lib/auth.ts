@@ -68,6 +68,13 @@ export function getAuth() {
 
             // Secret for session encryption
             secret: process.env.BETTER_AUTH_SECRET || config.JWT_SECRET,
+
+            // Redirect configuration for OAuth errors
+            redirects: {
+                onError: "https://browser-editor-cyan.vercel.app/auth/error",
+                onSignIn: "https://browser-editor-cyan.vercel.app/",
+                onSignUp: "https://browser-editor-cyan.vercel.app/",
+            },
         });
     }
 

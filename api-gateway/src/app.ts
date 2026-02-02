@@ -23,6 +23,9 @@ setupAxiosInterceptors();
 
 const app = express();
 
+// Trust proxy - CRITICAL for cookies and OAuth to work behind Render's load balancer
+app.set("trust proxy", 1);
+
 app.use(corsMiddleware);
 
 // 2. Cookie parser - required for session cookies
@@ -62,6 +65,25 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   logger.info(`${req.method} ${req.url}`);
   next();
 });
+
+// Handle OAuth error redirects at root
+app.get('/', (req: Request, res: Response) => {
+  const error = req.query.error as string;
+
+  if (error) {
+    logger.warn(`OAuth error received: ${error}`);
+    // Redirect to frontend with error
+    const frontendUrl = config.ALLOWED_ORIGINS.split(',')[0].trim();
+    return res.redirect(`${frontendUrl}/auth/error?error=${error}`);
+  }
+
+  // Regular health check
+  res.status(200).json({
+    message: "API Gateway is running",
+    timestamp: new Date().toISOString()
+  });
+});
+
 
 
 // Apply auth middleware to protected routes (matches /api/v1 and all subpaths)
