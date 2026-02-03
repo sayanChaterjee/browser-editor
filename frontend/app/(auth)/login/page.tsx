@@ -46,21 +46,26 @@ export default function LoginPage() {
     try {
       const { signIn } = await import("../../../lib/auth-client");
       
+      console.log("Attempting login with:", email);
       const result = await signIn.email({
         email,
         password,
       });
 
+      console.log("Login result:", result);
+
       if (result.error) {
+        console.error("Login error:", result.error);
         alert(result.error.message || "Invalid login credentials");
         return;
       }
 
+      console.log("Login successful, redirecting...");
       window.dispatchEvent(new Event("authChange"));
       // Force full page reload to ensure session cookie is read
       window.location.href = "/editor";
     } catch (error) {
-      console.warn('Login attempt failed:', error);
+      console.error('Login attempt failed:', error);
       alert("Server error");
     }
   };
