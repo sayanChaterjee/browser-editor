@@ -103,17 +103,30 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
 
         console.log(`[API Proxy] Response status: ${response.status}`);
 
-        // Get response body
-        const responseBody = await response.text();
+        // Use arrayBuffer to avoid mangling any binary or encoded data
+        const responseData = await response.arrayBuffer();
 
-        // Forward response headers
+        // Forward response headers, but EXCLUDE those that refer to the body encoding
+        // as fetch already handled decompression
         const responseHeaders = new Headers();
+        const hopByHopHeaders = ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'];
+        const contentHeaders = ['content-encoding', 'content-length'];
+
         response.headers.forEach((value, key) => {
-            responseHeaders.set(key, value);
+            const lowerKey = key.toLowerCase();
+            if (!hopByHopHeaders.includes(lowerKey) && !contentHeaders.includes(lowerKey)) {
+                responseHeaders.set(key, value);
+            }
         });
 
+        // Set content-type explicitly if it exists
+        const contentType = response.headers.get('content-type');
+        if (contentType) {
+            responseHeaders.set('content-type', contentType);
+        }
+
         // Return the proxied response
-        return new NextResponse(responseBody, {
+        return new NextResponse(responseData, {
             status: response.status,
             statusText: response.statusText,
             headers: responseHeaders,
