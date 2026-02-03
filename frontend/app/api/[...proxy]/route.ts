@@ -76,16 +76,9 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         // Explicitly set cookie header
         if (cookieHeader) {
             headers.set('cookie', cookieHeader);
-            console.log('[API Proxy] Forwarding cookies:');
-            console.log('[API Proxy] Full cookie header:', cookieHeader);
-            // Parse and log individual cookies
-            const cookies = cookieHeader.split(';').map(c => c.trim());
-            cookies.forEach(cookie => {
-                const [name] = cookie.split('=');
-                console.log(`[API Proxy]   - ${name}`);
-            });
+            console.log('[API Proxy] Forwarding cookies:', cookieHeader.substring(0, 50) + '...');
         } else {
-            console.warn('[API Proxy] ⚠️ No cookies found in request');
+            console.warn('[API Proxy] No cookies found in request');
         }
 
         // Get request body for non-GET requests
@@ -103,33 +96,17 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
 
         console.log(`[API Proxy] Response status: ${response.status}`);
 
-        // Use arrayBuffer to avoid mangling any binary or encoded data
-        const responseData = await response.arrayBuffer();
+        // Get response body
+        const responseBody = await response.text();
 
-        // Forward response headers, but EXCLUDE those that refer to the body encoding
-        // as fetch already handled decompression
+        // Forward response headers
         const responseHeaders = new Headers();
-        const hopByHopHeaders = ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'];
-        const contentHeaders = ['content-encoding', 'content-length'];
-
         response.headers.forEach((value, key) => {
-            const lowerKey = key.toLowerCase();
-            if (!hopByHopHeaders.includes(lowerKey) && !contentHeaders.includes(lowerKey)) {
-                responseHeaders.append(key, value);
-                if (lowerKey === 'set-cookie') {
-                    console.log(`[API Proxy] Passing Set-Cookie: ${value.substring(0, 50)}...`);
-                }
-            }
+            responseHeaders.set(key, value);
         });
 
-        // Set content-type explicitly if it exists
-        const contentType = response.headers.get('content-type');
-        if (contentType && !responseHeaders.has('content-type')) {
-            responseHeaders.set('content-type', contentType);
-        }
-
         // Return the proxied response
-        return new NextResponse(responseData, {
+        return new NextResponse(responseBody, {
             status: response.status,
             statusText: response.statusText,
             headers: responseHeaders,
