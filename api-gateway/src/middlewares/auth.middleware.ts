@@ -9,10 +9,17 @@ import axios from 'axios';
  */
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
+        // DEBUG: Log all cookies and headers
+        logger.info(`[Auth Middleware] Path: ${req.path}`);
+        logger.info(`[Auth Middleware] Cookie header:`, req.headers.cookie?.substring(0, 100));
+        logger.info(`[Auth Middleware] Parsed cookies:`, Object.keys(req.cookies || {}));
+
         // Get session cookie from request - check both possible names
         const sessionToken =
             req.cookies?.['better-auth.session_token'] ||
             req.cookies?.['__Secure-better-auth.session_token'];
+
+        logger.info(`[Auth Middleware] Session token found:`, !!sessionToken);
 
         if (!sessionToken) {
             logger.warn(`No session token found for ${req.path}. Cookies:`, Object.keys(req.cookies || {}));

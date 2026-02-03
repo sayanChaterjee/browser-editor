@@ -76,9 +76,16 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         // Explicitly set cookie header
         if (cookieHeader) {
             headers.set('cookie', cookieHeader);
-            console.log('[API Proxy] Forwarding cookies:', cookieHeader.substring(0, 50) + '...');
+            console.log('[API Proxy] Forwarding cookies:');
+            console.log('[API Proxy] Full cookie header:', cookieHeader);
+            // Parse and log individual cookies
+            const cookies = cookieHeader.split(';').map(c => c.trim());
+            cookies.forEach(cookie => {
+                const [name] = cookie.split('=');
+                console.log(`[API Proxy]   - ${name}`);
+            });
         } else {
-            console.warn('[API Proxy] No cookies found in request');
+            console.warn('[API Proxy] ⚠️ No cookies found in request');
         }
 
         // Get request body for non-GET requests
