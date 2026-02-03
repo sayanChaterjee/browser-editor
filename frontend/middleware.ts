@@ -1,37 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+/**
+ * Next.js Middleware for Frontend Route Protection
+ * 
+ * This middleware handles authentication-based redirects for frontend routes.
+ * 
+ * Note: API route proxying is handled by /app/api/[...proxy]/route.ts
+ * because middleware rewrites cannot modify headers for external URLs.
+ */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ============================================
-  // PART 1: Cookie Forwarding for API Routes
-  // ============================================
-  // Forward cookies to backend for all /api/* requests
-  // This fixes the 401 Unauthorized error by ensuring session cookies reach the backend
-  if (pathname.startsWith('/api/')) {
-    const backendUrl = `https://api-gateway-rq2x.onrender.com${pathname}${request.nextUrl.search}`;
-
-    // Get all cookies from the browser request
-    const cookieHeader = request.headers.get('cookie');
-
-    // Create new headers and explicitly forward the Cookie header
-    const headers = new Headers(request.headers);
-    if (cookieHeader) {
-      headers.set('cookie', cookieHeader);
-    }
-
-    // Rewrite the request to the backend with cookies
-    return NextResponse.rewrite(new URL(backendUrl), {
-      request: {
-        headers: headers,
-      },
-    });
-  }
-
-  // ============================================
-  // PART 2: Auth Redirects for Frontend Routes
-  // ============================================
   // Check for session cookie to determine if user is authenticated
   const sessionToken =
     request.cookies.get('better-auth.session_token')?.value ||
@@ -59,8 +39,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/api/:path*',  // Match all API routes for cookie forwarding
     '/editor/:path*', '/login', '/register',  // Match frontend routes for auth redirects
-    '/((?!_next/static|_next/image|favicon.ico).*)',  // Match all other routes except static files
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',  // Match all other routes except API and static files
   ],
 };
