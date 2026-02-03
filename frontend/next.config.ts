@@ -2,9 +2,17 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Note: API proxying is handled by /app/api/[...proxy]/route.ts
-  // which properly forwards cookies to the backend.
-  // Do NOT use rewrites() here as they cannot modify headers for external URLs.
+  async rewrites() {
+    return [
+      {
+        // BFF Proxy: Route all /api/* requests through Vercel to Render backend
+        // This makes the browser think all API traffic is same-origin
+        // Enables sameSite=Lax cookies for maximum security
+        source: '/api/:path*',
+        destination: 'https://api-gateway-rq2x.onrender.com/api/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
