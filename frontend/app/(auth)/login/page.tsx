@@ -33,6 +33,8 @@ export default function LoginPage() {
 
 
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleLogin = async () => {
     const newErrors = {
       email: validateEmail(email),
@@ -42,6 +44,9 @@ export default function LoginPage() {
     setErrors(newErrors);
 
     if (newErrors.email || newErrors.password) return;
+    if (isLoading) return; // Prevent double submission
+
+    setIsLoading(true);
 
     try {
       const { signIn } = await import("../../../lib/auth-client");
@@ -54,19 +59,29 @@ export default function LoginPage() {
 
       console.log("Login result:", result);
 
-      if (result.error) {
+      // Check if there's an error in the result
+      if (result?.error) {
         console.error("Login error:", result.error);
         alert(result.error.message || "Invalid login credentials");
+        setIsLoading(false);
         return;
       }
 
-      console.log("Login successful, redirecting...");
-      window.dispatchEvent(new Event("authChange"));
-      // Force full page reload to ensure session cookie is read
-      window.location.href = "/editor";
+      // Check if login was successful (better-auth returns data on success)
+      if (result?.data) {
+        console.log("Login successful, redirecting...");
+        window.dispatchEvent(new Event("authChange"));
+        // Force full page reload to ensure session cookie is read
+        window.location.href = "/editor";
+      } else {
+        console.error("Unexpected response:", result);
+        alert("Login failed - unexpected response");
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error('Login attempt failed:', error);
-      alert("Server error");
+      alert("Server error: " + (error instanceof Error ? error.message : String(error)));
+      setIsLoading(false);
     }
   };
 
@@ -122,9 +137,9 @@ export default function LoginPage() {
         <button
           className="w-full p-[10px] bg-[#00ffcc] text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer mt-[10px] transition-colors hover:bg-[#00e6b8] disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleLogin}
-          disabled={!isFormValid}
+          disabled={!isFormValid || isLoading}
         >
-          Login
+          {isLoading ? "Logging in..." : "Login"}
         </button>
 
         <div className="flex items-center my-5">
