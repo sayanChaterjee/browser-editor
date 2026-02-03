@@ -57,8 +57,8 @@ export default function LoginPage() {
       }
 
       window.dispatchEvent(new Event("authChange"));
-      alert("Login successful");
-      router.push("/editor");
+      // Force full page reload to ensure session cookie is read
+      window.location.href = "/editor";
     } catch (error) {
       console.warn('Login attempt failed:', error);
       alert("Server error");
