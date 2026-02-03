@@ -115,13 +115,16 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         response.headers.forEach((value, key) => {
             const lowerKey = key.toLowerCase();
             if (!hopByHopHeaders.includes(lowerKey) && !contentHeaders.includes(lowerKey)) {
-                responseHeaders.set(key, value);
+                responseHeaders.append(key, value);
+                if (lowerKey === 'set-cookie') {
+                    console.log(`[API Proxy] Passing Set-Cookie: ${value.substring(0, 50)}...`);
+                }
             }
         });
 
         // Set content-type explicitly if it exists
         const contentType = response.headers.get('content-type');
-        if (contentType) {
+        if (contentType && !responseHeaders.has('content-type')) {
             responseHeaders.set('content-type', contentType);
         }
 
