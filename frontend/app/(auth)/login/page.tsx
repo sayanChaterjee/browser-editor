@@ -71,8 +71,18 @@ export default function LoginPage() {
       if (result?.data) {
         console.log("Login successful, redirecting...");
         window.dispatchEvent(new Event("authChange"));
-        // Force full page reload to ensure session cookie is read
-        window.location.href = "/editor";
+        
+        // Give the browser a moment to set the cookie
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Try multiple redirect methods
+        try {
+          router.refresh();
+          router.push("/editor");
+        } catch (e) {
+          console.error("Router redirect failed, using window.location", e);
+          window.location.href = "/editor";
+        }
       } else {
         console.error("Unexpected response:", result);
         alert("Login failed - unexpected response");
