@@ -12,37 +12,42 @@ const BACKEND_URL = 'https://api-gateway-rq2x.onrender.com';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { proxy: string[] } }
+    { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-    return proxyRequest(request, params.proxy);
+    const resolvedParams = await params;
+    return proxyRequest(request, resolvedParams.proxy);
 }
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { proxy: string[] } }
+    { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-    return proxyRequest(request, params.proxy);
+    const resolvedParams = await params;
+    return proxyRequest(request, resolvedParams.proxy);
 }
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { proxy: string[] } }
+    { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-    return proxyRequest(request, params.proxy);
+    const resolvedParams = await params;
+    return proxyRequest(request, resolvedParams.proxy);
 }
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { proxy: string[] } }
+    { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-    return proxyRequest(request, params.proxy);
+    const resolvedParams = await params;
+    return proxyRequest(request, resolvedParams.proxy);
 }
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { proxy: string[] } }
+    { params }: { params: Promise<{ proxy: string[] }> }
 ) {
-    return proxyRequest(request, params.proxy);
+    const resolvedParams = await params;
+    return proxyRequest(request, resolvedParams.proxy);
 }
 
 async function proxyRequest(request: NextRequest, pathSegments: string[]) {
