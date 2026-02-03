@@ -92,6 +92,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
             method: request.method,
             headers: headers,
             body: body,
+            redirect: 'manual', // Don't follow redirects automatically
         });
 
         console.log(`[API Proxy] Response status: ${response.status}`);
@@ -99,11 +100,28 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         // Get response body
         const responseBody = await response.text();
 
-        // Forward response headers
+        // Forward response headers, including Set-Cookie for OAuth callbacks
         const responseHeaders = new Headers();
         response.headers.forEach((value, key) => {
-            responseHeaders.set(key, value);
+            // Special handling for Set-Cookie headers (critical for OAuth)
+            if (key.toLowerCase() === 'set-cookie') {
+                responseHeaders.append(key, value);
+            } else {
+                responseHeaders.set(key, value);
+            }
         });
+
+        // Handle redirects (important for OAuth flow)
+        if (response.status >= 300 && response.status < 400) {
+            const location = response.headers.get('location');
+            if (location) {
+                console.log(`[API Proxy] Redirecting to: ${location}`);
+                return NextResponse.redirect(location, {
+                    status: response.status,
+                    headers: responseHeaders,
+                });
+            }
+        }
 
         // Return the proxied response
         return new NextResponse(responseBody, {
