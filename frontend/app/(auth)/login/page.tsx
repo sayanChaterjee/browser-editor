@@ -165,7 +165,7 @@ export default function LoginPage() {
               const { signIn } = await import("../../../lib/auth-client");
               await signIn.social({
                 provider: "google",
-                callbackURL: "https://browser-editor-cyan.vercel.app/editor",
+                callbackURL: "https://browser-editor-cyan.vercel.app/callback",
               });
             } catch (error) {
               console.error("Google login failed:", error);

@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // NOTE: Rewrites removed because Next.js rewrites don't forward cookies to external URLs
-  // All /api/* requests now go through /app/api/[...proxy]/route.ts which properly forwards cookies
+  // All /api/* requests go through /app/api/[...proxy]/route.ts for cookie forwarding
+  // This includes both /api/auth/* (OAuth, session) and /api/v1/* (API endpoints)
 };
 
 export default nextConfig;
