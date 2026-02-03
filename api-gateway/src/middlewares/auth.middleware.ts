@@ -9,11 +9,13 @@ import axios from 'axios';
  */
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
-        // Get session cookie from request
-        const sessionToken = req.cookies?.['better-auth.session_token'];
+        // Get session cookie from request - check both possible names
+        const sessionToken =
+            req.cookies?.['better-auth.session_token'] ||
+            req.cookies?.['__Secure-better-auth.session_token'];
 
         if (!sessionToken) {
-            logger.warn(`No session token found for ${req.path}`);
+            logger.warn(`No session token found for ${req.path}. Cookies:`, Object.keys(req.cookies || {}));
             return res.status(401).json({
                 error: 'Unauthorized',
                 message: 'Please log in to access this resource'
