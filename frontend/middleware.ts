@@ -15,29 +15,18 @@ export function middleware(request: NextRequest) {
   // DEBUG: Log all cookies
   const allCookies = request.cookies.getAll();
   console.log('[Middleware Debug] Path:', pathname);
-  console.log('[Middleware Debug] Cookie count:', allCookies.length);
-  console.log('[Middleware Debug] Cookie names:', allCookies.map(c => c.name).join(', '));
+  console.log('[Middleware Debug] All cookies:', allCookies.map(c => `${c.name}=${c.value.substring(0, 20)}...`));
 
-  // Check for session cookie - try multiple possible names
-  // Better-auth might use different cookie names depending on configuration
+  // Check for session cookie to determine if user is authenticated
   const sessionToken =
     request.cookies.get('better-auth.session_token')?.value ||
-    request.cookies.get('__Secure-better-auth.session_token')?.value ||
-    request.cookies.get('better-auth.session-token')?.value ||  // Alternative format
-    request.cookies.get('__Secure-better-auth.session-token')?.value ||
-    request.cookies.get('authjs.session-token')?.value ||  // Legacy format
-    request.cookies.get('__Secure-authjs.session-token')?.value;
+    request.cookies.get('__Secure-better-auth.session_token')?.value;
 
   console.log('[Middleware Debug] Session token found:', !!sessionToken);
-  if (!sessionToken && allCookies.length > 0) {
-    console.log('[Middleware Debug] ⚠️ Cookies exist but session token not found!');
-    console.log('[Middleware Debug] Checked cookie names:', [
-      'better-auth.session_token',
-      '__Secure-better-auth.session_token',
-      'better-auth.session-token',
-      '__Secure-better-auth.session-token'
-    ].join(', '));
-  }
+  console.log('[Middleware Debug] Cookie names checked:', [
+    'better-auth.session_token',
+    '__Secure-better-auth.session_token'
+  ]);
 
   const isPublicPath =
     pathname === '/' ||
