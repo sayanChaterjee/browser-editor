@@ -75,8 +75,9 @@ export function getAuth() {
             secret: process.env.BETTER_AUTH_SECRET || config.JWT_SECRET,
 
             redirects: {
-                onSignIn: "https://browser-editor-cyan.vercel.app/editor",
-                onSignUp: "https://browser-editor-cyan.vercel.app/editor",
+                // Redirect to callback page to ensure cookies are set before navigation
+                onSignIn: "https://browser-editor-cyan.vercel.app/callback",
+                onSignUp: "https://browser-editor-cyan.vercel.app/callback",
             },
         });
     }
