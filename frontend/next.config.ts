@@ -5,10 +5,11 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        // Proxy all /api/auth/* requests to Render backend
-        // This makes the browser think backend is same-origin
-        source: '/api/auth/:path*',
-        destination: 'https://api-gateway-rq2x.onrender.com/api/auth/:path*',
+        // BFF Proxy: Route all /api/* requests through Vercel to Render backend
+        // This makes the browser think all API traffic is same-origin
+        // Enables sameSite=Lax cookies for maximum security
+        source: '/api/:path*',
+        destination: 'https://api-gateway-rq2x.onrender.com/api/:path*',
       },
     ];
   },

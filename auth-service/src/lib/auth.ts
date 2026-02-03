@@ -24,7 +24,8 @@ export function getAuth() {
                     clientId: process.env.GOOGLE_CLIENT_ID || "",
                     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
                     enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-                    redirectURI: "https://api-gateway-rq2x.onrender.com/api/auth/callback/google",
+                    // BFF Proxy: Callback goes to Vercel, which proxies to Render
+                    redirectURI: "https://browser-editor-cyan.vercel.app/api/auth/callback/google",
                 },
             },
 
@@ -39,31 +40,28 @@ export function getAuth() {
 
             cookies: {
                 sessionToken: {
-                    name: "__Secure-better-auth.session_token",
+                    name: "better-auth.session_token",
                     options: {
                         httpOnly: true,
                         secure: true,
-                        sameSite: "none",
+                        sameSite: "lax",  // BFF Proxy: Same-site cookies for maximum security
                         path: "/",
-                        partitioned: true,
                     },
                 },
             },
 
             advanced: {
                 useSecureCookies: true,
-                crossSite: {
-                    enabled: true,
-                },
                 defaultCookieAttributes: {
-                    sameSite: "none",
+                    sameSite: "lax",  // BFF Proxy: Same-site for native CSRF protection
                     secure: true,
                     httpOnly: true,
                     path: "/",
                 }
             },
 
-            baseURL: "https://api-gateway-rq2x.onrender.com",
+            // BFF Proxy: Use Vercel domain as the public-facing URL
+            baseURL: process.env.BETTER_AUTH_URL || "https://browser-editor-cyan.vercel.app",
 
             trustedOrigins: [
                 "http://localhost:3005",
