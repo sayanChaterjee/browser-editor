@@ -93,14 +93,28 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
 
         // 4. Extract headers from backend response
         const responseHeaders = new Headers();
+        const headersToSkip = [
+            'content-encoding',
+            'transfer-encoding',
+            'content-length',
+            'connection',
+            'keep-alive',
+            'proxy-authenticate',
+            'proxy-authorization',
+            'te',
+            'trailer',
+            'upgrade'
+        ];
 
         // Log all backend response headers for debugging
         const backendHeaders: Record<string, string> = {};
         response.headers.forEach((value, key) => {
             backendHeaders[key] = value;
-            // Forward all headers except content-length (let Next.js recalculate)
-            if (key.toLowerCase() !== 'content-length') {
+            // Forward headers that are not in the skip list
+            if (!headersToSkip.includes(key.toLowerCase())) {
                 responseHeaders.set(key, value);
+            } else {
+                console.log(`[Proxy][${requestId}] Stripping header: ${key}`);
             }
         });
         console.log(`[Proxy][${requestId}] Backend Headers:`, JSON.stringify(backendHeaders));
