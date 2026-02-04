@@ -96,14 +96,22 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
 
         console.log(`[API Proxy] Response status: ${response.status}`);
 
-        // Get response body
+        // Get response body as text to be transparent and avoid parsing issues
         const responseBody = await response.text();
 
         // Forward response headers
         const responseHeaders = new Headers();
         response.headers.forEach((value, key) => {
-            responseHeaders.set(key, value);
+            // Forward most headers, but let Next.js handle content-length
+            if (key.toLowerCase() !== 'content-length') {
+                responseHeaders.set(key, value);
+            }
         });
+
+        // Ensure we explicitly set content-type if it's missing but we have a body
+        if (!responseHeaders.has('content-type') && responseBody) {
+            responseHeaders.set('content-type', 'application/json');
+        }
 
         // Return the proxied response
         return new NextResponse(responseBody, {

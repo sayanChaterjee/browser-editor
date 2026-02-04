@@ -52,6 +52,9 @@ export function getAuth() {
 
             advanced: {
                 useSecureCookies: true,
+                crossSite: {
+                    enabled: true, // BFF Proxy: Crucial for session validation through a proxy
+                },
                 defaultCookieAttributes: {
                     sameSite: "lax",  // BFF Proxy: Same-site for native CSRF protection
                     secure: true,
