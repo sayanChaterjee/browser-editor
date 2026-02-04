@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = 'https://api-gateway-rq2x.onrender.com';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
  * API Route Proxy - Catch-all handler for /api/*
@@ -52,6 +52,10 @@ export async function PUT(
 async function proxyRequest(request: NextRequest, pathSegments: string[]) {
     const requestId = Math.random().toString(36).substring(7);
     try {
+        if (!BACKEND_URL) {
+            throw new Error('NEXT_PUBLIC_API_URL is not defined');
+        }
+
         // Reconstruct the full path
         const path = pathSegments.join('/');
         const searchParams = request.nextUrl.searchParams.toString();
@@ -122,7 +126,6 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         }
 
         // 6. Handle Redirects (301, 302, 307, 308)
-        // When redirect is 'manual', opague responses have type 'opaqueredirect'
         if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
             const location = response.headers.get('location');
             console.log(`[Proxy][${requestId}] Redirect detected to: ${location}`);
@@ -130,7 +133,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
                 responseHeaders.set('location', location);
             }
             return new NextResponse(null, {
-                status: response.status || 302, // Default to 302 if opaque
+                status: response.status || 302,
                 headers: responseHeaders,
             });
         }

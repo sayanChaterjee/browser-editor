@@ -19,9 +19,6 @@ export default function LoginPage() {
     }
   }, [session, isPending, router]);
 
-
-
-
   const validateEmail = (value: string) => {
     return "";
   };
@@ -30,8 +27,6 @@ export default function LoginPage() {
     if (!value) return "Password is required";
     return "";
   };
-
-
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,7 +39,7 @@ export default function LoginPage() {
     setErrors(newErrors);
 
     if (newErrors.email || newErrors.password) return;
-    if (isLoading) return; // Prevent double submission
+    if (isLoading) return; 
 
     setIsLoading(true);
 
@@ -59,7 +54,6 @@ export default function LoginPage() {
 
       console.log("Login result:", result);
 
-      // Check if there's an error in the result
       if (result?.error) {
         console.error("Login error:", result.error);
         alert(result.error.message || "Invalid login credentials");
@@ -67,15 +61,12 @@ export default function LoginPage() {
         return;
       }
 
-      // Check if login was successful (better-auth returns data on success)
       if (result?.data) {
         console.log("Login successful, redirecting...");
         window.dispatchEvent(new Event("authChange"));
         
-        // Give the browser a moment to set the cookie
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        // Try multiple redirect methods
         try {
           router.refresh();
           router.push("/editor");
@@ -165,7 +156,7 @@ export default function LoginPage() {
               const { signIn } = await import("../../../lib/auth-client");
               await signIn.social({
                 provider: "google",
-                callbackURL: "https://browser-editor-cyan.vercel.app/editor",
+                callbackURL: window.location.origin + "/editor",
               });
             } catch (error) {
               console.error("Google login failed:", error);

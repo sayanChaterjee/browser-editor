@@ -11,6 +11,11 @@ export function getAuth() {
             throw new Error("MongoDB connection not established. Cannot initialize better-auth.");
         }
 
+        const baseURL = process.env.BETTER_AUTH_URL;
+        if (!baseURL) {
+            throw new Error("BETTER_AUTH_URL is not defined in environment variables");
+        }
+
         authInstance = betterAuth({
             database: mongodbAdapter(mongoose.connection.db),
 
@@ -25,7 +30,8 @@ export function getAuth() {
                     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
                     enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
                     // BFF Proxy: Callback goes to Vercel, which proxies to Render
-                    redirectURI: "https://browser-editor-cyan.vercel.app/api/auth/callback/google",
+                    // Construct dynamically to support local development
+                    redirectURI: `${baseURL}/api/auth/callback/google`,
                 },
             },
 
@@ -64,22 +70,22 @@ export function getAuth() {
             },
 
             // BFF Proxy: Use Vercel domain as the public-facing URL
-            baseURL: process.env.BETTER_AUTH_URL || "https://browser-editor-cyan.vercel.app",
+            baseURL: baseURL,
 
             trustedOrigins: [
                 "http://localhost:3005",
                 "http://localhost:3006",
                 "http://localhost:3004",
                 "http://localhost:3000",
-                "https://browser-editor-cyan.vercel.app",
+                baseURL,
                 process.env.FRONTEND_URL || "",
             ].filter(Boolean),
 
             secret: process.env.BETTER_AUTH_SECRET || config.JWT_SECRET,
 
             redirects: {
-                onSignIn: "https://browser-editor-cyan.vercel.app/editor",
-                onSignUp: "https://browser-editor-cyan.vercel.app/editor",
+                onSignIn: `${baseURL}/editor`,
+                onSignUp: `${baseURL}/editor`,
             },
         });
     }
