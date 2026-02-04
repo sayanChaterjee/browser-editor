@@ -6,8 +6,7 @@ const BACKEND_URL = 'https://api-gateway-rq2x.onrender.com';
  * API Route Proxy - Catch-all handler for /api/*
  * 
  * This manually proxies all API requests to the Render backend while
- * explicitly forwarding cookies. This is necessary because Next.js
- * middleware rewrites cannot modify headers for external URLs.
+ * explicitly forwarding cookies and handling redirects.
  */
 
 export async function GET(
@@ -69,12 +68,6 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
             }
         });
 
-        // Log cookies we are sending
-        const outgoingCookie = headers.get('cookie');
-        if (outgoingCookie) {
-            console.log(`[Proxy][${requestId}] Outgoing Cookies:`, outgoingCookie.substring(0, 50) + '...');
-        }
-
         // 2. Get request body for non-GET requests
         let body: string | undefined;
         if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -82,11 +75,13 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         }
 
         // 3. Make the proxied request
+        // CRITICAL: Set redirect to 'manual' to prevent proxy from swallowing 302 redirects
         const response = await fetch(backendUrl, {
             method: request.method,
             headers: headers,
             body: body,
             cache: 'no-store',
+            redirect: 'manual',
         });
 
         console.log(`[Proxy][${requestId}] Backend Status: ${response.status} ${response.statusText}`);
@@ -106,35 +101,41 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
             'upgrade'
         ];
 
-        // Log all backend response headers for debugging
-        const backendHeaders: Record<string, string> = {};
         response.headers.forEach((value, key) => {
-            backendHeaders[key] = value;
             // Forward headers that are not in the skip list
             if (!headersToSkip.includes(key.toLowerCase())) {
                 responseHeaders.set(key, value);
-            } else {
-                console.log(`[Proxy][${requestId}] Stripping header: ${key}`);
             }
         });
-        console.log(`[Proxy][${requestId}] Backend Headers:`, JSON.stringify(backendHeaders));
 
         // 5. Robust Set-Cookie handling
-        // Standard .get('set-cookie') only returns the FIRST one in some environments
-        // getSetCookie() is the spec-compliant way to get ALL of them
         const cookiesToSet = (response.headers as any).getSetCookie
             ? (response.headers as any).getSetCookie()
             : response.headers.get('set-cookie')?.split(', ');
 
         if (cookiesToSet && Array.isArray(cookiesToSet)) {
             console.log(`[Proxy][${requestId}] Forwarding ${cookiesToSet.length} Set-Cookie headers`);
-            responseHeaders.delete('set-cookie'); // Clear any single joined header
+            responseHeaders.delete('set-cookie');
             cookiesToSet.forEach(cookie => {
                 responseHeaders.append('set-cookie', cookie);
             });
         }
 
-        // 6. Get response body
+        // 6. Handle Redirects (301, 302, 307, 308)
+        // When redirect is 'manual', opague responses have type 'opaqueredirect'
+        if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+            const location = response.headers.get('location');
+            console.log(`[Proxy][${requestId}] Redirect detected to: ${location}`);
+            if (location) {
+                responseHeaders.set('location', location);
+            }
+            return new NextResponse(null, {
+                status: response.status || 302, // Default to 302 if opaque
+                headers: responseHeaders,
+            });
+        }
+
+        // 7. Get response body
         const responseText = await response.text();
 
         // Peek at data to identify if it's HTML or JSON
@@ -144,7 +145,7 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         // Add debug header
         responseHeaders.set('X-Proxy-Debug-ID', requestId);
 
-        // 7. Return the proxied response
+        // 8. Return the proxied response
         return new NextResponse(responseText, {
             status: response.status,
             statusText: response.statusText,
