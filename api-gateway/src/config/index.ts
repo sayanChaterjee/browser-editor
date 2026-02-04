@@ -8,6 +8,7 @@ interface Config {
   USER_SERVICE_URL: string;
   CODE_SERVICE_URL: string;
   ALLOWED_ORIGINS: string;
+  INTERNAL_GATEWAY_SECRET: string;
 }
 
 import { normalizeServiceUrl } from '../utils/urlHelper';
@@ -22,4 +23,5 @@ export const config: Config = {
   AUTH_SERVICE_URL: normalizeServiceUrl(process.env.AUTH_SERVICE_URL || 'http://localhost:3001'),
   USER_SERVICE_URL: normalizeServiceUrl(process.env.USER_SERVICE_URL || 'http://localhost:3002'),
   CODE_SERVICE_URL: normalizeServiceUrl(process.env.CODE_SERVICE_URL || 'http://localhost:3003'),
+  INTERNAL_GATEWAY_SECRET: process.env.INTERNAL_GATEWAY_SECRET || '',
 };

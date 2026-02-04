@@ -67,6 +67,12 @@ class ServiceProxy {
             proxyReq.setHeader('x-correlation-id', req.headers['x-correlation-id']);
           }
 
+          // Forward internal security secret
+          const internalSecret = config.INTERNAL_GATEWAY_SECRET;
+          if (internalSecret) {
+            proxyReq.setHeader('x-internal-secret', internalSecret);
+          }
+
           // Forward cookies from client to auth service
           if (req.headers.cookie) {
             proxyReq.setHeader('cookie', req.headers.cookie);
