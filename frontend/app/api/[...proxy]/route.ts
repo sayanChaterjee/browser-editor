@@ -51,78 +51,95 @@ export async function PUT(
 }
 
 async function proxyRequest(request: NextRequest, pathSegments: string[]) {
+    const requestId = Math.random().toString(36).substring(7);
     try {
         // Reconstruct the full path
         const path = pathSegments.join('/');
         const searchParams = request.nextUrl.searchParams.toString();
         const backendUrl = `${BACKEND_URL}/api/${path}${searchParams ? `?${searchParams}` : ''}`;
 
-        console.log(`[API Proxy] ${request.method} ${backendUrl}`);
+        console.log(`[Proxy][${requestId}] Request: ${request.method} ${backendUrl}`);
 
-        // Get cookies from the request
-        const cookieHeader = request.headers.get('cookie');
-
-        // Build headers to forward to backend
+        // 1. Build headers to forward to backend
         const headers = new Headers();
-
-        // Forward important headers
         request.headers.forEach((value, key) => {
-            // Skip host and connection headers
+            // Forward everything except host and connection
             if (!['host', 'connection'].includes(key.toLowerCase())) {
                 headers.set(key, value);
             }
         });
 
-        // Explicitly set cookie header
-        if (cookieHeader) {
-            headers.set('cookie', cookieHeader);
-            console.log('[API Proxy] Forwarding cookies:', cookieHeader.substring(0, 50) + '...');
-        } else {
-            console.warn('[API Proxy] No cookies found in request');
+        // Log cookies we are sending
+        const outgoingCookie = headers.get('cookie');
+        if (outgoingCookie) {
+            console.log(`[Proxy][${requestId}] Outgoing Cookies:`, outgoingCookie.substring(0, 50) + '...');
         }
 
-        // Get request body for non-GET requests
+        // 2. Get request body for non-GET requests
         let body: string | undefined;
         if (request.method !== 'GET' && request.method !== 'HEAD') {
             body = await request.text();
         }
 
-        // Make the proxied request
+        // 3. Make the proxied request
         const response = await fetch(backendUrl, {
             method: request.method,
             headers: headers,
             body: body,
+            cache: 'no-store',
         });
 
-        console.log(`[API Proxy] Response status: ${response.status}`);
+        console.log(`[Proxy][${requestId}] Backend Status: ${response.status} ${response.statusText}`);
 
-        // Get response body as text to be transparent and avoid parsing issues
-        const responseBody = await response.text();
-
-        // Forward response headers
+        // 4. Extract headers from backend response
         const responseHeaders = new Headers();
+
+        // Log all backend response headers for debugging
+        const backendHeaders: Record<string, string> = {};
         response.headers.forEach((value, key) => {
-            // Forward most headers, but let Next.js handle content-length
+            backendHeaders[key] = value;
+            // Forward all headers except content-length (let Next.js recalculate)
             if (key.toLowerCase() !== 'content-length') {
                 responseHeaders.set(key, value);
             }
         });
+        console.log(`[Proxy][${requestId}] Backend Headers:`, JSON.stringify(backendHeaders));
 
-        // Ensure we explicitly set content-type if it's missing but we have a body
-        if (!responseHeaders.has('content-type') && responseBody) {
-            responseHeaders.set('content-type', 'application/json');
+        // 5. Robust Set-Cookie handling
+        // Standard .get('set-cookie') only returns the FIRST one in some environments
+        // getSetCookie() is the spec-compliant way to get ALL of them
+        const cookiesToSet = (response.headers as any).getSetCookie
+            ? (response.headers as any).getSetCookie()
+            : response.headers.get('set-cookie')?.split(', ');
+
+        if (cookiesToSet && Array.isArray(cookiesToSet)) {
+            console.log(`[Proxy][${requestId}] Forwarding ${cookiesToSet.length} Set-Cookie headers`);
+            responseHeaders.delete('set-cookie'); // Clear any single joined header
+            cookiesToSet.forEach(cookie => {
+                responseHeaders.append('set-cookie', cookie);
+            });
         }
 
-        // Return the proxied response
-        return new NextResponse(responseBody, {
+        // 6. Get response body
+        const responseText = await response.text();
+
+        // Peek at data to identify if it's HTML or JSON
+        const preview = responseText.substring(0, 100).replace(/\n/g, ' ');
+        console.log(`[Proxy][${requestId}] Body Preview: ${preview}`);
+
+        // Add debug header
+        responseHeaders.set('X-Proxy-Debug-ID', requestId);
+
+        // 7. Return the proxied response
+        return new NextResponse(responseText, {
             status: response.status,
             statusText: response.statusText,
             headers: responseHeaders,
         });
     } catch (error: any) {
-        console.error('[API Proxy] Error:', error.message);
+        console.error(`[Proxy][${requestId}] Fatal Error:`, error.message);
         return NextResponse.json(
-            { error: 'Proxy error', message: error.message },
+            { error: 'Proxy error', message: error.message, requestId },
             { status: 500 }
         );
     }
