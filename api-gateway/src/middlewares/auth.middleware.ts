@@ -10,12 +10,14 @@ import axios from 'axios';
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
         // Get session cookie from request - check both possible names
-        const sessionToken =
-            req.cookies?.['better-auth.session_token'] ||
-            req.cookies?.['__Secure-better-auth.session_token'];
+        const standardCookie = req.cookies?.['better-auth.session_token'];
+        const secureCookie = req.cookies?.['__Secure-better-auth.session_token'];
+
+        const sessionToken = standardCookie || secureCookie;
+        const cookieName = standardCookie ? 'better-auth.session_token' : '__Secure-better-auth.session_token';
 
         if (!sessionToken) {
-            logger.warn(`No session token found for ${req.path}. Cookies:`, Object.keys(req.cookies || {}));
+            logger.warn(`No session token found for ${req.path}. Cookies present:`, Object.keys(req.cookies || {}));
             return res.status(401).json({
                 error: 'Unauthorized',
                 message: 'Please log in to access this resource'
@@ -24,9 +26,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
         // Verify session by calling better-auth's session endpoint
         try {
+            // CRITICAL: Forward the cookie exactly as it was received (prefix matters for Better Auth)
             const sessionResponse = await axios.get(`${config.AUTH_SERVICE_URL}/api/auth/get-session`, {
                 headers: {
-                    'cookie': `better-auth.session_token=${sessionToken}`,
+                    'cookie': `${cookieName}=${sessionToken}`,
                 },
                 timeout: 3000,
             });
@@ -34,7 +37,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
             const session = sessionResponse.data;
 
             if (!session || !session.user) {
-                logger.warn(`Invalid session for ${req.path}`);
+                logger.warn(`Invalid session response for ${req.path}`);
                 return res.status(401).json({
                     error: 'Unauthorized',
                     message: 'Invalid or expired session'
@@ -53,7 +56,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
             logger.info(`Authenticated request from user: ${session.user.email}`);
             next();
         } catch (sessionError: any) {
-            logger.error('Session verification failed:', sessionError.message);
+            logger.error(`Session verification failed via ${config.AUTH_SERVICE_URL}:`, sessionError.message);
             return res.status(401).json({
                 error: 'Unauthorized',
                 message: 'Invalid or expired session'
