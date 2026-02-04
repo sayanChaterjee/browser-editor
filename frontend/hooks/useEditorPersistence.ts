@@ -48,9 +48,6 @@ export function useEditorPersistence({
     const syncToBackend = async () => {
         if (isLoading || !projectId || !projectName) return;
 
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
         try {
             await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/save`,
@@ -58,8 +55,8 @@ export function useEditorPersistence({
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ name: projectName, html, css, js, timeLeft }),
                 }
             );

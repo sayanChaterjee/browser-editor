@@ -247,12 +247,13 @@ export function useProjectManager({
             if (res.ok) {
                 const newData = await res.json();
 
-                if (newData._id) {
+                const project_id = newData._id || newData.id;
+                if (project_id) {
                     setProjectName(name);
                     setHtml(INITIAL_HTML);
                     setCss(INITIAL_CSS);
                     setJs(INITIAL_JS);
-                    setProjectId(newData._id);
+                    setProjectId(project_id);
                     setProjects([newData]);
                     if (setIgnoreNextBlur) setIgnoreNextBlur(true);
                     alert(`Project "${name}" created successfully!`);
@@ -300,7 +301,8 @@ export function useProjectManager({
             );
             if (res.ok) {
                 const data = await res.json();
-                setProjectId(data._id);
+                const project_id = data._id || data.id;
+                if (project_id) setProjectId(project_id);
                 if (setIgnoreNextBlur) setIgnoreNextBlur(true);
                 alert("Code saved successfully!");
             } else {
