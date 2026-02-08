@@ -26,15 +26,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
         // Verify session by calling better-auth's session endpoint
         try {
-            // CRITICAL: Forward headers to satisfy Better Auth's secure cookie requirements
-            // x-forwarded-proto tells Better Auth it's safe to use secure cookies
-            // host tells Better Auth which domain the request is for
-            const sessionResponse = await axios.get(`${config.AUTH_SERVICE_URL}/api/auth/validate-session`, {
+            // CRITICAL: Forward the cookie exactly as it was received (prefix matters for Better Auth)
+            const sessionResponse = await axios.get(`${config.AUTH_SERVICE_URL}/api/auth/get-session`, {
                 headers: {
                     'cookie': `${cookieName}=${sessionToken}`,
-                    'x-forwarded-proto': req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http'),
-                    'host': req.headers['host'] || '',
-                    'x-forwarded-host': req.headers['x-forwarded-host'] || req.headers['host'] || '',
                 },
                 timeout: 3000,
             });
