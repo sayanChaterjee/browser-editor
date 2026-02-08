@@ -29,48 +29,47 @@
 
 ```mermaid
 graph TB
-    subgraph Client["🌐 Client Layer"]
-        Browser["Web Browser"]
-        FE["Next.js Frontend<br/>Port: 3005"]
+    subgraph Client["🌐 Browser Layer"]
+        User["User Browser"]
+        Cookies["First-Party Cookies<br/>(Vercel Domain)"]
     end
 
-    subgraph Gateway["🚪 API Gateway"]
-        AG["API Gateway<br/>Port: 3000<br/>• Circuit Breaker<br/>• Rate Limiting<br/>• Auth Middleware"]
+    subgraph Vercel["⚡ Frontend & BFF (Vercel)"]
+        FE["Next.js App"]
+        Proxy["BFF Proxy<br/>/api/* & /api/auth/*"]
     end
 
-    subgraph Services["🔧 Microservices"]
-        Auth["Auth Service<br/>Port: 3001<br/>• JWT/OAuth<br/>• Session Mgmt"]
-        User["User Service<br/>Port: 3002<br/>• Profile CRUD<br/>• Kafka Consumer"]
-        Code["Code Service<br/>Port: 3003<br/>• Project CRUD<br/>• Redis Caching<br/>• Background Workers"]
+    subgraph Render["🚀 Backend Infrastructure (Render)"]
+        AG["API Gateway<br/>• Circuit Breaker<br/>• Auth Offloading"]
+        subgraph Services["Microservices"]
+            Auth["Auth Service"]
+            UserSvc["User Service"]
+            Code["Code Service"]
+        end
     end
 
-    subgraph Infrastructure["💾 Infrastructure"]
-        Mongo[("MongoDB Atlas<br/>• auth_db<br/>• user_db<br/>• code_db")]
-        Redis[("Redis<br/>Port: 6379<br/>Caching + Buffering")]
-        Kafka[("Kafka<br/>Port: 9094<br/>Event Streaming")]
+    subgraph Infra["💾 Data Layer"]
+        Mongo[("MongoDB Atlas")]
+        Redis[("Redis Caching")]
+        Kafka[("Kafka Events")]
     end
 
-    Browser --> FE
-    FE --"HTTP/REST"--> AG
+    User --> FE
+    FE --"Relative API Calls"--> Proxy
+    Proxy --"Secure Tunnel"--> AG
+    
     AG --> Auth
-    AG --> User  
+    AG --> UserSvc
     AG --> Code
     
-    Auth --> Mongo
-    User --> Mongo
-    Code --> Mongo
-    
-    Auth --> Redis
-    Code --> Redis
-    
+    Auth & UserSvc & Code --> Mongo
+    Auth & Code --> Redis
     Auth --"Events"--> Kafka
-    User --"Subscribe"--> Kafka
-    Code --"Subscribe"--> Kafka
-    
-    style Client fill:#e1f5ff
-    style Gateway fill:#fff3cd
-    style Services fill:#d4edda
-    style Infrastructure fill:#f8d7da
+    UserSvc & Code --"Listen"--> Kafka
+
+    style Vercel fill:#f0f0f0,stroke:#333
+    style Render fill:#e1f5ff,stroke:#007bff
+    style Client fill:#fff3cd,stroke:#856404
 ```
 
 ### Service-Level Architecture Breakdown
@@ -163,25 +162,25 @@ sequenceDiagram
     Note over Saga,Code: On any step failure, Saga<br/>triggers compensation (rollback)
 ```
 
-### Social Auth Flow: Google OAuth
+### Social Auth Flow: Google OAuth (BFF Pattern)
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant FE as Frontend
-    participant AG as API Gateway
+    participant Vercel as Next.js BFF (Vercel)
+    participant Render as API Gateway (Render)
     participant Auth as Auth Service
     participant Google as Google OAuth
 
-    User->>FE: Click "Continue with Google"
-    FE->>AG: GET /api/auth/login/social?provider=google
-    AG->>Auth: Forward to Better Auth
+    User->>Vercel: Click "Continue with Google"
+    Vercel->>Render: Proxy GET /api/auth/login/google
+    Render->>Auth: Forward to Better Auth
     Auth-->>User: Redirect to Google Consent
     User->>Google: Authenticate
     Google-->>Auth: Callback with Code
     Auth->>Google: Exchange Code for Token
-    Auth->>Saga: Trigger Registration Saga (if new user)
-    Auth-->>FE: Redirect with Session Cookie
+    Auth-->>Vercel: Redirect with Session Cookie
+    Vercel-->>User: Redirect to /editor (First-Party Cookie Set)
 ```
 
 ### Code Persistence: Multi-Layer Strategy
@@ -453,12 +452,11 @@ RESEND_API_KEY=re_your_api_key
 ## 📡 API Documentation
 
 ### Base URLs
-- **Gateway:** `http://localhost:3000`
-- **Auth:** `http://localhost:3001` (internal)
-- **User:** `http://localhost:3002` (internal)
-- **Code:** `http://localhost:3003` (internal)
+- **Vercel (Frontend & BFF):** `https://browser-editor-cyan.vercel.app`
+- **Render (API Gateway):** `https://api-gateway-rq2x.onrender.com`
 
-> **Note:** All client requests should go through the API Gateway. Direct service access is for internal communication only.
+> [!IMPORTANT]
+> **BFF Pattern**: All client browser requests MUST be made to relative paths (e.g., `/api/v1/...`). They are proxied through Vercel to the Render Gateway. This ensures first-party cookie stability.
 
 ### Authentication Endpoints
 
@@ -706,26 +704,14 @@ browser-editor/
 
 ---
 
-## 🚢 Deployment
+### BFF Split Deployment (Vercel + Render)
 
-### Docker Deployment
+Our architecture is optimized for a split deployment:
+1. **Frontend (Vercel)**: Static hosting + Next.js API Routes acting as a BFF Proxy.
+2. **Backend (Render)**: API Gateway + Microservices.
 
-#### Production Build
-```bash
-# Build optimized images
-docker-compose -f docker-compose.prod.yml build
-
-# Start services
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-#### Environment for Production
-Set the following in production `.env`:
-```bash
-NODE_ENV=production
-BETTER_AUTH_URL=https://yourdomain.com
-FRONTEND_URL=https://yourdomain.com
-```
+> [!TIP]
+> **Cookie Persistence**: To ensure cookies work across the split, `BETTER_AUTH_URL` on the Render backend should be set to the Vercel domain.
 
 ### Cloud Deployment Checklist
 
