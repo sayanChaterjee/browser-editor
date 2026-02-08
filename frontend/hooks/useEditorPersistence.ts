@@ -10,6 +10,7 @@ interface PersistenceProps {
     timeLeft: number;
     projectName: string;
     projectId: string | null;
+    userId: string | null;
     contestStarted: boolean;
     isLoading: boolean;
     onLoadFromIDB?: (data: any) => void;
@@ -22,6 +23,7 @@ export function useEditorPersistence({
     timeLeft,
     projectName,
     projectId,
+    userId,
     contestStarted,
     isLoading,
     onLoadFromIDB,
@@ -29,10 +31,11 @@ export function useEditorPersistence({
     const syncRef = useRef<NodeJS.Timeout | null>(null);
 
     const saveToIDB = async () => {
-        if (isLoading || !projectId) return;
+        if (isLoading || !projectId || !userId) return;
         try {
             await saveLocalProject({
                 id: projectId,
+                userId: userId,
                 name: projectName,
                 html,
                 css,

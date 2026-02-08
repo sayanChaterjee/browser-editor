@@ -21,17 +21,21 @@ export const sanitizeCode = (req: Request, res: Response, next: NextFunction) =>
                     'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
                     'a', 'img', 'b', 'i', 'strong', 'em', 'u', 'code', 'pre', 'blockquote',
                     'form', 'label', 'input', 'textarea', 'button', 'select', 'option',
-                    'header', 'footer', 'main', 'section', 'article', 'nav', 'aside', 'figure', 'figcaption'
+                    'header', 'footer', 'main', 'section', 'article', 'nav', 'aside', 'figure', 'figcaption',
+                    'svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'ellipse', 'details', 'summary'
                 ],
                 ALLOWED_ATTR: [
                     'id', 'class', 'style', 'href', 'src', 'alt', 'type', 'name', 'charset', 'content',
-                    'value', 'placeholder', 'target', 'rel', 'aria-label', 'role', 'viewport'
+                    'value', 'placeholder', 'target', 'rel', 'aria-label', 'role', 'viewport',
+                    'width', 'height', 'viewBox', 'fill', 'stroke', 'd', 'points', 'x', 'y', 'r', 'cx', 'cy'
                 ],
+                // Explicitly allow data-* attributes
+                ADD_ATTR: ['data-*'],
                 // Explicitly forbid scripts but allow them to be handled via the separate 'js' field
                 FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
                 FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
-                WHOLE_DOCUMENT: true,
-                FORCE_BODY: false,
+                WHOLE_DOCUMENT: original.toLowerCase().includes('<html') || original.toLowerCase().includes('<body'),
+                FORCE_BODY: !original.toLowerCase().includes('<html') && !original.toLowerCase().includes('<body'),
             });
 
             if (original !== req.body.html) {

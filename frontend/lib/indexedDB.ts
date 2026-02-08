@@ -6,6 +6,7 @@ const VERSION = 1;
 
 export interface LocalProject {
     id: string;
+    userId: string;
     name: string;
     html: string;
     css: string;
@@ -34,14 +35,19 @@ export const saveLocalProject = async (project: LocalProject) => {
     await db.put(STORE_NAME, project);
 };
 
-export const getLocalProject = async (id: string): Promise<LocalProject | undefined> => {
+export const getLocalProject = async (id: string, userId: string): Promise<LocalProject | undefined> => {
     const db = await getDB();
-    return db.get(STORE_NAME, id);
+    const project = await db.get(STORE_NAME, id);
+    if (project && project.userId === userId) {
+        return project;
+    }
+    return undefined;
 };
 
-export const getAllLocalProjects = async (): Promise<LocalProject[]> => {
+export const getAllLocalProjects = async (userId: string): Promise<LocalProject[]> => {
     const db = await getDB();
-    return db.getAll(STORE_NAME);
+    const allProjects = await db.getAll(STORE_NAME);
+    return allProjects.filter((p: LocalProject) => p.userId === userId);
 };
 
 export const deleteLocalProject = async (id: string) => {

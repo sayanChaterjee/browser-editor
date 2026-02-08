@@ -103,6 +103,7 @@ export default function EditorLayout() {
     timeLeft,
     projectName,
     projectId,
+    userId: (userProfile as any)?.id || (userProfile as any)?.email || null,
     contestStarted,
     isLoading,
     onLoadFromIDB: () => {},

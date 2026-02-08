@@ -57,6 +57,7 @@ export function useProjectManager({
 
     useEffect(() => {
         const initData = async () => {
+            let profile: any = null;
             // 1. Fetch User Profile
             try {
                 const profRes = await fetch(
@@ -67,8 +68,8 @@ export function useProjectManager({
                     const profText = await profRes.text();
                     if (profText) {
                         try {
-                            const profData = JSON.parse(profText);
-                            setUserProfile(profData);
+                            profile = JSON.parse(profText);
+                            setUserProfile(profile);
                         } catch (e) {
                             console.error("Profile JSON parse error", e);
                         }
@@ -108,7 +109,7 @@ export function useProjectManager({
                                         setProjectId(fullProject._id);
                                         setProjectName(fullProject.name);
 
-                                        const localData = await getLocalProject(fullProject._id);
+                                        const localData = await getLocalProject(fullProject._id, profile?.id || profile?.email || 'anonymous');
                                         if (localData && new Date(localData.updatedAt) > new Date(fullProject.updatedAt)) {
                                             setHtml(localData.html);
                                             setCss(localData.css);
@@ -144,7 +145,7 @@ export function useProjectManager({
                         setProjectId(targetProject._id);
                         setProjectName(targetProject.name);
 
-                        const localData = await getLocalProject(targetProject._id);
+                        const localData = await getLocalProject(targetProject._id, (userProfile as any)?.id || (userProfile as any)?.email || 'anonymous');
                         if (localData && new Date(localData.updatedAt) > new Date(targetProject.updatedAt)) {
                             setHtml(localData.html);
                             setCss(localData.css);

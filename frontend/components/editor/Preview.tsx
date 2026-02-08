@@ -54,7 +54,10 @@ export default function Preview({ html, css, js }: Props) {
 
     window.onload = () => {
         try {
-            ${js}
+            // Safely inject user JS
+            ${JSON.stringify(js)}.split('\\n').join('\\n'); 
+            // The above is a trick to get the string, but better is:
+            eval(${JSON.stringify(js)});
         } catch (err) {
             console.error("Execution Error:", err);
         }
@@ -63,7 +66,6 @@ export default function Preview({ html, css, js }: Props) {
 
   if (hasBody) {
     // Inject scripts and styles into the existing document
-    // We'll try to find </body> and inject scripts before it, and <head> for styles
     srcDoc = html;
     
     if (srcDoc.toLowerCase().includes("</head>")) {
@@ -79,19 +81,25 @@ export default function Preview({ html, css, js }: Props) {
     }
   } else {
     // Use boilerplate for fragments
-    srcDoc = `
-<!DOCTYPE html>
+    // Wrap user HTML in a div to prevent unclosed tags (like <h1) from swallowing the script tag
+    // Also using a safer way to construct srcDoc that doesn't rely on nested backticks
+    const htmlBoilerplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>${systemStyles}</style>
+    <style>\${systemStyles}</style>
 </head>
 <body>
-    ${html}
-    <script>${systemScripts}</script>
+    <div id="user-content-root">\${html}</div>
+    <script>\${systemScripts}</script>
 </body>
 </html>`;
+
+    srcDoc = htmlBoilerplate
+        .replace('\${systemStyles}', systemStyles)
+        .replace('\${html}', html)
+        .replace('\${systemScripts}', systemScripts);
   }
 
   useEffect(() => {
