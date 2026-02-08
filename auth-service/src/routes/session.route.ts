@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getAuth } from '../lib/auth';
+import { fromNodeHeaders } from 'better-auth/node';
 import logger from '../config/logger';
 
 const router = Router();
@@ -15,10 +16,23 @@ router.get('/validate-session', async (req: Request, res: Response) => {
     try {
         const auth = getAuth();
 
+        logger.info('Session validation request received');
+        logger.debug('Request headers:', {
+            cookie: req.headers.cookie ? 'present' : 'missing',
+            host: req.headers.host,
+            'x-forwarded-proto': req.headers['x-forwarded-proto']
+        });
+
         // Use Better Auth's API to get the session
-        // This will automatically read the session cookie from the request
+        // fromNodeHeaders properly formats Express headers for Better Auth
         const session = await auth.api.getSession({
-            headers: req.headers as any
+            headers: fromNodeHeaders(req.headers)
+        });
+
+        logger.debug('Session response:', {
+            hasSession: !!session,
+            hasUser: !!session?.user,
+            userId: session?.user?.id
         });
 
         // If no session or no user, return 401
@@ -40,7 +54,8 @@ router.get('/validate-session', async (req: Request, res: Response) => {
         logger.error('Session validation error:', error);
         return res.status(401).json({
             error: 'Unauthorized',
-            message: 'Session validation failed'
+            message: 'Session validation failed',
+            details: error.message
         });
     }
 });
