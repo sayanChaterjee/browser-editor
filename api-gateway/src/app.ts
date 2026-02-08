@@ -86,9 +86,9 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 
-// NOTE: Auth middleware removed - services validate their own sessions
-// The API Gateway simply forwards cookies to downstream services
-// Each service (user-service, code-service) validates sessions directly
+
+// Apply auth middleware to protected routes (matches /api/v1 and all subpaths)
+app.use('/api/v1', authMiddleware);
 
 
 /**
