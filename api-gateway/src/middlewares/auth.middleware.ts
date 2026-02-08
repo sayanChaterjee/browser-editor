@@ -36,15 +36,16 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
             const session = sessionResponse.data;
 
-            if (!session || !session.user) {
-                logger.warn(`Invalid session response for ${req.path}`);
+            if (!session || !session.user || !session.user.id ||
+                session.user.id === 'undefined' || session.user.id === 'null') {
+                logger.warn(`Invalid or incomplete session for ${req.path}. User ID: ${session?.user?.id}`);
                 return res.status(401).json({
                     error: 'Unauthorized',
-                    message: 'Invalid or expired session'
+                    message: 'Invalid or expired session context'
                 });
             }
 
-            // Inject user context headers for downstream services
+            // Inject user context headers for downstream services - ONLY if valid
             req.headers['x-user-id'] = session.user.id;
             req.headers['x-user-email'] = session.user.email || '';
             req.headers['x-user-name'] = session.user.name || '';
@@ -53,7 +54,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
             (req as any).user = session.user;
             (req as any).session = session.session;
 
-            logger.info(`Authenticated request from user: ${session.user.email}`);
+            logger.info(`Authenticated request from user: ${session.user.email} (ID: ${session.user.id})`);
             next();
         } catch (sessionError: any) {
             logger.error(`Session verification failed via ${config.AUTH_SERVICE_URL}:`, sessionError.message);

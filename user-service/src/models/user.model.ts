@@ -13,7 +13,13 @@ const UserSchema: Schema = new Schema({
   email: { type: String, required: true, unique: true },
 }, {
   timestamps: true,
-  collection: 'user' // Use better-auth collection name (singular)
+  collection: 'user', // Use better-auth collection name (singular)
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+UserSchema.virtual('id').get(function () {
+  return this._id;
 });
 
 export default mongoose.model<IUser>('User', UserSchema);

@@ -112,7 +112,7 @@ export function useProjectManager({
                                         setProjectId(fullProject._id);
                                         setProjectName(fullProject.name);
 
-                                        const localData = await getLocalProject(fullProject._id, profile?.id || profile?.email || 'anonymous');
+                                        const localData = await getLocalProject(fullProject._id, profile?.id || profile?.email);
                                         if (localData && new Date(localData.updatedAt) > new Date(fullProject.updatedAt)) {
                                             setHtml(localData.html);
                                             setCss(localData.css);
@@ -148,7 +148,7 @@ export function useProjectManager({
                         setProjectId(targetProject._id);
                         setProjectName(targetProject.name);
 
-                        const localData = await getLocalProject(targetProject._id, (userProfile as any)?.id || (userProfile as any)?.email || 'anonymous');
+                        const localData = await getLocalProject(targetProject._id, profile?.id || profile?.email);
                         if (localData && new Date(localData.updatedAt) > new Date(targetProject.updatedAt)) {
                             setHtml(localData.html);
                             setCss(localData.css);

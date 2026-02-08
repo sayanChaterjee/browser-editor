@@ -9,9 +9,9 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
     // Get user ID from header injected by API Gateway
     const userId = req.headers['x-user-id'] as string;
 
-    if (!userId) {
+    if (!userId || userId === 'undefined' || userId === 'null') {
       return res.status(401).json({
-        message: 'Unauthorized: No user context found',
+        message: 'Unauthorized: Invalid user context',
         hint: 'Please ensure you are logged in and requests go through API Gateway'
       });
     }
