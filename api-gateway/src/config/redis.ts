@@ -9,11 +9,7 @@ export class RedisClient {
 
   private constructor() { }
 
-  public static getInstance(): Redis | null {
-    if (!config.REDIS_URL) {
-      return null;
-    }
-
+  public static getInstance(): Redis {
     if (!RedisClient.instance) {
       RedisClient.instance = new Redis(config.REDIS_URL, {
         retryStrategy: (times: number) => {
