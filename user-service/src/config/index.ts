@@ -19,7 +19,7 @@ export const config: Config = {
   KAFKA_SERVICE_KEY: process.env.KAFKA_SERVICE_KEY || '',
   KAFKA_SERVICE_CERT: process.env.KAFKA_SERVICE_CERT || '',
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
-  REDIS_URL: process.env.REDIS_URL || 'http://localhost:6379',
+  REDIS_URL: process.env.REDIS_URL || '',
 };
 
 if (!process.env.DATABASE_URL) {

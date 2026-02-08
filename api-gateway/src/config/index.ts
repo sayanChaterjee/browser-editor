@@ -19,7 +19,7 @@ export const config: Config = {
   DEFAULT_TIMEOUT: Number(process.env.DEFAULT_TIMEOUT || '30000'),
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3001,http://localhost:3005,http://localhost:3000,http://localhost:3004,http://localhost:3006',
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
-  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+  REDIS_URL: process.env.REDIS_URL || '',
   AUTH_SERVICE_URL: normalizeServiceUrl(process.env.AUTH_SERVICE_URL || 'http://localhost:3001'),
   USER_SERVICE_URL: normalizeServiceUrl(process.env.USER_SERVICE_URL || 'http://localhost:3002'),
   CODE_SERVICE_URL: normalizeServiceUrl(process.env.CODE_SERVICE_URL || 'http://localhost:3003'),

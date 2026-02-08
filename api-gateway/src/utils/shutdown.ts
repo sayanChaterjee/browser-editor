@@ -20,7 +20,10 @@ export const setupGracefulShutdown = (server: Server) => {
             });
 
             // 2. Disconnect from Redis
-            await RedisClient.disconnect();
+            const redis = RedisClient.getInstance();
+            if (redis) {
+                await RedisClient.disconnect();
+            }
 
             logger.info('Graceful shutdown completed');
             process.exit(0);

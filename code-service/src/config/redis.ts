@@ -2,14 +2,18 @@ import Redis from 'ioredis';
 import { config } from './index';
 import logger from './logger';
 
-const redis = new Redis(config.REDIS_URL);
+let redis: Redis | null = null;
 
-redis.on('connect', () => {
-  logger.info('Connected to Redis');
-});
+if (config.REDIS_URL) {
+  redis = new Redis(config.REDIS_URL);
 
-redis.on('error', (err) => {
-  logger.error('Redis error:', err);
-});
+  redis.on('connect', () => {
+    logger.info('Connected to Redis');
+  });
+
+  redis.on('error', (err) => {
+    logger.error('Redis error:', err);
+  });
+}
 
 export default redis;
