@@ -1,16 +1,16 @@
 /**
  * Utility to ensure a URL has a protocol.
- * For Render's internal services, we preserve http:// if provided.
- * If no protocol is provided, we default to https:// for external consistency.
+ * For Render's web services, we use http:// for internal service-to-service communication
+ * even though they're publicly accessible via HTTPS.
  */
 export function normalizeServiceUrl(url: string | undefined): string {
     if (!url) return '';
 
-    // If it's just a hostname (no protocol), default to https://
+    // If it's just a hostname (no protocol), use http:// for internal service calls
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        return `https://${url}`;
+        return `http://${url}`;
     }
 
-    // Preserve the protocol if it's already there (don't force upgrade http -> https)
+    // Preserve the protocol if it's already there
     return url;
 }
