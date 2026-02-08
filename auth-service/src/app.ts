@@ -19,6 +19,7 @@ import { correlationMiddleware } from './middlewares/correlation.middleware';
 import { getAuth } from './lib/auth';
 import { toNodeHandler } from 'better-auth/node';
 import { webhookRouter } from './routes/webhook.route';
+import { sessionRouter } from './routes/session.route';
 import { internalSecurity } from './middlewares/internalSecurity.middleware';
 
 const app = express();
@@ -34,6 +35,9 @@ app.use(cookieParser());
 app.use(correlationMiddleware);
 app.use(reqLogger);
 app.use(express.json());
+
+// Mount session validation endpoint (used by API Gateway)
+app.use('/api/auth', sessionRouter);
 
 // Mount better-auth handler at /api/auth (will be initialized after DB connection)
 app.use('/api/auth', (req, res, next) => {
