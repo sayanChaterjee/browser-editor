@@ -13,6 +13,7 @@ import ContestBar from "./ContestBar";
 import SecurityWarningModal from "./SecurityWarningModal";
 import EditorToolbar from "./EditorToolbar";
 import FileTabs from "./FileTabs";
+import { clearLocalProjects } from "../../lib/indexedDB";
 
 // Hooks
 import { useProjectManager } from "../../hooks/useProjectManager";
@@ -32,6 +33,7 @@ export default function EditorLayout() {
 
   const logoutUser = async () => {
     stopTimer();
+    await clearLocalProjects();
     await signOut();
     router.push("/login");
   };

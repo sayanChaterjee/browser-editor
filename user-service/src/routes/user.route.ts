@@ -5,9 +5,23 @@ import logger from '../config/logger';
 
 const userRouter = Router();
 
-userRouter.get('/profile', verifyToken, async (req: Request, res: Response) => {
+userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
-    const user = await User.findById((req as any).userId);
+    const userId = (req as any).userId;
+    const userEmail = (req as any).userEmail;
+    const userName = (req as any).userName;
+
+    let user = await User.findById(userId);
+
+    if (!user && userId && userEmail) {
+      logger.info(`User not found in DB but headers exist. Creating profile on-demand for: ${userEmail}`);
+      user = await User.create({
+        _id: userId,
+        email: userEmail,
+        name: userName || userEmail.split('@')[0],
+      });
+    }
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

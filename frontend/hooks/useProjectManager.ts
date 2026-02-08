@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getLocalProject } from "../lib/indexedDB";
+import { getLocalProject, clearMismatchingProjects } from "../lib/indexedDB";
 import { INITIAL_HTML, INITIAL_CSS, INITIAL_JS } from "../utils/constants";
 
 interface Project {
@@ -77,6 +77,9 @@ export function useProjectManager({
                 } else if (profRes.status === 401) {
                     onLogout();
                     return;
+                }
+                if (profile?.id || profile?.email) {
+                    await clearMismatchingProjects(profile.id || profile.email);
                 }
             } catch (err) {
                 console.error("Profile fetch failed", err);

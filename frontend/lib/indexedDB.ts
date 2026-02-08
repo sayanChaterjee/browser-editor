@@ -2,7 +2,7 @@ import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'ProjectDatabase';
 const STORE_NAME = 'projects';
-const VERSION = 1;
+const VERSION = 2;
 
 export interface LocalProject {
     id: string;
@@ -20,7 +20,8 @@ let dbPromise: Promise<IDBPDatabase<any>> | null = null;
 const getDB = () => {
     if (!dbPromise) {
         dbPromise = openDB(DB_NAME, VERSION, {
-            upgrade(db) {
+            upgrade(db, oldVersion, newVersion, transaction) {
+                console.log(`Upgrading IDB from ${oldVersion} to ${newVersion}`);
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     db.createObjectStore(STORE_NAME, { keyPath: 'id' });
                 }
@@ -58,4 +59,16 @@ export const deleteLocalProject = async (id: string) => {
 export const clearLocalProjects = async () => {
     const db = await getDB();
     await db.clear(STORE_NAME);
+};
+
+export const clearMismatchingProjects = async (userId: string) => {
+    const db = await getDB();
+    const all = await db.getAll(STORE_NAME);
+    const toDelete = all.filter((p: LocalProject) => p.userId !== userId);
+    for (const p of toDelete) {
+        await db.delete(STORE_NAME, p.id);
+    }
+    if (toDelete.length > 0) {
+        console.log(`Cleared ${toDelete.length} mismatching local projects`);
+    }
 };
