@@ -35,10 +35,8 @@ export default function ProfilePage() {
 
     const fetchProjects = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-        
         // Fetch with credentials (cookies) - no Authorization header needed
-        const projRes = await fetch(`${apiUrl}/api/v1/code`, {
+        const projRes = await fetch(`/api/v1/code`, {
           credentials: 'include', // Include cookies
           cache: 'no-store', // Disable browser-side/Next.js caching for this request
         });
@@ -64,8 +62,7 @@ export default function ProfilePage() {
     if (!confirm("Are you sure you want to delete this project?")) return;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const res = await fetch(`${apiUrl}/api/v1/code/${projectId}`, {
+      const res = await fetch(`/api/v1/code/${projectId}`, {
         method: 'DELETE',
         credentials: 'include', // Include cookies
       });

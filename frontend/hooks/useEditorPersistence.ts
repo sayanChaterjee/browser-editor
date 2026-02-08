@@ -53,7 +53,7 @@ export function useEditorPersistence({
 
         try {
             await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/save`,
+                `/api/v1/code/save`,
                 {
                     method: "POST",
                     headers: {

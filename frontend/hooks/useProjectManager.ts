@@ -61,7 +61,7 @@ export function useProjectManager({
             // 1. Fetch User Profile
             try {
                 const profRes = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/user/profile`,
+                    `/api/v1/user/profile`,
                     { credentials: 'include' }
                 );
                 if (profRes.ok) {
@@ -88,7 +88,7 @@ export function useProjectManager({
             // 2. Fetch Projects
             try {
                 const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code`,
+                    `/api/v1/code`,
                     { credentials: 'include' }
                 );
                 if (res.ok) {
@@ -104,7 +104,7 @@ export function useProjectManager({
                                 // especially if the list was stale due to flusher delay
                                 try {
                                     const fullRes = await fetch(
-                                        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/${requestedProjectId}`,
+                                        `/api/v1/code/${requestedProjectId}`,
                                         { credentials: 'include' }
                                     );
                                     if (fullRes.ok) {
@@ -204,7 +204,7 @@ export function useProjectManager({
 
             try {
                 const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/sync/${projectId}`,
+                    `/api/v1/code/sync/${projectId}`,
                     {
                         method: "PATCH",
                         headers: {
@@ -233,7 +233,7 @@ export function useProjectManager({
         setIsCreatingProject(true);
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/save`, {
+            const res = await fetch(`/api/v1/code/save`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -287,7 +287,7 @@ export function useProjectManager({
     const saveCode = async (currentData: { html: string; css: string; js: string; timeLeft: number }) => {
         try {
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/save`,
+                `/api/v1/code/save`,
                 {
                     method: "POST",
                     headers: {

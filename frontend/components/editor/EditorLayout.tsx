@@ -159,7 +159,7 @@ export default function EditorLayout() {
         await saveCode({ html, css, js, timeLeft });
 
         // Then submit to snapshot endpoint
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/v1/code/submit`, {
+        const res = await fetch(`/api/v1/code/submit`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
