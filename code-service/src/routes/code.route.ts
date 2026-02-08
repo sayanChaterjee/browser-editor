@@ -81,7 +81,13 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
     // Check cache
     const cachedProject = await redis.get(cacheKey);
     if (cachedProject) {
-      return res.json(JSON.parse(cachedProject));
+      const parsed = JSON.parse(cachedProject);
+      // STRICT OWNERSHIP CHECK: Ensure cached project belongs to the current user
+      if (parsed.userId === req.userId) {
+        return res.json(parsed);
+      }
+      logger.warn(`[GET /api/v1/code/:projectId] Cache hit for ${projectId} but userId mismatch. Purging stale cache.`);
+      await redis.del(cacheKey);
     }
 
     const project = await Project.findById(projectId);
@@ -136,7 +142,7 @@ codeRouter.post('/save', verifyToken, sanitizeCode, conflictLock, async (req: Re
     const dirtyKey = `dirty_projects`;
 
     // Atomic update in Redis Hash
-    await redis.hset(bufferKey, fragments);
+    await redis.hset(bufferKey, { ...fragments, userId });
     // Set expiry for the buffer (e.g., 1 hour)
     await redis.expire(bufferKey, 3600);
 
@@ -182,7 +188,31 @@ codeRouter.patch('/sync/:projectId', verifyToken, sanitizeCode, conflictLock, as
     const bufferKey = `project:buffer:${projectId}`;
     const dirtyKey = `dirty_projects`;
 
-    // Check if we have fields directly (Partial Update) or RFC6902 patches
+    // 1. Ownership Check (Cache First)
+    let currentData = await redis.hgetall(bufferKey);
+
+    if (Object.keys(currentData).length > 0) {
+      if (currentData.userId !== req.userId) {
+        logger.warn(`[PATCH /api/v1/code/sync/:projectId] User mismatch for ${projectId}. Denying sync.`);
+        return res.status(404).json({ message: 'Project not found' });
+      }
+    } else {
+      const project = await Project.findById(projectId);
+      if (!project || project.userId !== req.userId) {
+        return res.status(404).json({ message: 'Project not found' });
+      }
+      currentData = {
+        html: project.html,
+        css: project.css,
+        js: project.js,
+        userId: project.userId,
+        updatedAt: project.updatedAt.toISOString()
+      };
+      // Backfill cache
+      await redis.hset(bufferKey, currentData);
+    }
+
+    // 2. Perform Update
     let updatedFragments: any = {};
 
     if (html !== undefined || css !== undefined || js !== undefined) {
@@ -194,22 +224,7 @@ codeRouter.patch('/sync/:projectId', verifyToken, sanitizeCode, conflictLock, as
 
       await redis.hset(bufferKey, updatedFragments);
     } else if (Array.isArray(patches)) {
-      // Fallback to RFC6902 patches if provided
-      let currentData = await redis.hgetall(bufferKey);
-
-      if (Object.keys(currentData).length === 0) {
-        const project = await Project.findById(projectId);
-        if (!project || project.userId !== req.userId) {
-          return res.status(404).json({ message: 'Project not found' });
-        }
-        currentData = {
-          html: project.html,
-          css: project.css,
-          js: project.js,
-          updatedAt: project.updatedAt.toISOString()
-        };
-      }
-
+      // RFC6902 patches
       const result = jsonpatch.applyPatch(currentData, patches);
       updatedFragments = result.newDocument;
       updatedFragments.updatedAt = new Date().toISOString();
@@ -243,27 +258,38 @@ codeRouter.patch('/sync/:projectId', verifyToken, sanitizeCode, conflictLock, as
 import { CodeUtils } from '../utils/codeUtils';
 
 // GET /preview/:projectId - Get assembled HTML preview for the iframe
-codeRouter.get('/preview/:projectId', async (req: Request, res: Response): Promise<any> => {
+codeRouter.get('/preview/:projectId', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
     const { projectId } = req.params;
     const bufferKey = `project:buffer:${projectId}`;
+    let projectContext = await redis.hgetall(bufferKey);
 
-    // Attempt to get from buffer first
-    let data = await redis.hgetall(bufferKey);
-
-    if (Object.keys(data).length === 0) {
-      const project = await Project.findById(projectId);
-      if (!project) {
+    if (Object.keys(projectContext).length === 0) {
+      const dbProject = await Project.findById(projectId);
+      if (!dbProject) return res.status(404).send('Project not found');
+      // Ownership check for DB fetched project
+      if (dbProject.userId !== req.userId) {
         return res.status(404).json({ message: 'Project not found' });
       }
-      data = {
-        html: project.html,
-        css: project.css,
-        js: project.js
+      projectContext = {
+        html: dbProject.html,
+        css: dbProject.css,
+        js: dbProject.js,
+        userId: dbProject.userId // Store userId for consistency, though not strictly needed for preview generation
       };
+    } else {
+      // Ownership check for buffer fetched project
+      if (projectContext.userId !== req.userId) {
+        logger.warn(`[GET /api/v1/code/preview/:projectId] User mismatch for ${projectId} in buffer. Denying preview.`);
+        return res.status(404).json({ message: 'Project not found' });
+      }
     }
 
-    const fullHtml = CodeUtils.generateFullPreview(data.html || '', data.css || '', data.js || '');
+    const fullHtml = CodeUtils.generateFullPreview(
+      projectContext.html || '',
+      projectContext.css || '',
+      projectContext.js || ''
+    );
 
     res.setHeader('Content-Type', 'text/html');
     res.setHeader('X-Content-Type-Options', 'nosniff');

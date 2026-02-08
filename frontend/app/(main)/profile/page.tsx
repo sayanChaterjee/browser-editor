@@ -40,6 +40,7 @@ export default function ProfilePage() {
         // Fetch with credentials (cookies) - no Authorization header needed
         const projRes = await fetch(`${apiUrl}/api/v1/code`, {
           credentials: 'include', // Include cookies
+          cache: 'no-store', // Disable browser-side/Next.js caching for this request
         });
         
         if (projRes.ok) {
