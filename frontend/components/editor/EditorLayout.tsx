@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
@@ -35,6 +35,14 @@ export default function EditorLayout() {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
   const { toasts, showToast, dismissToast } = useToast();
+
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+    return () => document.removeEventListener("contextmenu", handleContextMenu);
+  }, []);
 
   const logoutUser = async () => {
     stopTimer();
@@ -197,8 +205,6 @@ export default function EditorLayout() {
       
       logoutUser();
     }
-
-    isQuittingRef.current = false;
   };
 
   const handleSubmitCancel = () => {

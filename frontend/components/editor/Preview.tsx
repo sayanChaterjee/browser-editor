@@ -11,7 +11,7 @@ type Props = {
 export default function Preview({ html, css, js }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Build srcDoc with properly isolated system scripts
+  // Build srcDoc with properly isolated system scripts in <head>
   const buildSrcDoc = () => {
     const systemStyles = `
       body { 
@@ -24,29 +24,39 @@ export default function Preview({ html, css, js }: Props) {
       ${css}
     `;
 
-    // System scripts run inside a proper <script> block — never rendered as text
-    const systemScriptBlock = `<script>
+    // System scripts moved to head and wrapped in DOMContentLoaded to prevent rendering issues
+    const systemScriptHead = `<script>
 (function() {
-  document.addEventListener('visibilitychange', function() {
-    if (document.hidden) {
-      window.parent.postMessage({ type: 'CONTEST_VIOLATION', reason: 'TAB_SWITCH', timestamp: new Date().toISOString() }, '*');
-    }
-  });
-  document.addEventListener('click', function(e) {
-    var link = e.target.closest('a');
-    if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
+  function setup() {
+    document.addEventListener('contextmenu', function(e) {
       e.preventDefault();
-      window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
-    }
-  }, true);
-  window.onerror = function(msg, url, lineNo, columnNo, error) {
-    console.error("Preview Error:", msg, error);
-    return false;
-  };
+    });
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) {
+        window.parent.postMessage({ type: 'CONTEST_VIOLATION', reason: 'TAB_SWITCH', timestamp: new Date().toISOString() }, '*');
+      }
+    });
+    document.addEventListener('click', function(e) {
+      var link = e.target.closest('a');
+      if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
+        e.preventDefault();
+        window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
+      }
+    }, true);
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      console.error("Preview Error:", msg, error);
+      return false;
+    };
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setup);
+  } else {
+    setup();
+  }
 })();
 <\/script>`;
 
-    // User JS runs in a separate script block with error handling
+    // User JS runs in a separate script block
     const userJsBlock = js.trim()
       ? `<script>
 try {
@@ -58,41 +68,47 @@ try {
       : "";
 
     const hasBody = html.toLowerCase().includes("<body");
+    const hasHead = html.toLowerCase().includes("<head");
 
+    let doc = "";
     if (hasBody) {
-      let doc = html;
-
-      // Inject system styles into <head>
-      if (doc.toLowerCase().includes("</head>")) {
-        doc = doc.replace(/<\/head>/i, `<style>${systemStyles}</style></head>`);
+      doc = html;
+      
+      // Inject styles and system scripts into <head> if exists, otherwise before <body>
+      const headContent = `<style>${systemStyles}</style>${systemScriptHead}`;
+      
+      if (hasHead) {
+        doc = doc.replace(/<\/head>/i, `${headContent}</head>`);
       } else if (doc.toLowerCase().includes("<html")) {
-        doc = doc.replace(/<html[^>]*>/i, `$&<head><style>${systemStyles}</style></head>`);
-      }
-
-      // Inject system scripts + user JS before </body>
-      if (doc.toLowerCase().includes("</body>")) {
-        doc = doc.replace(/<\/body>/i, `${systemScriptBlock}${userJsBlock}</body>`);
+        doc = doc.replace(/<html[^>]*>/i, `$&<head>${headContent}</head>`);
       } else {
-        doc += `${systemScriptBlock}${userJsBlock}`;
+        // Fallback: insert at the very beginning
+        doc = `<head>${headContent}</head>` + doc;
       }
 
-      return doc;
+      // Inject user JS at the end of body if exists, or just at the end
+      if (doc.toLowerCase().includes("</body>")) {
+         doc = doc.replace(/<\/body>/i, `${userJsBlock}</body>`);
+      } else {
+         doc += userJsBlock;
+      }
     } else {
       // Boilerplate mode for HTML fragments
-      return `<!DOCTYPE html>
+      doc = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>${systemStyles}</style>
+  ${systemScriptHead}
 </head>
 <body>
   <div id="user-content-root">${html}</div>
-  ${systemScriptBlock}
   ${userJsBlock}
 </body>
 </html>`;
     }
+    return doc;
   };
 
   const srcDoc = buildSrcDoc();

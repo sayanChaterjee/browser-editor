@@ -62,6 +62,7 @@ export function useContestSecurity({
 
         // 1. Console Deterrent
         securityLoopRef.current = setInterval(() => {
+            if (isQuittingRef.current) return;
             const startTime = performance.now();
             debugger;
             const endTime = performance.now();
@@ -76,6 +77,7 @@ export function useContestSecurity({
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (isQuittingRef.current) return;
             if (e.key === "Escape") {
                 e.preventDefault();
                 violate();
@@ -136,6 +138,7 @@ export function useContestSecurity({
         };
 
         const handleMessage = (e: MessageEvent) => {
+            if (isQuittingRef.current) return;
             if (e.data?.type === "PREVIEW_LINK_CLICK") {
                 violate();
             }
