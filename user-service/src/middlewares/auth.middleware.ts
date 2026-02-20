@@ -18,7 +18,6 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
 
     // Attach user info to request
     (req as any).userId = userId;
-    (req as any).userEmail = req.headers['x-user-email'] as string;
     (req as any).userName = req.headers['x-user-name'] as string;
 
     next();

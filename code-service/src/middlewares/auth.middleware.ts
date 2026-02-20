@@ -21,7 +21,6 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
     }
 
     req.userId = userId;
-    (req as any).userEmail = req.headers['x-user-email'] as string;
     (req as any).userName = req.headers['x-user-name'] as string;
 
     next();

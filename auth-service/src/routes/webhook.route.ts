@@ -16,14 +16,13 @@ router.post('/webhooks/user-registered', async (req, res) => {
             return res.status(400).json({ error: 'Invalid user data' });
         }
 
-        logger.info(`Webhook received for new user: ${user.email}`);
+        logger.info(`Webhook received for new user: ${user.name || user.id}`);
 
         // Publish Kafka event for user registration
         await publishUserRegistered({
             key: user.id,
             value: {
                 id: user.id,
-                email: user.email,
                 name: user.name,
                 createdAt: user.createdAt || new Date(),
             },

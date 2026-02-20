@@ -47,14 +47,13 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
             // Inject user context headers for downstream services - ONLY if valid
             req.headers['x-user-id'] = session.user.id;
-            req.headers['x-user-email'] = session.user.email || '';
             req.headers['x-user-name'] = session.user.name || '';
 
             // Attach to request for convenience
             (req as any).user = session.user;
             (req as any).session = session.session;
 
-            logger.info(`Authenticated request from user: ${session.user.email} (ID: ${session.user.id})`);
+            logger.info(`Authenticated request from user: ${session.user.name || session.user.id} (ID: ${session.user.id})`);
             next();
         } catch (sessionError: any) {
             logger.error(`Session verification failed via ${config.AUTH_SERVICE_URL}:`, sessionError.message);

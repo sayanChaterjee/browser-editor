@@ -8,17 +8,15 @@ const userRouter = Router();
 userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).userId;
-    const userEmail = (req as any).userEmail;
     const userName = (req as any).userName;
 
     let user = await User.findById(userId);
 
-    if (!user && userId && userEmail) {
-      logger.info(`User not found in DB but headers exist. Creating profile on-demand for: ${userEmail}`);
+    if (!user && userId) {
+      logger.info(`User not found in DB but headers exist. Creating profile on-demand for: ${userId}`);
       user = await User.create({
         _id: userId,
-        email: userEmail,
-        name: userName || userEmail.split('@')[0],
+        name: userName || 'User',
       });
     }
 
@@ -34,11 +32,11 @@ userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Pro
 
 userRouter.post('/profile', async (req: Request, res: Response) => {
   try {
-    const { userId, email, name } = req.body;
+    const { userId, name } = req.body;
     const sagaId = req.headers['x-saga-id'];
 
-    if (!userId || !email) {
-      return res.status(400).json({ message: 'userId and email are required' });
+    if (!userId) {
+      return res.status(400).json({ message: 'userId is required' });
     }
 
     logger.info(`Creating user profile for saga: ${sagaId}, userId: ${userId}`);
@@ -51,8 +49,7 @@ userRouter.post('/profile', async (req: Request, res: Response) => {
 
     const user = await User.create({
       _id: userId,
-      email,
-      name: name || email.split('@')[0],
+      name: name || 'User',
     });
 
     logger.info(`User profile created: ${user._id}`);

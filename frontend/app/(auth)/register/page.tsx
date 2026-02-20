@@ -4,13 +4,11 @@ import { useState } from "react";
 
 export default function RegisterPage() {
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
   const [errors, setErrors] = useState({
     username: "",
-    email: "",
     password: "",
     confirm: "",
   });
@@ -22,9 +20,7 @@ export default function RegisterPage() {
     return "";
   };
 
-  const validateEmail = (value: string) => {
-    return "";
-  };
+
 const validatePassword = (value: string) => {
   if (value.length < 6)
     return "Password must be at least 6 characters";
@@ -57,7 +53,6 @@ const validatePassword = (value: string) => {
 
     const newErrors = {
       username: validateUsername(username),
-      email: validateEmail(email),
       password: validatePassword(password),
       confirm: validateConfirm(confirm),
     };
@@ -69,8 +64,9 @@ const validatePassword = (value: string) => {
     try {
       const { signUp } = await import("../../../lib/auth-client");
       
+      const generatedEmail = `${username}@local.host`;
       const result = await signUp.email({
-        email,
+        email: generatedEmail,
         password,
         name: username,
       });
@@ -90,7 +86,6 @@ const validatePassword = (value: string) => {
 
   const isFormValid =
     !validateUsername(username) &&
-    !validateEmail(email) &&
     !validatePassword(password) &&
     !validateConfirm(confirm);
 
@@ -121,22 +116,7 @@ const validatePassword = (value: string) => {
             {errors.username && <p className="text-red-500 text-[12px] mt-1 text-left">{errors.username}</p>}
           </div>
 
-          <div>
-            <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">
-              <span className="mr-2">📧</span>
-              <input
-                type="email"
-                placeholder="Email"
-                className="bg-transparent border-none outline-none text-white w-full text-[14px]"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setErrors({ ...errors, email: validateEmail(e.target.value) });
-                }}
-              />
-            </div>
-            {errors.email && <p className="text-red-500 text-[12px] mt-1 text-left">{errors.email}</p>}
-          </div>
+
 
           <div>
             <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">

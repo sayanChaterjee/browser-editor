@@ -5,16 +5,15 @@ import { User } from '../models/user.model';
 
 interface RegistrationData {
     userId: string;
-    email: string;
     name?: string;
 }
 
 export class UserRegistrationSaga {
     constructor(private sagaCoordinator: SagaCoordinator) { }
 
-    async execute(userId: string, email: string, name?: string): Promise<void> {
+    async execute(userId: string, name?: string): Promise<void> {
         const sagaId = `user-reg-${userId}-${Date.now()}`;
-        const data: RegistrationData = { userId, email, name };
+        const data: RegistrationData = { userId, name };
 
         const steps: SagaStep[] = [
             {
@@ -27,8 +26,7 @@ export class UserRegistrationSaga {
                             `${process.env.USER_SERVICE_URL || 'http://user-service:3002'}/profile`,
                             {
                                 userId,
-                                email,
-                                name: name || email.split('@')[0],
+                                name: name || 'User',
                             },
                             {
                                 headers: {

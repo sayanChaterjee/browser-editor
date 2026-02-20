@@ -106,11 +106,10 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
   }
 });
 
-import { sanitizeCode } from '../middlewares/sanitizer.middleware';
 import { conflictLock } from '../middlewares/lock.middleware';
 
 // POST /save - Create or update a project (Write-Behind Pattern)
-codeRouter.post('/save', verifyToken, sanitizeCode, conflictLock, async (req: Request, res: Response): Promise<any> => {
+codeRouter.post('/save', verifyToken, conflictLock, async (req: Request, res: Response): Promise<any> => {
   try {
     const { name, html, css, js, timeLeft } = projectSchema.parse(req.body);
     const userId = req.userId!;
@@ -176,7 +175,7 @@ import Submission from '../models/submission.model';
 import jsonpatch from 'fast-json-patch';
 
 // PATCH /sync/:projectId - Incremental Sync (Delta Pattern)
-codeRouter.patch('/sync/:projectId', verifyToken, sanitizeCode, conflictLock, async (req: Request, res: Response): Promise<any> => {
+codeRouter.patch('/sync/:projectId', verifyToken, conflictLock, async (req: Request, res: Response): Promise<any> => {
   try {
     const { projectId } = req.params;
     const { patches, html, css, js } = req.body;

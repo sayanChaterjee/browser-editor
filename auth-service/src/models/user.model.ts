@@ -10,8 +10,9 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
+      sparse: true, // Allow null/undefined for manual auth users
       lowercase: true,
       trim: true,
     },

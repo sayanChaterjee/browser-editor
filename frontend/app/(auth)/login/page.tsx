@@ -6,9 +6,9 @@ import Link from "next/link";
 import { useSession } from "../../../lib/auth-client";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState({ email: "", password: "" });
+  const [errors, setErrors] = useState({ username: "", password: "" });
 
   const router = useRouter();
   const { data: session, isPending } = useSession();
@@ -19,7 +19,9 @@ export default function LoginPage() {
     }
   }, [session, isPending, router]);
 
-  const validateEmail = (value: string) => {
+  const validateUsername = (value: string) => {
+    if (!value) return "Username is required";
+    if (value.length < 3) return "Username must be at least 3 characters";
     return "";
   };
 
@@ -32,13 +34,13 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     const newErrors = {
-      email: validateEmail(email),
+      username: validateUsername(username),
       password: validatePassword(password),
     };
 
     setErrors(newErrors);
 
-    if (newErrors.email || newErrors.password) return;
+    if (newErrors.username || newErrors.password) return;
     if (isLoading) return; 
 
     setIsLoading(true);
@@ -46,9 +48,10 @@ export default function LoginPage() {
     try {
       const { signIn } = await import("../../../lib/auth-client");
       
-      console.log("Attempting login with:", email);
+      const generatedEmail = `${username}@local.host`;
+      console.log("Attempting login with:", username);
       const result = await signIn.email({
-        email,
+        email: generatedEmail,
         password,
       });
 
@@ -87,7 +90,7 @@ export default function LoginPage() {
   };
 
   const isFormValid =
-    !validateEmail(email) && !validatePassword(password);
+    !validateUsername(username) && !validatePassword(password);
 
   if (isPending) {
     return (
@@ -108,17 +111,17 @@ export default function LoginPage() {
         <div className="flex items-center bg-[#2a2a2a] rounded-[5px] mb-[15px] padding-[10px] p-2.5">
           <span className="mr-2">👤</span>
           <input
-            type="email"
-            placeholder="Email"
+            type="text"
+            placeholder="Username"
             className="bg-transparent border-none outline-none text-white w-full text-[14px]"
-            value={email}
+            value={username}
             onChange={(e) => {
-              setEmail(e.target.value);
-              setErrors({ ...errors, email: validateEmail(e.target.value) });
+              setUsername(e.target.value);
+              setErrors({ ...errors, username: validateUsername(e.target.value) });
             }}
           />
         </div>
-        {errors.email && <p className="text-red-500 text-[12px] mb-2 -mt-2 text-left">{errors.email}</p>}
+        {errors.username && <p className="text-red-500 text-[12px] mb-2 -mt-2 text-left">{errors.username}</p>}
 
         <div className="flex items-center bg-[#2a2a2a] rounded-[5px] mb-[15px] padding-[10px] p-2.5">
           <span className="mr-2">🔒</span>

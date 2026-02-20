@@ -85,24 +85,23 @@ export const startConsumer = async () => {
         while (attempt < MAX_RETRIES && !success) {
           try {
             attempt++;
-            if (!data.userId || !data.email) {
-              throw new Error('Invalid user-registered payload: missing userId or email');
+            if (!data.userId) {
+              throw new Error('Invalid user-registered payload: missing userId');
             }
 
-            logger.info(`[${topic}] Processing sync attempt ${attempt}/${MAX_RETRIES} for ${data.email}`);
+            logger.info(`[${topic}] Processing sync attempt ${attempt}/${MAX_RETRIES} for ${data.userId}`);
 
             await User.findOneAndUpdate(
               { _id: data.userId },
               {
                 $set: {
                   name: data.name,
-                  email: data.email,
                 },
               },
               { upsert: true, new: true, runValidators: true }
             );
 
-            logger.info(`[${topic}] User ${data.email} synced successfully on attempt ${attempt}`);
+            logger.info(`[${topic}] User ${data.userId} synced successfully on attempt ${attempt}`);
             success = true;
           } catch (err: any) {
             lastError = err;
