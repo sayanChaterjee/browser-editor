@@ -33,6 +33,7 @@ export default function EditorLayout() {
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [isContestPending, setIsContestPending] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -76,6 +77,7 @@ export default function EditorLayout() {
     onLogout: logoutUser,
     showWarningModal,
     setShowWarningModal,
+    userId: currentUserId,
   });
 
   const {
@@ -110,6 +112,7 @@ export default function EditorLayout() {
     setTimeLeft,
     setIgnoreNextBlur,
     showToast,
+    onUserLoaded: (id: string) => setCurrentUserId(id),
   });
 
   const { saveToIDB } = useEditorPersistence({

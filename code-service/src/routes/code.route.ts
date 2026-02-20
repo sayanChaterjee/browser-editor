@@ -353,4 +353,30 @@ codeRouter.delete('/:projectId', verifyToken, async (req: Request, res: Response
   }
 });
 
+// --- ADMIN ROUTES ---
+
+// GET /admin/projects/:userId - Get all projects for any user (for admin dashboard)
+codeRouter.get('/admin/projects/:userId', verifyToken, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+    const projects = await Project.find({ userId }).sort({ updatedAt: -1 });
+    res.json(projects);
+  } catch (error) {
+    logger.error(`[GET /api/v1/code/admin/projects/${req.params.userId}] Error:`, error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /admin/submissions/:userId - Get all submissions for any user (for admin dashboard)
+codeRouter.get('/admin/submissions/:userId', verifyToken, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+    const submissions = await Submission.find({ userId }).sort({ createdAt: -1 });
+    res.json(submissions);
+  } catch (error) {
+    logger.error(`[GET /api/v1/code/admin/submissions/${req.params.userId}] Error:`, error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export { codeRouter };

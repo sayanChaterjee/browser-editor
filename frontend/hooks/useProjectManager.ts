@@ -24,6 +24,7 @@ interface UseProjectManagerProps {
     setTimeLeft: (time: number) => void;
     setIgnoreNextBlur?: (val: boolean) => void;
     showToast?: (message: string, type: "success" | "error" | "warning" | "info") => void;
+    onUserLoaded?: (id: string) => void;
 }
 
 export function useProjectManager({
@@ -35,6 +36,7 @@ export function useProjectManager({
     setTimeLeft,
     setIgnoreNextBlur,
     showToast,
+    onUserLoaded,
 }: UseProjectManagerProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -87,7 +89,9 @@ export function useProjectManager({
                     return;
                 }
                 if (profile?.id || profile?.email) {
-                    await clearMismatchingProjects(profile.id || profile.email);
+                    const uid = profile.id || profile.email;
+                    await clearMismatchingProjects(uid);
+                    if (onUserLoaded) onUserLoaded(uid);
                 }
             } catch (err) {
                 console.error("Profile fetch failed", err);

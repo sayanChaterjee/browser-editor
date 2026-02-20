@@ -3,12 +3,14 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IUser extends Document<string> {
   _id: string; // Use string for syncing with Auth service
   name: string;
+  warningCount: number;
   createdAt: Date;
 }
 
 const UserSchema: Schema = new Schema({
   _id: { type: String, required: true },
   name: { type: String, required: true },
+  warningCount: { type: Number, default: 0 },
 }, {
   timestamps: true,
   collection: 'user', // Use better-auth collection name (singular)

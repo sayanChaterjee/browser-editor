@@ -8,6 +8,7 @@ interface SecurityProps {
     onLogout: () => void;
     showWarningModal: boolean;
     setShowWarningModal: (show: boolean) => void;
+    userId?: string | null;
 }
 
 export function useContestSecurity({
@@ -16,6 +17,7 @@ export function useContestSecurity({
     onLogout,
     showWarningModal,
     setShowWarningModal,
+    userId,
 }: SecurityProps) {
     const [strikeCount, setStrikeCount] = useState(0);
     const violationLock = useRef(false);
@@ -23,12 +25,27 @@ export function useContestSecurity({
     const ignoreNextBlur = useRef(false);
     const securityLoopRef = useRef<NodeJS.Timeout | null>(null);
 
+    const persistWarning = async () => {
+        if (!userId) return;
+        try {
+            await fetch(`/api/v1/user/warning/${userId}`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+        } catch (err) {
+            console.error('Failed to persist warning:', err);
+        }
+    };
+
     const violate = () => {
         if (violationLock.current) return;
 
         violationLock.current = true;
         const newStrikes = strikeCount + 1;
         setStrikeCount(newStrikes);
+
+        // Persist warning to backend (fire-and-forget)
+        persistWarning();
 
         if (newStrikes >= maxWarnings) {
             onLogout();

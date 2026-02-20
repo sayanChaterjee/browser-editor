@@ -13,6 +13,9 @@ export default function Preview({ html, css, js }: Props) {
 
   // Build srcDoc with properly isolated system scripts in <head>
   const buildSrcDoc = () => {
+    // Use a safe closing tag that won't be misinterpreted by the HTML parser in srcDoc
+    const CLOSE_SCRIPT = '</' + 'script>';
+
     const systemStyles = `
       body { 
         margin: 0; 
@@ -54,7 +57,7 @@ export default function Preview({ html, css, js }: Props) {
     setup();
   }
 })();
-<\/script>`;
+${CLOSE_SCRIPT}`;
 
     // User JS runs in a separate script block
     const userJsBlock = js.trim()
@@ -64,7 +67,7 @@ try {
 } catch(err) {
   console.error("Execution Error:", err);
 }
-<\/script>`
+${CLOSE_SCRIPT}`
       : "";
 
     const hasBody = html.toLowerCase().includes("<body");

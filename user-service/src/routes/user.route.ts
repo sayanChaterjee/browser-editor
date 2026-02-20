@@ -30,6 +30,40 @@ userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Pro
   }
 });
 
+// GET /all - Get all users (for admin dashboard)
+userRouter.get('/all', verifyToken, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const users = await User.find({}).sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    logger.error('Error fetching all users:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST /warning/:userId - Increment warning count for a user
+userRouter.post('/warning/:userId', verifyToken, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $inc: { warningCount: 1 } },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    logger.info(`Warning count incremented for user ${userId}: ${user.warningCount}`);
+    res.json({ warningCount: user.warningCount });
+  } catch (error) {
+    logger.error('Error incrementing warning count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 userRouter.post('/profile', async (req: Request, res: Response) => {
   try {
     const { userId, name } = req.body;
