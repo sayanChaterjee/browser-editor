@@ -13,9 +13,6 @@ export default function PreviewPanel({ html, css, js, projectName }: PreviewPane
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const buildSrcDoc = () => {
-    const OPEN_SCRIPT = '\x3cscript\x3e';
-    const CLOSE_SCRIPT = '\x3c/script\x3e';
-
     const systemStyles = `
       body { 
         margin: 0; 
@@ -27,12 +24,12 @@ export default function PreviewPanel({ html, css, js, projectName }: PreviewPane
       ${css}
     `;
 
-    const systemScriptHead = `${OPEN_SCRIPT}
+    // System scripts injected into head for maximum isolation
+    const systemScriptHead = `
+<script>
 (function() {
   function setup() {
-    document.addEventListener('contextmenu', function(e) {
-      e.preventDefault();
-    });
+    document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
     window.onerror = function(msg, url, lineNo, columnNo, error) {
       console.error("Preview Error:", msg, error);
       return false;
@@ -44,17 +41,19 @@ export default function PreviewPanel({ html, css, js, projectName }: PreviewPane
     setup();
   }
 })();
-${CLOSE_SCRIPT}`;
+</script>`;
 
+    // User JS wrapped in a script block
     const userJsBlock = js.trim()
-      ? `${OPEN_SCRIPT}
+      ? `
+<script>
 try {
   ${js}
 } catch(err) {
   console.error("Execution Error:", err);
 }
-${CLOSE_SCRIPT}`
-      : '';
+</script>`
+      : "";
 
     const hasBody = html.toLowerCase().includes('<body');
     const hasHead = html.toLowerCase().includes('<head');
@@ -85,10 +84,10 @@ ${CLOSE_SCRIPT}`
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>${systemStyles}</style>
   ${systemScriptHead}
+  ${userJsBlock}
 </head>
 <body>
-  <div id="user-content-root">${html}</div>
-  ${userJsBlock}
+  ${html}
 </body>
 </html>`;
     }

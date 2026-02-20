@@ -13,10 +13,6 @@ export default function Preview({ html, css, js }: Props) {
 
   // Build srcDoc with properly isolated system scripts in <head>
   const buildSrcDoc = () => {
-    // Use hex-escaped strings for script tags to prevent any potential parsing issues
-    const OPEN_SCRIPT = '\x3cscript\x3e';
-    const CLOSE_SCRIPT = '\x3c/script\x3e';
-
     const systemStyles = `
       body { 
         margin: 0; 
@@ -29,7 +25,8 @@ export default function Preview({ html, css, js }: Props) {
     `;
 
     // System scripts moved to head and wrapped in DOMContentLoaded to prevent rendering issues
-    const systemScriptHead = `${OPEN_SCRIPT}
+    const systemScriptHead = `
+<script>
 (function() {
   function setup() {
     document.addEventListener('contextmenu', function(e) {
@@ -58,17 +55,18 @@ export default function Preview({ html, css, js }: Props) {
     setup();
   }
 })();
-${CLOSE_SCRIPT}`;
+</script>`;
 
     // User JS runs in a separate script block
     const userJsBlock = js.trim()
-      ? `${OPEN_SCRIPT}
+      ? `
+<script>
 try {
   ${js}
 } catch(err) {
   console.error("Execution Error:", err);
 }
-${CLOSE_SCRIPT}`
+</script>`
       : "";
 
     const hasBody = html.toLowerCase().includes("<body");
@@ -105,10 +103,10 @@ ${CLOSE_SCRIPT}`
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>${systemStyles}</style>
   ${systemScriptHead}
+  ${userJsBlock}
 </head>
 <body>
-  <div id="user-content-root">${html}</div>
-  ${userJsBlock}
+  ${html}
 </body>
 </html>`;
     }

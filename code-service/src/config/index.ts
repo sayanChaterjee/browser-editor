@@ -8,6 +8,7 @@ interface Config {
   KAFKA_SERVICE_KEY: string;
   KAFKA_SERVICE_CERT: string;
   LOG_LEVEL: string;
+  ADMIN_EMAILS: string[];
 }
 
 export const config: Config = {
@@ -20,6 +21,7 @@ export const config: Config = {
   KAFKA_SERVICE_KEY: process.env.KAFKA_SERVICE_KEY || '',
   KAFKA_SERVICE_CERT: process.env.KAFKA_SERVICE_CERT || '',
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+  ADMIN_EMAILS: (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()),
 };
 
 if (!process.env.DATABASE_URL) {

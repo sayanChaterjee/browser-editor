@@ -20,7 +20,8 @@ export function middleware(request: NextRequest) {
   const isPublicPath =
     pathname === '/' ||
     pathname === '/login' ||
-    pathname === '/register';
+    pathname === '/register' ||
+    pathname === '/admin';
 
   // Redirect to login if no session and trying to access protected routes
   if (!sessionToken && !isPublicPath) {

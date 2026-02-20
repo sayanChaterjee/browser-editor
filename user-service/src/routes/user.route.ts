@@ -2,19 +2,15 @@ import { Router, Request, Response } from 'express';
 import { verifyToken } from '../middlewares/auth.middleware';
 import User from '../models/user.model';
 import logger from '../config/logger';
+import { config } from '../config';
 
 const userRouter = Router();
-
-const ADMIN_EMAILS = [
-  'admin@example.com',
-  'chatterjeesayan1009@gmail.com', // Adding yourself/user by default
-];
 
 userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).userId;
     const userName = (req as any).userName;
-    const userEmail = (req as any).userEmail;
+    const userEmail = ((req as any).userEmail || '').toLowerCase();
 
     let user = await User.findById(userId);
 
@@ -31,7 +27,7 @@ userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Pro
     }
 
     const userData = user.toJSON();
-    const isAdmin = ADMIN_EMAILS.includes(userEmail);
+    const isAdmin = config.ADMIN_EMAILS.includes(userEmail);
 
     res.json({
       ...userData,
@@ -47,9 +43,9 @@ userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Pro
 // GET /all - Get all users (for admin dashboard)
 userRouter.get('/all', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
-    const userEmail = (req as any).userEmail;
+    const userEmail = ((req as any).userEmail || '').toLowerCase();
 
-    if (!ADMIN_EMAILS.includes(userEmail)) {
+    if (!config.ADMIN_EMAILS.includes(userEmail)) {
       logger.warn(`Unauthorized access attempt to /all by ${userEmail}`);
       return res.status(403).json({ message: 'Forbidden: Admin access required' });
     }
