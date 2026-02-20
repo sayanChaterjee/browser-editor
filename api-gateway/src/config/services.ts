@@ -15,21 +15,21 @@ class ServiceProxy {
       // Example: /api/auth/sign-in/google -> /sign-in/google (stripped) -> /api/auth/sign-in/google (rewritten)
       pathRewrite: { '^/': '/api/auth/' },
       name: 'auth-service',
-      timeout: 5000,
+      timeout: 60000,
     },
     {
       path: '/api/v1/user',
       url: config.USER_SERVICE_URL || 'http://localhost:3002',
       pathRewrite: { '^/api/v1/user': '' },
       name: 'user-service',
-      timeout: 5000,
+      timeout: 60000,
     },
     {
       path: '/api/v1/code',
       url: config.CODE_SERVICE_URL || 'http://localhost:3003',
       pathRewrite: { '^/api/v1/code': '' },
       name: 'code-service',
-      timeout: 5000,
+      timeout: 60000,
     },
   ];
 

@@ -355,9 +355,20 @@ codeRouter.delete('/:projectId', verifyToken, async (req: Request, res: Response
 
 // --- ADMIN ROUTES ---
 
+const ADMIN_EMAILS = [
+  'admin@example.com',
+  'chatterjeesayan1009@gmail.com',
+];
+
 // GET /admin/projects/:userId - Get all projects for any user (for admin dashboard)
 codeRouter.get('/admin/projects/:userId', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
+    const userEmail = (req as any).userEmail;
+    if (!ADMIN_EMAILS.includes(userEmail)) {
+      logger.warn(`Unauthorized access attempt to admin projects by ${userEmail}`);
+      return res.status(403).json({ message: 'Forbidden: Admin access required' });
+    }
+
     const { userId } = req.params;
     const projects = await Project.find({ userId }).sort({ updatedAt: -1 });
     res.json(projects);
@@ -370,6 +381,12 @@ codeRouter.get('/admin/projects/:userId', verifyToken, async (req: Request, res:
 // GET /admin/submissions/:userId - Get all submissions for any user (for admin dashboard)
 codeRouter.get('/admin/submissions/:userId', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
+    const userEmail = (req as any).userEmail;
+    if (!ADMIN_EMAILS.includes(userEmail)) {
+      logger.warn(`Unauthorized access attempt to admin submissions by ${userEmail}`);
+      return res.status(403).json({ message: 'Forbidden: Admin access required' });
+    }
+
     const { userId } = req.params;
     const submissions = await Submission.find({ userId }).sort({ createdAt: -1 });
     res.json(submissions);

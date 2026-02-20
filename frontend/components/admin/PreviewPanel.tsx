@@ -13,7 +13,8 @@ export default function PreviewPanel({ html, css, js, projectName }: PreviewPane
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const buildSrcDoc = () => {
-    const CLOSE_SCRIPT = '</' + 'script>';
+    const OPEN_SCRIPT = '\x3cscript\x3e';
+    const CLOSE_SCRIPT = '\x3c/script\x3e';
 
     const systemStyles = `
       body { 
@@ -26,7 +27,7 @@ export default function PreviewPanel({ html, css, js, projectName }: PreviewPane
       ${css}
     `;
 
-    const systemScriptHead = `<script>
+    const systemScriptHead = `${OPEN_SCRIPT}
 (function() {
   function setup() {
     document.addEventListener('contextmenu', function(e) {
@@ -46,7 +47,7 @@ export default function PreviewPanel({ html, css, js, projectName }: PreviewPane
 ${CLOSE_SCRIPT}`;
 
     const userJsBlock = js.trim()
-      ? `<script>
+      ? `${OPEN_SCRIPT}
 try {
   ${js}
 } catch(err) {

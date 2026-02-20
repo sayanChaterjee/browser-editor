@@ -5,10 +5,16 @@ import logger from '../config/logger';
 
 const userRouter = Router();
 
+const ADMIN_EMAILS = [
+  'admin@example.com',
+  'chatterjeesayan1009@gmail.com', // Adding yourself/user by default
+];
+
 userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
     const userId = (req as any).userId;
     const userName = (req as any).userName;
+    const userEmail = (req as any).userEmail;
 
     let user = await User.findById(userId);
 
@@ -23,7 +29,15 @@ userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Pro
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.json(user);
+
+    const userData = user.toJSON();
+    const isAdmin = ADMIN_EMAILS.includes(userEmail);
+
+    res.json({
+      ...userData,
+      email: userEmail,
+      isAdmin
+    });
   } catch (error) {
     logger.error('Error fetching user profile:', error);
     res.status(500).json({ message: 'Server error' });
@@ -33,6 +47,13 @@ userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Pro
 // GET /all - Get all users (for admin dashboard)
 userRouter.get('/all', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
+    const userEmail = (req as any).userEmail;
+
+    if (!ADMIN_EMAILS.includes(userEmail)) {
+      logger.warn(`Unauthorized access attempt to /all by ${userEmail}`);
+      return res.status(403).json({ message: 'Forbidden: Admin access required' });
+    }
+
     const users = await User.find({}).sort({ createdAt: -1 });
     res.json(users);
   } catch (error) {

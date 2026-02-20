@@ -4,6 +4,8 @@ export interface User {
     name: string;
     warningCount: number;
     createdAt: string;
+    email?: string;
+    isAdmin?: boolean;
 }
 
 export interface Submission {

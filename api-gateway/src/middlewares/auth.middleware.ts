@@ -48,6 +48,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
             // Inject user context headers for downstream services - ONLY if valid
             req.headers['x-user-id'] = session.user.id;
             req.headers['x-user-name'] = session.user.name || '';
+            req.headers['x-user-email'] = session.user.email || '';
 
             // Attach to request for convenience
             (req as any).user = session.user;

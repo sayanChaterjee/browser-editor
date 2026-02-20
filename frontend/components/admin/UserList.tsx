@@ -1,6 +1,6 @@
 'use client';
 
-import { User } from '@/lib/api';
+import { User } from '@/lib/adminApi';
 
 interface UserListProps {
   users: User[];
@@ -81,7 +81,7 @@ export default function UserList({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-gray-500 font-mono truncate max-w-[160px]">
-                  {user._id.slice(0, 16)}...
+                  {user.email || user._id.slice(0, 16) + '...'}
                 </span>
                 <span className="text-[10px] text-gray-600">
                   {new Date(user.createdAt).toLocaleDateString()}

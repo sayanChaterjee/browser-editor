@@ -13,8 +13,9 @@ export default function Preview({ html, css, js }: Props) {
 
   // Build srcDoc with properly isolated system scripts in <head>
   const buildSrcDoc = () => {
-    // Use a safe closing tag that won't be misinterpreted by the HTML parser in srcDoc
-    const CLOSE_SCRIPT = '</' + 'script>';
+    // Use hex-escaped strings for script tags to prevent any potential parsing issues
+    const OPEN_SCRIPT = '\x3cscript\x3e';
+    const CLOSE_SCRIPT = '\x3c/script\x3e';
 
     const systemStyles = `
       body { 
@@ -28,7 +29,7 @@ export default function Preview({ html, css, js }: Props) {
     `;
 
     // System scripts moved to head and wrapped in DOMContentLoaded to prevent rendering issues
-    const systemScriptHead = `<script>
+    const systemScriptHead = `${OPEN_SCRIPT}
 (function() {
   function setup() {
     document.addEventListener('contextmenu', function(e) {
@@ -61,7 +62,7 @@ ${CLOSE_SCRIPT}`;
 
     // User JS runs in a separate script block
     const userJsBlock = js.trim()
-      ? `<script>
+      ? `${OPEN_SCRIPT}
 try {
   ${js}
 } catch(err) {

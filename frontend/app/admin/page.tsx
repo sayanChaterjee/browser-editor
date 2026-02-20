@@ -8,11 +8,13 @@ import {
   fetchAllUsers, 
   fetchUserProjectsAdmin, 
   fetchUserSubmissionsAdmin 
-} from '@/lib/api';
-import UserList from '@/components/UserList';
-import PreviewPanel from '@/components/PreviewPanel';
+} from '@/lib/adminApi';
+import UserList from '@/components/admin/UserList';
+import PreviewPanel from '@/components/admin/PreviewPanel';
+import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,11 +26,27 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
-  // Initial fetch of all users
+  // Initial fetch of all users and check authorization
   useEffect(() => {
     const init = async () => {
       try {
+        // Fetch current user profile to check isAdmin flag
+        const profileRes = await fetch('/api/v1/user/profile', { credentials: 'include' });
+        if (!profileRes.ok) {
+           router.push('/login');
+           return;
+        }
+        const profile = await profileRes.json();
+        
+        if (!profile.isAdmin) {
+          setIsAuthorized(false);
+          setLoading(false);
+          return;
+        }
+
+        setIsAuthorized(true);
         const userData = await fetchAllUsers();
         setUsers(userData);
       } catch (err) {
@@ -39,7 +57,7 @@ export default function AdminDashboard() {
       }
     };
     init();
-  }, []);
+  }, [router]);
 
   // Fetch projects/submissions when user is selected
   useEffect(() => {
@@ -84,6 +102,28 @@ export default function AdminDashboard() {
     );
   }
 
+  if (isAuthorized === false) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0a0e1a] text-gray-400 p-8 text-center">
+        <div className="max-w-md flex flex-col items-center gap-6">
+          <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 text-4xl shadow-lg shadow-red-900/10">
+            🔒
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Access Restricted</h1>
+          <p className="text-gray-500 text-sm leading-relaxed">
+            This terminal is reserved for administrative personnel. Your account does not have the necessary clearance to view user data.
+          </p>
+          <button 
+            onClick={() => router.push('/editor')}
+            className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium border border-gray-700"
+          >
+            Return to Editor
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-[#0a0e1a] text-gray-200 overflow-hidden font-sans">
       {/* Left Sidebar: User List */}
@@ -94,7 +134,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <h1 className="text-sm font-bold tracking-tight text-white uppercase">Admin Console</h1>
-            <p className="text-[10px] text-gray-500 font-medium">Browser Editor v2.0</p>
+            <p className="text-[10px] text-gray-500 font-medium">Internal Security Protocol</p>
           </div>
         </div>
         
@@ -121,7 +161,7 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-white tracking-tight">{selectedUser.name}</h2>
-                  <p className="text-[11px] text-gray-500 font-mono">{selectedUser._id}</p>
+                  <p className="text-[11px] text-gray-500 font-mono italic">{selectedUser.email}</p>
                 </div>
               </div>
               
@@ -207,7 +247,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Preview Panel */}
-              <div className="flex-1 bg-[#1e1e1e] relative">
+              <div className="flex-1 bg-white relative">
                 {selectedActivity ? (
                   <PreviewPanel 
                     html={selectedActivity.html}
@@ -231,19 +271,19 @@ export default function AdminDashboard() {
             <div className="relative mb-8">
               <div className="absolute inset-0 bg-cyan-500/20 blur-3xl rounded-full"></div>
               <div className="relative w-24 h-24 rounded-3xl bg-gray-900 border border-gray-800 flex items-center justify-center shadow-2xl">
-                <span className="text-4xl">👥</span>
+                <span className="text-4xl text-cyan-400">🛡️</span>
               </div>
             </div>
-            <h2 className="text-xl font-bold text-white mb-2 tracking-tight">User Management Terminal</h2>
+            <h2 className="text-xl font-bold text-white mb-2 tracking-tight">Integrated Admin Terminal</h2>
             <p className="text-gray-500 max-w-sm text-sm">
-              Select a user from the left column to view their details, warning history, and project code live from the persistent storage.
+              Monitoring user activity, warnings, and persistence across Redis, MongoDB, and IndexedDB. Select a user to begin audit.
             </p>
             <div className="mt-8 flex gap-3">
               <div className="px-4 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                Storage: Redis | Mongo | IDB
+                Storage: Multi-Node | PERSISTENT
               </div>
               <div className="px-4 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                Status: System Online
+                Status: Audit Ready
               </div>
             </div>
           </div>
