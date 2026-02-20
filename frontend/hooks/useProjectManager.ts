@@ -23,6 +23,7 @@ interface UseProjectManagerProps {
     setIsContestPending: (pending: boolean) => void;
     setTimeLeft: (time: number) => void;
     setIgnoreNextBlur?: (val: boolean) => void;
+    showToast?: (message: string, type: "success" | "error" | "warning" | "info") => void;
 }
 
 export function useProjectManager({
@@ -33,6 +34,7 @@ export function useProjectManager({
     setIsContestPending,
     setTimeLeft,
     setIgnoreNextBlur,
+    showToast,
 }: UseProjectManagerProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -54,6 +56,12 @@ export function useProjectManager({
     const [lastSyncedHtml, setLastSyncedHtml] = useState("");
     const [lastSyncedCss, setLastSyncedCss] = useState("");
     const [lastSyncedJs, setLastSyncedJs] = useState("");
+
+    const notify = (message: string, type: "success" | "error" | "warning" | "info" = "info") => {
+        if (showToast) {
+            showToast(message, type);
+        }
+    };
 
     useEffect(() => {
         const initData = async () => {
@@ -100,8 +108,6 @@ export function useProjectManager({
                         if (requestedProjectId) {
                             const found = data.find((p) => p._id === requestedProjectId);
                             if (found) {
-                                // Fetch full details to ensure we have the latest code, 
-                                // especially if the list was stale due to flusher delay
                                 try {
                                     const fullRes = await fetch(
                                         `/api/v1/code/${requestedProjectId}`,
@@ -136,7 +142,7 @@ export function useProjectManager({
                                             setTimeLeft(fullProject.timeLeft);
                                         }
                                         setIsLoading(false);
-                                        return; // Skip the default behavior below
+                                        return;
                                     }
                                 } catch (err) {
                                     console.error("Failed to fetch full project details", err);
@@ -191,7 +197,6 @@ export function useProjectManager({
     useEffect(() => {
         if (!projectId || isLoading) return;
 
-        // Don't sync if nothing changed since last sync
         if (html === lastSyncedHtml && css === lastSyncedCss && js === lastSyncedJs) {
             return;
         }
@@ -224,12 +229,21 @@ export function useProjectManager({
             } catch (err) {
                 console.error("Auto-sync failed:", err);
             }
-        }, 1500); // 1.5s debounce to minimize requests while typing
+        }, 1500);
 
         return () => clearTimeout(syncDebounce);
     }, [html, css, js, projectId, isLoading, lastSyncedHtml, lastSyncedCss, lastSyncedJs]);
 
     const handleCreateProject = async (name: string) => {
+        // Check for duplicate project name
+        const isDuplicate = projects.some(
+            (p) => p.name.toLowerCase() === name.toLowerCase()
+        );
+        if (isDuplicate) {
+            notify(`A project named "${name}" already exists. Please choose a different name.`, "error");
+            return;
+        }
+
         setIsCreatingProject(true);
 
         try {
@@ -258,9 +272,9 @@ export function useProjectManager({
                     setCss(INITIAL_CSS);
                     setJs(INITIAL_JS);
                     setProjectId(project_id);
-                    setProjects([newData]);
+                    setProjects((prev) => [...prev, newData]);
                     if (setIgnoreNextBlur) setIgnoreNextBlur(true);
-                    alert(`Project "${name}" created successfully!`);
+                    notify(`Project "${name}" created successfully!`, "success");
 
                     if (isContestPending) {
                         onContestStart();
@@ -268,16 +282,16 @@ export function useProjectManager({
                     }
                 } else {
                     if (setIgnoreNextBlur) setIgnoreNextBlur(true);
-                    alert("Project created but missing ID");
+                    notify("Project created but missing ID. Please try again.", "warning");
                 }
             } else {
                 const errorText = await res.text();
                 if (setIgnoreNextBlur) setIgnoreNextBlur(true);
-                alert(`Failed to create project: ${res.status} ${errorText}`);
+                notify(`Failed to create project: ${errorText}`, "error");
             }
         } catch (error) {
             if (setIgnoreNextBlur) setIgnoreNextBlur(true);
-            alert("Network error while creating project.");
+            notify("Network error while creating project.", "error");
         } finally {
             setIsCreatingProject(false);
             setShowCreateModal(false);
@@ -308,14 +322,14 @@ export function useProjectManager({
                 const project_id = data._id || data.id;
                 if (project_id) setProjectId(project_id);
                 if (setIgnoreNextBlur) setIgnoreNextBlur(true);
-                alert("Code saved successfully!");
+                notify("Code saved successfully!", "success");
             } else {
                 throw new Error("Save failed");
             }
         } catch (error) {
             console.error("Failed to save code", error);
             if (setIgnoreNextBlur) setIgnoreNextBlur(true);
-            alert("Failed to save code. Please check your connection.");
+            notify("Failed to save code. Please check your connection.", "error");
         }
     };
 

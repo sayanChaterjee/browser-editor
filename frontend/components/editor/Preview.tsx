@@ -11,96 +11,91 @@ type Props = {
 export default function Preview({ html, css, js }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Intelligent srcDoc generation
-  let srcDoc = "";
-  const hasBody = html.toLowerCase().includes("<body");
+  // Build srcDoc with properly isolated system scripts
+  const buildSrcDoc = () => {
+    const systemStyles = `
+      body { 
+        margin: 0; 
+        padding: 16px; 
+        font-family: sans-serif; 
+        background-color: white;
+        color: black;
+      }
+      ${css}
+    `;
 
-  const systemStyles = `
-    body { 
-      margin: 0; 
-      padding: 16px; 
-      font-family: sans-serif; 
-      background-color: white;
-      color: black;
+    // System scripts run inside a proper <script> block — never rendered as text
+    const systemScriptBlock = `<script>
+(function() {
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      window.parent.postMessage({ type: 'CONTEST_VIOLATION', reason: 'TAB_SWITCH', timestamp: new Date().toISOString() }, '*');
     }
-    ${css}
-  `;
-
-  const systemScripts = `
-    // System Injection: Visibility Change Listener (Anti-Cheating)
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            window.parent.postMessage({ 
-                type: 'CONTEST_VIOLATION', 
-                reason: 'TAB_SWITCH',
-                timestamp: new Date().toISOString()
-            }, '*');
-        }
-    });
-
-    // Security: Prevent navigation via links
-    document.addEventListener('click', (e) => {
-        const link = e.target.closest('a');
-        if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
-            e.preventDefault();
-            window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
-        }
-    }, true);
-
-    window.onerror = (msg, url, lineNo, columnNo, error) => {
-        console.error("Preview Error:", msg, error);
-        return false;
-    };
-
-    window.onload = () => {
-        try {
-            // Safely inject user JS
-            ${JSON.stringify(js)}.split('\\n').join('\\n'); 
-            // The above is a trick to get the string, but better is:
-            eval(${JSON.stringify(js)});
-        } catch (err) {
-            console.error("Execution Error:", err);
-        }
-    };
-  `;
-
-  if (hasBody) {
-    // Inject scripts and styles into the existing document
-    srcDoc = html;
-    
-    if (srcDoc.toLowerCase().includes("</head>")) {
-        srcDoc = srcDoc.replace(/<\/head>/i, `<style>${systemStyles}</style></head>`);
-    } else if (srcDoc.toLowerCase().includes("<html")) {
-        srcDoc = srcDoc.replace(/<html[^>]*>/i, `$&<head><style>${systemStyles}</style></head>`);
+  });
+  document.addEventListener('click', function(e) {
+    var link = e.target.closest('a');
+    if (link && link.getAttribute('href') && link.getAttribute('href') !== '#') {
+      e.preventDefault();
+      window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
     }
+  }, true);
+  window.onerror = function(msg, url, lineNo, columnNo, error) {
+    console.error("Preview Error:", msg, error);
+    return false;
+  };
+})();
+<\/script>`;
 
-    if (srcDoc.toLowerCase().includes("</body>")) {
-        srcDoc = srcDoc.replace(/<\/body>/i, `<script>${systemScripts}</script></body>`);
+    // User JS runs in a separate script block with error handling
+    const userJsBlock = js.trim()
+      ? `<script>
+try {
+  ${js}
+} catch(err) {
+  console.error("Execution Error:", err);
+}
+<\/script>`
+      : "";
+
+    const hasBody = html.toLowerCase().includes("<body");
+
+    if (hasBody) {
+      let doc = html;
+
+      // Inject system styles into <head>
+      if (doc.toLowerCase().includes("</head>")) {
+        doc = doc.replace(/<\/head>/i, `<style>${systemStyles}</style></head>`);
+      } else if (doc.toLowerCase().includes("<html")) {
+        doc = doc.replace(/<html[^>]*>/i, `$&<head><style>${systemStyles}</style></head>`);
+      }
+
+      // Inject system scripts + user JS before </body>
+      if (doc.toLowerCase().includes("</body>")) {
+        doc = doc.replace(/<\/body>/i, `${systemScriptBlock}${userJsBlock}</body>`);
+      } else {
+        doc += `${systemScriptBlock}${userJsBlock}`;
+      }
+
+      return doc;
     } else {
-        srcDoc += `<script>${systemScripts}</script>`;
-    }
-  } else {
-    // Use boilerplate for fragments
-    // Wrap user HTML in a div to prevent unclosed tags (like <h1) from swallowing the script tag
-    // Also using a safer way to construct srcDoc that doesn't rely on nested backticks
-    const htmlBoilerplate = `<!DOCTYPE html>
+      // Boilerplate mode for HTML fragments
+      return `<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>\${systemStyles}</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>${systemStyles}</style>
 </head>
 <body>
-    <div id="user-content-root">\${html}</div>
-    <script>\${systemScripts}</script>
+  <div id="user-content-root">${html}</div>
+  ${systemScriptBlock}
+  ${userJsBlock}
 </body>
 </html>`;
+    }
+  };
 
-    srcDoc = htmlBoilerplate
-        .replace('\${systemStyles}', systemStyles)
-        .replace('\${html}', html)
-        .replace('\${systemScripts}', systemScripts);
-  }
+  const srcDoc = buildSrcDoc();
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {

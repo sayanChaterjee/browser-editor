@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import ToastNotification, { useToast } from "@/components/ui/ToastNotification";
 
 interface Project {
   _id: string;
@@ -21,6 +23,8 @@ export default function ProfilePage() {
   
   const [projects, setProjects] = useState<Project[]>([]);
   const [fetchingProjects, setFetchingProjects] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { toasts, showToast, dismissToast } = useToast();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -35,10 +39,9 @@ export default function ProfilePage() {
 
     const fetchProjects = async () => {
       try {
-        // Fetch with credentials (cookies) - no Authorization header needed
         const projRes = await fetch(`/api/v1/code`, {
-          credentials: 'include', // Include cookies
-          cache: 'no-store', // Disable browser-side/Next.js caching for this request
+          credentials: 'include',
+          cache: 'no-store',
         });
         
         if (projRes.ok) {
@@ -59,20 +62,26 @@ export default function ProfilePage() {
   }, [user, pathname]);
 
   const deleteProject = async (projectId: string) => {
-    if (!confirm("Are you sure you want to delete this project?")) return;
-
     try {
       const res = await fetch(`/api/v1/code/${projectId}`, {
         method: 'DELETE',
-        credentials: 'include', // Include cookies
+        credentials: 'include',
       });
       
       if (res.ok) {
         setProjects(projects.filter(p => p._id !== projectId));
-        alert("Project deleted successfully");
+        showToast("Project deleted successfully", "success");
       }
     } catch (err) {
       console.error("Delete failed", err);
+      showToast("Failed to delete project", "error");
+    }
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteTarget) {
+      deleteProject(deleteTarget);
+      setDeleteTarget(null);
     }
   };
 
@@ -90,6 +99,19 @@ export default function ProfilePage() {
 
   return (
     <div className="py-10 px-5 max-w-[1000px] mx-auto min-h-[calc(100vh-56px)]">
+      <ToastNotification toasts={toasts} onDismiss={dismissToast} />
+      
+      <ConfirmModal
+        isVisible={!!deleteTarget}
+        title="Delete Project"
+        message="Are you sure you want to delete this project? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
       <div className="bg-gradient-to-br from-[#1e293b] to-[#0f172a] p-10 rounded-[24px] border border-[#334155] mb-10 text-center shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
         <div className="w-[100px] h-[100px] bg-gradient-to-br from-[#38bdf8] to-[#2563eb] rounded-full flex items-center justify-center text-[42px] font-bold text-white mx-auto mb-5 shadow-[0_0_25px_rgba(56,189,248,0.4)]">
           {user.name?.[0]?.toUpperCase() || 'U'}
@@ -164,7 +186,7 @@ export default function ProfilePage() {
                       Open in Editor
                     </button>
                     <button 
-                        onClick={() => deleteProject(proj._id)}
+                        onClick={() => setDeleteTarget(proj._id)}
                         className="bg-red-500/10 text-red-500 border border-red-500/20 px-[15px] py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition-all hover:bg-red-500/20 active:scale-95"
                     >
                       Delete

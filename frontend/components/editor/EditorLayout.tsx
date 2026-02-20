@@ -14,6 +14,8 @@ import SecurityWarningModal from "./SecurityWarningModal";
 import EditorToolbar from "./EditorToolbar";
 import FileTabs from "./FileTabs";
 import { clearLocalProjects } from "../../lib/indexedDB";
+import ToastNotification, { useToast } from "../ui/ToastNotification";
+import ConfirmModal from "../ui/ConfirmModal";
 
 // Hooks
 import { useProjectManager } from "../../hooks/useProjectManager";
@@ -30,6 +32,9 @@ export default function EditorLayout() {
   const [contestStarted, setContestStarted] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [isContestPending, setIsContestPending] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+
+  const { toasts, showToast, dismissToast } = useToast();
 
   const logoutUser = async () => {
     stopTimer();
@@ -46,7 +51,7 @@ export default function EditorLayout() {
     formatTime,
   } = useContestTimer(CONTEST_DURATION, () => {
     setIgnoreNextBlur(true);
-    alert("Time's up!");
+    showToast("Time's up! Your session has ended.", "warning");
     logoutUser();
   });
 
@@ -96,6 +101,7 @@ export default function EditorLayout() {
     setIsContestPending,
     setTimeLeft,
     setIgnoreNextBlur,
+    showToast,
   });
 
   const { saveToIDB } = useEditorPersistence({
@@ -120,16 +126,14 @@ export default function EditorLayout() {
       startTimer();
     } catch {
       setIgnoreNextBlur(true);
-      alert("Fullscreen is required.");
+      showToast("Fullscreen is required to start the contest.", "error");
     }
   };
 
   const startContest = async () => {
-    // Check if we have a project loaded
     if (projectId) {
         handleContestStart();
     } else {
-        // No project, show modal but it's for starting contest
         setIsContestPending(true);
         setIsModalCancelable(true);
         setShowCreateModal(true);
@@ -147,63 +151,82 @@ export default function EditorLayout() {
     setIsContestPending(false);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmitRequest = () => {
     if (!contestStarted) return;
-    
+    setIgnoreNextBlur(true);
+    setShowSubmitConfirm(true);
+  };
+
+  const handleSubmitConfirm = async () => {
+    setShowSubmitConfirm(false);
     isQuittingRef.current = true;
     setIgnoreNextBlur(true);
 
-    if (confirm("Are you sure you want to submit? This will save your progress and exit.")) {
-      try {
-        // First save to standard save endpoint
-        await saveCode({ html, css, js, timeLeft });
+    try {
+      await saveCode({ html, css, js, timeLeft });
 
-        // Then submit to snapshot endpoint
-        const res = await fetch(`/api/v1/code/submit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: 'include',
-          body: JSON.stringify({ projectId, html, css, js, timeLeft }),
-        });
+      const res = await fetch(`/api/v1/code/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({ projectId, html, css, js, timeLeft }),
+      });
 
-        if (res.ok) {
-          alert("Project submitted successfully! Your progress has been saved.");
-        }
-      } catch (err) {
-        console.error("Submission/Save failed", err);
-      } finally {
-        if (document.fullscreenElement) {
-          try {
-            await document.exitFullscreen();
-          } catch (err) {
-            console.error("Error exiting fullscreen:", err);
-          }
-        }
-
-        setHtml("");
-        setCss("");
-        setJs("");
-        setContestStarted(false);
-        stopTimer();
-        setTimeLeft(CONTEST_DURATION);
-        
-        logoutUser();
+      if (res.ok) {
+        showToast("Project submitted successfully! Your progress has been saved.", "success");
       }
+    } catch (err) {
+      console.error("Submission/Save failed", err);
+    } finally {
+      if (document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch (err) {
+          console.error("Error exiting fullscreen:", err);
+        }
+      }
+
+      setHtml("");
+      setCss("");
+      setJs("");
+      setContestStarted(false);
+      stopTimer();
+      setTimeLeft(CONTEST_DURATION);
+      
+      logoutUser();
     }
 
     isQuittingRef.current = false;
   };
 
+  const handleSubmitCancel = () => {
+    setShowSubmitConfirm(false);
+    isQuittingRef.current = false;
+  };
+
   return (
     <div className="h-[calc(100vh-56px)] flex flex-col select-none" onContextMenu={(e) => e.preventDefault()}>
+      <ToastNotification toasts={toasts} onDismiss={dismissToast} />
+
+      <ConfirmModal
+        isVisible={showSubmitConfirm}
+        title="Submit & Exit"
+        message="Are you sure you want to submit? This will save your progress and exit the contest."
+        confirmText="Submit"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleSubmitConfirm}
+        onCancel={handleSubmitCancel}
+      />
+
       <SecurityWarningModal 
         isVisible={showWarningModal}
         strikeCount={strikeCount}
         MAX_WARNINGS={MAX_WARNINGS}
         onResume={resumeContest}
-        onSubmit={handleSubmit}
+        onSubmit={handleSubmitRequest}
       />
 
       {showCreateModal && (
@@ -212,6 +235,7 @@ export default function EditorLayout() {
           onCancel={handleCancelCreate}
           isCreating={isCreatingProject} 
           isCancelable={isModalCancelable}
+          existingProjectNames={projects.map((p) => p.name)}
         />
       )}
 
@@ -252,7 +276,7 @@ export default function EditorLayout() {
                 setIgnoreNextBlur(true);
                 saveCode({ html, css, js, timeLeft });
             }}
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmitRequest}
           />
           <div className="flex-1 overflow-hidden">
             {showQuestion ? (

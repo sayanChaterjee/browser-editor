@@ -6,6 +6,7 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [formMessage, setFormMessage] = useState<{ text: string; type: "error" | "success" } | null>(null);
 
   const [errors, setErrors] = useState({
     username: "",
@@ -50,6 +51,7 @@ const validatePassword = (value: string) => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormMessage(null);
 
     const newErrors = {
       username: validateUsername(username),
@@ -72,15 +74,17 @@ const validatePassword = (value: string) => {
       });
 
       if (result.error) {
-        alert(result.error.message || "Registration failed");
+        setFormMessage({ text: result.error.message || "Registration failed", type: "error" });
         return;
       }
 
-      alert("Registration successful 🎉");
-      window.location.href = "/editor";
+      setFormMessage({ text: "Registration successful 🎉 Redirecting...", type: "success" });
+      setTimeout(() => {
+        window.location.href = "/editor";
+      }, 1000);
     } catch (error) {
       console.warn("Registration attempt failed:", error);
-      alert("Server error");
+      setFormMessage({ text: "Server error. Please try again later.", type: "error" });
     }
   };
 
@@ -98,6 +102,16 @@ const validatePassword = (value: string) => {
 
         <h2 className="mb-5 tracking-[2px] font-bold text-white text-lg">CREATE ACCOUNT</h2>
 
+        {formMessage && (
+          <div className={`mb-4 px-3 py-2.5 rounded-lg text-sm font-medium text-left ${
+            formMessage.type === "error" 
+              ? "bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#fca5a5]" 
+              : "bg-[#10b981]/10 border border-[#10b981]/30 text-[#6ee7b7]"
+          }`}>
+            {formMessage.text}
+          </div>
+        )}
+
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
             <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">
@@ -110,6 +124,7 @@ const validatePassword = (value: string) => {
                 onChange={(e) => {
                   setUsername(e.target.value);
                   setErrors({ ...errors, username: validateUsername(e.target.value) });
+                  setFormMessage(null);
                 }}
               />
             </div>
@@ -129,6 +144,7 @@ const validatePassword = (value: string) => {
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setErrors({ ...errors, password: validatePassword(e.target.value) });
+                  setFormMessage(null);
                 }}
               />
             </div>
@@ -146,6 +162,7 @@ const validatePassword = (value: string) => {
                 onChange={(e) => {
                   setConfirm(e.target.value);
                   setErrors({ ...errors, confirm: validateConfirm(e.target.value) });
+                  setFormMessage(null);
                 }}
               />
             </div>

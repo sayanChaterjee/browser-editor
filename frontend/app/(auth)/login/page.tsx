@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({ username: "", password: "" });
+  const [formMessage, setFormMessage] = useState<{ text: string; type: "error" | "success" } | null>(null);
 
   const router = useRouter();
   const { data: session, isPending } = useSession();
@@ -33,6 +34,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
+    setFormMessage(null);
+
     const newErrors = {
       username: validateUsername(username),
       password: validatePassword(password),
@@ -59,7 +62,7 @@ export default function LoginPage() {
 
       if (result?.error) {
         console.error("Login error:", result.error);
-        alert(result.error.message || "Invalid login credentials");
+        setFormMessage({ text: result.error.message || "Invalid login credentials", type: "error" });
         setIsLoading(false);
         return;
       }
@@ -79,12 +82,12 @@ export default function LoginPage() {
         }
       } else {
         console.error("Unexpected response:", result);
-        alert("Login failed - unexpected response");
+        setFormMessage({ text: "Login failed — unexpected response", type: "error" });
         setIsLoading(false);
       }
     } catch (error) {
       console.error('Login attempt failed:', error);
-      alert("Server error: " + (error instanceof Error ? error.message : String(error)));
+      setFormMessage({ text: "Server error: " + (error instanceof Error ? error.message : String(error)), type: "error" });
       setIsLoading(false);
     }
   };
@@ -108,6 +111,16 @@ export default function LoginPage() {
         </div>
         <h2 className="mb-5 tracking-[2px] font-bold text-white">MEMBER LOGIN</h2>
 
+        {formMessage && (
+          <div className={`mb-4 px-3 py-2.5 rounded-lg text-sm font-medium text-left ${
+            formMessage.type === "error" 
+              ? "bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#fca5a5]" 
+              : "bg-[#10b981]/10 border border-[#10b981]/30 text-[#6ee7b7]"
+          }`}>
+            {formMessage.text}
+          </div>
+        )}
+
         <div className="flex items-center bg-[#2a2a2a] rounded-[5px] mb-[15px] padding-[10px] p-2.5">
           <span className="mr-2">👤</span>
           <input
@@ -118,6 +131,7 @@ export default function LoginPage() {
             onChange={(e) => {
               setUsername(e.target.value);
               setErrors({ ...errors, username: validateUsername(e.target.value) });
+              setFormMessage(null);
             }}
           />
         </div>
@@ -133,6 +147,7 @@ export default function LoginPage() {
             onChange={(e) => {
               setPassword(e.target.value);
               setErrors({ ...errors, password: validatePassword(e.target.value) });
+              setFormMessage(null);
             }}
           />
         </div>

@@ -7,21 +7,43 @@ interface CreateProjectModalProps {
   onCancel?: () => void;
   isCreating?: boolean;
   isCancelable?: boolean;
+  existingProjectNames?: string[];
 }
 
 export default function CreateProjectModal({ 
   onSubmit, 
   onCancel, 
   isCreating = false,
-  isCancelable = true 
+  isCancelable = true,
+  existingProjectNames = [],
 }: CreateProjectModalProps) {
   const [projectName, setProjectName] = useState("");
+  const [duplicateError, setDuplicateError] = useState("");
+
+  const checkDuplicate = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setDuplicateError("");
+      return false;
+    }
+    const isDuplicate = existingProjectNames.some(
+      (existing) => existing.toLowerCase() === trimmed.toLowerCase()
+    );
+    setDuplicateError(isDuplicate ? `A project named "${trimmed}" already exists` : "");
+    return isDuplicate;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (projectName.trim()) {
-      onSubmit(projectName.trim());
-    }
+    const trimmed = projectName.trim();
+    if (!trimmed) return;
+    if (checkDuplicate(trimmed)) return;
+    onSubmit(trimmed);
+  };
+
+  const handleChange = (value: string) => {
+    setProjectName(value);
+    checkDuplicate(value);
   };
 
   return (
@@ -38,11 +60,19 @@ export default function CreateProjectModal({
           <input
             type="text"
             value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
+            onChange={(e) => handleChange(e.target.value)}
             placeholder="e.g., My Awesome Website"
             autoFocus
-            className="w-full px-[18px] py-3.5 text-base bg-[#0f172a] border-2 border-[#334155] rounded-[10px] text-[#f8fafc] outline-none mb-6 transition-colors focus:border-[#38bdf8]"
+            className={`w-full px-[18px] py-3.5 text-base bg-[#0f172a] border-2 rounded-[10px] text-[#f8fafc] outline-none transition-colors focus:border-[#38bdf8] ${
+              duplicateError ? "border-[#ef4444] focus:border-[#ef4444]" : "border-[#334155]"
+            } ${duplicateError ? "mb-2" : "mb-6"}`}
           />
+          
+          {duplicateError && (
+            <p className="text-[#ef4444] text-xs mb-4 flex items-center gap-1.5">
+              <span>⚠</span> {duplicateError}
+            </p>
+          )}
 
           <div className="flex gap-3">
             {onCancel && isCancelable && (
@@ -57,11 +87,11 @@ export default function CreateProjectModal({
             )}
             <button
               type="submit"
-              disabled={!projectName.trim() || isCreating}
+              disabled={!projectName.trim() || isCreating || !!duplicateError}
               className={`py-3 rounded-[10px] text-white text-[15px] font-bold transition-all flex items-center justify-center gap-2 ${
                 onCancel && isCancelable ? "flex-[2]" : "flex-1"
               } ${
-                projectName.trim() && !isCreating
+                projectName.trim() && !isCreating && !duplicateError
                   ? "bg-gradient-to-r from-[#38bdf8] to-[#2563eb] cursor-pointer shadow-[0_4px_14px_rgba(56,189,248,0.4)] hover:opacity-90 active:scale-95" 
                   : "bg-[#334155] cursor-not-allowed"
               }`}

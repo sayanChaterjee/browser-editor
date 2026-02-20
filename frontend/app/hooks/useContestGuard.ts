@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-export function useContestGuard(onTerminate: () => void) {
+export function useContestGuard(onTerminate: () => void, onWarning?: () => void) {
   const strikes = useRef(0);
 
   useEffect(() => {
@@ -12,14 +12,14 @@ export function useContestGuard(onTerminate: () => void) {
       if (strikes.current >= 2) {
         onTerminate();
       } else {
-        alert("⚠ Do not exit fullscreen or switch tabs!");
+        if (onWarning) onWarning();
         requestFS();
       }
     };
 
     const requestFS = () => {
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
+        document.documentElement.requestFullscreen().catch(() => { });
       }
     };
 
@@ -42,5 +42,5 @@ export function useContestGuard(onTerminate: () => void) {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
     };
-  }, [onTerminate]);
+  }, [onTerminate, onWarning]);
 }
