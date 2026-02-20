@@ -216,7 +216,7 @@ export default function EditorLayout() {
   };
 
   return (
-    <div className="h-[calc(100vh-56px)] flex flex-col select-none" onContextMenu={(e) => e.preventDefault()}>
+    <div className="h-[calc(100vh-56px)] flex flex-col" onContextMenu={(e) => e.preventDefault()}>
       <ToastNotification toasts={toasts} onDismiss={dismissToast} />
 
       <ConfirmModal
