@@ -19,6 +19,7 @@ userRouter.get('/profile', verifyToken, async (req: Request, res: Response): Pro
       user = await User.create({
         _id: userId,
         name: userName || 'User',
+        email: userEmail || undefined
       });
     }
 
