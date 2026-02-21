@@ -169,10 +169,11 @@ export default function AdminDashboard() {
                 <div className="flex flex-col items-end">
                   <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Warnings</span>
                   <span className={`text-sm font-bold ${
-                    selectedUser.warningCount >= 3 ? 'text-red-400' : 
-                    selectedUser.warningCount > 0 ? 'text-amber-400' : 'text-emerald-400'
+                    !selectedActivity ? 'text-gray-500' :
+                    (selectedActivity.warningCount || 0) >= 3 ? 'text-red-400' : 
+                    (selectedActivity.warningCount || 0) > 0 ? 'text-amber-400' : 'text-emerald-400'
                   }`}>
-                    {selectedUser.warningCount} / 4
+                    {selectedActivity ? `${selectedActivity.warningCount || 0} / 4` : '-'}
                   </span>
                 </div>
                 <div className="h-8 w-[1px] bg-gray-800"></div>
@@ -224,25 +225,35 @@ export default function AdminDashboard() {
                   <div className="mt-4 p-4 border-b border-gray-800 bg-gray-900/20 mb-2">
                     <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Previous Submissions</h3>
                   </div>
-                  {submissions.map((s) => (
-                    <button
-                      key={s._id}
-                      onClick={() => setSelectedActivity(s)}
-                      className={`w-full text-left px-4 py-3 rounded-lg mb-1 transition-all group ${
-                        selectedActivity?._id === s._id 
-                          ? 'bg-emerald-500/10 ring-1 ring-emerald-500/30' 
-                          : 'hover:bg-gray-800/40'
-                      }`}
-                    >
-                      <div className="text-xs font-semibold text-gray-200 group-hover:text-white mb-1 truncate">
-                        Submission {s._id.slice(-6)}
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-gray-500">
-                        <span className="text-emerald-500/80 uppercase font-bold tracking-tighter">Final</span>
-                        <span>{new Date(s.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
-                      </div>
-                    </button>
-                  ))}
+                  {submissions.map((s) => {
+                    const minutes = Math.floor(s.timeLeft / 60);
+                    const seconds = s.timeLeft % 60;
+                    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    return (
+                      <button
+                        key={s._id}
+                        onClick={() => setSelectedActivity(s)}
+                        className={`w-full text-left px-4 py-3 rounded-lg mb-1 transition-all group ${
+                          selectedActivity?._id === s._id 
+                            ? 'bg-emerald-500/10 ring-1 ring-emerald-500/30' 
+                            : 'hover:bg-gray-800/40'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="text-xs font-semibold text-gray-200 group-hover:text-white truncate flex items-center gap-2">
+                            <span>Submission {s._id.slice(-6)}</span>
+                            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                              ⏱ {formattedTime} left
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-gray-500">
+                          <span className="text-emerald-500/80 uppercase font-bold tracking-tighter">Final</span>
+                          <span>{new Date(s.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

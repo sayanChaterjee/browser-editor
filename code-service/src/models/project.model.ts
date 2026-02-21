@@ -7,6 +7,7 @@ export interface IProject extends Document {
   css: string;
   js: string;
   timeLeft: number;
+  warningCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +19,7 @@ const ProjectSchema: Schema = new Schema({
   css: { type: String, default: '' },
   js: { type: String, default: '' },
   timeLeft: { type: Number, default: 180 * 60 },
+  warningCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
 // Allow multiple projects per user, but unique name per user

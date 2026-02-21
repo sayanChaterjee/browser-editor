@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
@@ -53,34 +53,6 @@ export default function EditorLayout() {
   };
 
   const {
-    timeLeft,
-    setTimeLeft,
-    startTimer,
-    stopTimer,
-    formatTime,
-  } = useContestTimer(CONTEST_DURATION, () => {
-    setIgnoreNextBlur(true);
-    showToast("Time's up! Your session has ended.", "warning");
-    logoutUser();
-  });
-
-  const {
-    strikeCount,
-    setStrikeCount,
-    violate,
-    resumeContest,
-    isQuittingRef,
-    setIgnoreNextBlur,
-  } = useContestSecurity({
-    contestStarted,
-    maxWarnings: MAX_WARNINGS,
-    onLogout: logoutUser,
-    showWarningModal,
-    setShowWarningModal,
-    userId: currentUserId,
-  });
-
-  const {
     activeFile,
     setActiveFile,
     html,
@@ -109,10 +81,47 @@ export default function EditorLayout() {
     },
     isContestPending,
     setIsContestPending,
-    setTimeLeft,
-    setIgnoreNextBlur,
+    setTimeLeft: (t: number) => setTimeLeft(t),
+    setIgnoreNextBlur: (b: boolean) => {
+        if (setIgnoreNextBlurRef.current) setIgnoreNextBlurRef.current(b);
+    },
     showToast,
     onUserLoaded: (id: string) => setCurrentUserId(id),
+  });
+
+  const {
+    strikeCount,
+    setStrikeCount,
+    violate,
+    resumeContest,
+    isQuittingRef,
+    setIgnoreNextBlur,
+  } = useContestSecurity({
+    contestStarted,
+    maxWarnings: MAX_WARNINGS,
+    onLogout: logoutUser,
+    showWarningModal,
+    setShowWarningModal,
+    userId: currentUserId,
+    projectId: projectId,
+  });
+
+  // Hacky ref to pass down setIgnoreNextBlur to useProjectManager before it's defined
+  const setIgnoreNextBlurRef = useRef<((b: boolean) => void) | null>(null);
+  useEffect(() => {
+    setIgnoreNextBlurRef.current = setIgnoreNextBlur;
+  }, [setIgnoreNextBlur]);
+
+  const {
+    timeLeft,
+    setTimeLeft,
+    startTimer,
+    stopTimer,
+    formatTime,
+  } = useContestTimer(CONTEST_DURATION, () => {
+    setIgnoreNextBlur(true);
+    showToast("Time's up! Your session has ended.", "warning");
+    logoutUser();
   });
 
   const { saveToIDB } = useEditorPersistence({

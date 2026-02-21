@@ -16,6 +16,7 @@ export interface Submission {
     css: string;
     js: string;
     timeLeft: number;
+    warningCount?: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -28,6 +29,7 @@ export interface Project {
     css: string;
     js: string;
     timeLeft: number;
+    warningCount?: number;
     createdAt: string;
     updatedAt: string;
 }

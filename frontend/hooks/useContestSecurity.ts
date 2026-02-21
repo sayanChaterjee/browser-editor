@@ -9,6 +9,7 @@ interface SecurityProps {
     showWarningModal: boolean;
     setShowWarningModal: (show: boolean) => void;
     userId?: string | null;
+    projectId?: string | null;
 }
 
 export function useContestSecurity({
@@ -18,6 +19,7 @@ export function useContestSecurity({
     showWarningModal,
     setShowWarningModal,
     userId,
+    projectId,
 }: SecurityProps) {
     const [strikeCount, setStrikeCount] = useState(0);
     const violationLock = useRef(false);
@@ -26,9 +28,9 @@ export function useContestSecurity({
     const securityLoopRef = useRef<NodeJS.Timeout | null>(null);
 
     const persistWarning = async () => {
-        if (!userId) return;
+        if (!userId || !projectId) return;
         try {
-            await fetch(`/api/v1/user/warning/${userId}`, {
+            await fetch(`/api/v1/code/warning/${projectId}`, {
                 method: 'POST',
                 credentials: 'include',
             });

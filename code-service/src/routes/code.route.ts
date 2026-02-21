@@ -299,6 +299,30 @@ codeRouter.get('/preview/:projectId', verifyToken, async (req: Request, res: Res
   }
 });
 
+// POST /warning/:projectId - Increment a warning counter
+codeRouter.post('/warning/:projectId', verifyToken, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { projectId } = req.params;
+    const userId = req.userId!;
+
+    const project = await Project.findOneAndUpdate(
+      { _id: projectId, userId },
+      { $inc: { warningCount: 1 } },
+      { new: true }
+    );
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    logger.info(`Warning count incremented for project ${projectId}: ${project.warningCount}`);
+    res.json({ warningCount: project.warningCount });
+  } catch (error) {
+    logger.error('Error incrementing project warning count:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // POST /submit - Submit a snapshot of the current code
 codeRouter.post('/submit', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
@@ -310,13 +334,16 @@ codeRouter.post('/submit', verifyToken, async (req: Request, res: Response): Pro
       return res.status(400).json({ message: 'projectId is required' });
     }
 
+    const project = await Project.findOne({ _id: projectId, userId });
+
     const submission = await Submission.create({
       userId,
       projectId,
       html,
       css,
       js,
-      timeLeft
+      timeLeft,
+      warningCount: project ? project.warningCount : 0
     });
 
     res.status(201).json(submission);
