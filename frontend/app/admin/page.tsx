@@ -226,9 +226,13 @@ export default function AdminDashboard() {
                     <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Previous Submissions</h3>
                   </div>
                   {submissions.map((s) => {
-                    const minutes = Math.floor(s.timeLeft / 60);
-                    const seconds = s.timeLeft % 60;
+                    // Contest duration is 120 minutes (7200 seconds).
+                    // Time elapsed = Total Duration - Time Left
+                    const timeElapsedSeconds = 7200 - s.timeLeft;
+                    const minutes = Math.floor(timeElapsedSeconds / 60);
+                    const seconds = timeElapsedSeconds % 60;
                     const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
                     return (
                       <button
                         key={s._id}
@@ -243,7 +247,7 @@ export default function AdminDashboard() {
                           <div className="text-xs font-semibold text-gray-200 group-hover:text-white truncate flex items-center gap-2">
                             <span>Submission {s._id.slice(-6)}</span>
                             <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                              ⏱ {formattedTime} left
+                              ⏱ {formattedTime} taken
                             </span>
                           </div>
                         </div>
