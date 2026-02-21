@@ -24,7 +24,7 @@ import { useContestSecurity } from "../../hooks/useContestSecurity";
 import { signOut } from "../../lib/auth-client";
 
 const MAX_WARNINGS = 4;
-const CONTEST_DURATION = 180 * 60;
+const CONTEST_DURATION = 120 * 60; // 2 hours
 
 export default function EditorLayout() {
   const router = useRouter();
