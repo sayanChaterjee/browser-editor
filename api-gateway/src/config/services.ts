@@ -60,6 +60,12 @@ class ServiceProxy {
           if (req.headers['x-user-id']) {
             proxyReq.setHeader('x-user-id', req.headers['x-user-id']);
           }
+          if (req.headers['x-user-name']) {
+            proxyReq.setHeader('x-user-name', req.headers['x-user-name']);
+          }
+          if (req.headers['x-user-email']) {
+            proxyReq.setHeader('x-user-email', req.headers['x-user-email']);
+          }
           if (req.headers['x-user-role']) {
             proxyReq.setHeader('x-user-role', req.headers['x-user-role']);
           }
