@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 
 interface TerminalProps {
@@ -8,9 +8,11 @@ interface TerminalProps {
 }
 
 export default function Terminal({ logs }: TerminalProps) {
+  const [isTerminalReady, setIsTerminalReady] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<any | null>(null);
   const fitAddonRef = useRef<any | null>(null);
+  const lastLogIndexRef = useRef(0);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -44,6 +46,7 @@ export default function Terminal({ logs }: TerminalProps) {
       fitAddonRef.current = fitAddon;
 
       term.writeln("\x1b[32m> Console Ready\x1b[0m");
+      setIsTerminalReady(true);
 
       const handleResize = () => {
         fitAddon?.fit();
@@ -61,13 +64,18 @@ export default function Terminal({ logs }: TerminalProps) {
 
   // Update terminal when logs change
   useEffect(() => {
-    if (!xtermRef.current) return;
+    if (!isTerminalReady || !xtermRef.current) return;
     const term = xtermRef.current;
 
-    // We only process the last log if it's new
-    if (logs.length > 0) {
-      const latestLog = logs[logs.length - 1];
-      
+    if (logs.length === 0) {
+      term.clear();
+      term.writeln("\x1b[32m> Console Ready\x1b[0m");
+      lastLogIndexRef.current = 0;
+      return;
+    }
+
+    for (let i = lastLogIndexRef.current; i < logs.length; i++) {
+      const log = logs[i];
       const formatArg = (arg: any): string => {
         if (typeof arg === "string") return arg;
         if (arg instanceof Error) return arg.toString();
@@ -78,14 +86,14 @@ export default function Terminal({ logs }: TerminalProps) {
         }
       };
 
-      const message = latestLog.args.map(formatArg).join(" ");
+      const message = log.args.map(formatArg).join(" ");
       
       let prefix = "";
-      if (latestLog.type === "error") {
+      if (log.type === "error") {
         prefix = "\x1b[31m"; // Red
-      } else if (latestLog.type === "warn") {
+      } else if (log.type === "warn") {
         prefix = "\x1b[33m"; // Yellow
-      } else if (latestLog.type === "info") {
+      } else if (log.type === "info") {
         prefix = "\x1b[36m"; // Cyan
       }
 
@@ -93,11 +101,10 @@ export default function Terminal({ logs }: TerminalProps) {
 
       // writeln handles new lines natively in xterm
       term.writeln(`${prefix}${message}${suffix}`);
-    } else {
-        term.clear();
-        term.writeln("\x1b[32m> Console Ready\x1b[0m");
     }
-  }, [logs]);
+
+    lastLogIndexRef.current = logs.length;
+  }, [logs, isTerminalReady]);
 
   return (
     <div className="flex flex-col h-full w-full bg-[#020617] border-l border-[#333]">
