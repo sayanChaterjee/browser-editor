@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import Preview from "./Preview";
+import Terminal from "./Terminal";
 import QuestionPanel from "./QuestionPanel";
 import CreateProjectModal from "./CreateProjectModal";
 import { INITIAL_README } from "../../utils/constants";
@@ -34,6 +35,7 @@ export default function EditorLayout() {
   const [isContestPending, setIsContestPending] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [logs, setLogs] = useState<{ type: string; args: any[] }[]>([]);
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -41,8 +43,20 @@ export default function EditorLayout() {
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
     };
+    
+    const handleMessage = (e: MessageEvent) => {
+        if (e.data?.type === 'CONSOLE_LOG') {
+            setLogs(prev => [...prev, { type: e.data.logType, args: e.data.args }]);
+        }
+    };
+
     document.addEventListener("contextmenu", handleContextMenu);
-    return () => document.removeEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("message", handleMessage);
+    
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("message", handleMessage);
+    };
   }, []);
 
   const logoutUser = async () => {
@@ -296,11 +310,18 @@ export default function EditorLayout() {
             }}
             onSubmit={handleSubmitRequest}
           />
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden flex flex-col">
             {showQuestion ? (
               <QuestionPanel />
             ) : (
-              <Preview html={html} css={css} js={js} />
+              <>
+                <div className="h-[70%] border-b border-[#333]">
+                  <Preview html={html} css={css} js={js} />
+                </div>
+                <div className="h-[30%]">
+                  <Terminal logs={logs} />
+                </div>
+              </>
             )}
           </div>
         </div>

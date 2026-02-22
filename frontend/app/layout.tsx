@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 import DeviceRestriction from "@/components/DeviceRestriction";
+import GlobalSecurity from "@/components/GlobalSecurity";
 
 export const metadata: Metadata = {
   title: "CodeEditor",
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <GlobalSecurity />
         <DeviceRestriction>
           {children}
         </DeviceRestriction>

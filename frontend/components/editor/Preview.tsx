@@ -29,6 +29,29 @@ export default function Preview({ html, css, js }: Props) {
 <script>
 (function() {
   function setup() {
+    // Intercept console messages
+    const originalConsole = {
+      log: console.log,
+      warn: console.warn,
+      error: console.error,
+      info: console.info,
+    };
+
+    function sendLog(type, args) {
+      window.parent.postMessage({
+        type: 'CONSOLE_LOG',
+        logType: type,
+        args: Array.from(args).map(arg => {
+            if (arg instanceof Error) return arg.toString();
+            try { return JSON.stringify(arg); } catch { return String(arg); }
+        })
+      }, '*');
+    }
+
+    console.log = function(...args) { originalConsole.log(...args); sendLog('log', args); };
+    console.warn = function(...args) { originalConsole.warn(...args); sendLog('warn', args); };
+    console.error = function(...args) { originalConsole.error(...args); sendLog('error', args); };
+    console.info = function(...args) { originalConsole.info(...args); sendLog('info', args); };
     document.addEventListener('contextmenu', function(e) {
       e.preventDefault();
     });
