@@ -286,17 +286,24 @@ export default function EditorLayout() {
         <FileExplorer activeFile={activeFile} setActiveFile={setActiveFile} />
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0f172a]">
-          <FileTabs activeFile={activeFile} />
-          <CodeEditor
-            {...getEditorConfig(activeFile, {
-              html,
-              setHtml,
-              css,
-              setCss,
-              js,
-              setJs,
-            })}
-          />
+          <div className="h-[70%] flex flex-col border-b border-[#333]">
+            <FileTabs activeFile={activeFile} />
+            <div className="flex-1 overflow-hidden">
+              <CodeEditor
+                {...getEditorConfig(activeFile, {
+                  html,
+                  setHtml,
+                  css,
+                  setCss,
+                  js,
+                  setJs,
+                })}
+              />
+            </div>
+          </div>
+          <div className="h-[30%]">
+            <Terminal logs={logs} />
+          </div>
         </div>
 
         <div className="flex-1 w-full min-w-[320px] flex flex-col bg-[#0f172a] border-l border-[#333] overflow-hidden">
@@ -314,14 +321,7 @@ export default function EditorLayout() {
             {showQuestion ? (
               <QuestionPanel />
             ) : (
-              <>
-                <div className="h-[70%] border-b border-[#333]">
-                  <Preview html={html} css={css} js={js} />
-                </div>
-                <div className="h-[30%]">
-                  <Terminal logs={logs} />
-                </div>
-              </>
+              <Preview html={html} css={css} js={js} />
             )}
           </div>
         </div>

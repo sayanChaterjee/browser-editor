@@ -107,7 +107,16 @@ export default function Terminal({ logs }: TerminalProps) {
   }, [logs, isTerminalReady]);
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#020617] border-l border-[#333]">
+    <div className="flex flex-col h-full w-full bg-[#020617] border-t border-[#333]">
+      <style>{`
+        .xterm-viewport::-webkit-scrollbar {
+          display: none;
+        }
+        .xterm-viewport {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
       <div className="h-9 px-3 shrink-0 flex items-center justify-between text-[#e5e7eb] text-[12px] font-medium border-b border-[#1e293b]">
         <span>Console</span>
       </div>
