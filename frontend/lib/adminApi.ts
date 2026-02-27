@@ -73,7 +73,10 @@ export interface Contest {
 
 export async function fetchAllContests(): Promise<Contest[]> {
     const res = await fetch(`${BASE}/api/v1/contest/all`, { credentials: 'include' });
-    if (!res.ok) throw new Error(`Failed to fetch contests: ${res.status}`);
+    if (!res.ok) {
+        try { const err = await res.json(); throw new Error(err.message || `Failed to fetch contests: ${res.status}`); }
+        catch (e: any) { throw new Error(e.message || `Failed to fetch contests: ${res.status}`); }
+    }
     return res.json();
 }
 
@@ -81,7 +84,8 @@ export async function fetchActiveContest(): Promise<Contest | null> {
     const res = await fetch(`${BASE}/api/v1/contest/active`, { credentials: 'include' });
     if (!res.ok) {
         if (res.status === 404) return null;
-        throw new Error(`Failed to fetch active contest: ${res.status}`);
+        try { const err = await res.json(); throw new Error(err.message || `Failed to fetch active contest: ${res.status}`); }
+        catch (e: any) { throw new Error(e.message || `Failed to fetch active contest: ${res.status}`); }
     }
     return res.json();
 }
@@ -93,7 +97,10 @@ export async function createContest(data: { title: string; startTime: string; en
         credentials: 'include',
         body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error(`Failed to create contest: ${res.status}`);
+    if (!res.ok) {
+        try { const err = await res.json(); throw new Error(err.message || `Failed to create contest: ${res.status}`); }
+        catch (e: any) { throw new Error(e.message || `Failed to create contest: ${res.status}`); }
+    }
     return res.json();
 }
 
@@ -104,6 +111,10 @@ export async function updateContestStatus(id: string, status: 'pending' | 'activ
         credentials: 'include',
         body: JSON.stringify({ status })
     });
-    if (!res.ok) throw new Error(`Failed to update contest status: ${res.status}`);
+    if (!res.ok) {
+        try { const err = await res.json(); throw new Error(err.message || `Failed to update contest status: ${res.status}`); }
+        catch (e: any) { throw new Error(e.message || `Failed to update contest status: ${res.status}`); }
+    }
     return res.json();
 }
+
