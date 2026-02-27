@@ -39,8 +39,8 @@ export default function ContestManager() {
       }
       await createContest({
         title,
-        startTime,
-        endTime,
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
         imageUrl
       });
       setTitle('');
