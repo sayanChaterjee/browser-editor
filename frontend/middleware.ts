@@ -39,7 +39,9 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/editor/:path*', '/login', '/register',  // Match frontend routes for auth redirects
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',  // Match all other routes except API and static files
+    '/editor/:path*',
+    '/login',
+    '/register',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)',
   ],
 };
