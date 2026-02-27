@@ -258,7 +258,7 @@ export default function AdminDashboard() {
                       initialTime = 10800; // 3 hours (fallback for old submissions)
                     }
                     
-                    const timeElapsedSeconds = initialTime - s.timeLeft;
+                    const timeElapsedSeconds = Math.max(0, initialTime - s.timeLeft);
                     const minutes = Math.floor(timeElapsedSeconds / 60);
                     const seconds = timeElapsedSeconds % 60;
                     const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;

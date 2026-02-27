@@ -170,13 +170,10 @@ export default function EditorLayout() {
   };
 
   const startContest = async () => {
-    if (projectId) {
-        handleContestStart();
-    } else {
-        setIsContestPending(true);
-        setIsModalCancelable(true);
-        setShowCreateModal(true);
-    }
+    // Always force the user to create a new project for the contest
+    setIsContestPending(true);
+    setIsModalCancelable(true);
+    setShowCreateModal(true);
   };
 
   const openNewProjectModal = () => {

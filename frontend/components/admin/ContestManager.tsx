@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Contest, fetchAllContests, createContest, updateContestStatus } from '@/lib/adminApi';
+import { Contest, fetchAllContests, createContest, updateContestStatus, deleteContest } from '@/lib/adminApi';
 
 export default function ContestManager() {
   const [contests, setContests] = useState<Contest[]>([]);
@@ -62,6 +62,17 @@ export default function ContestManager() {
       await loadContests();
     } catch (err: any) {
       setError(err.message || 'Failed to update status');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this contest? This action cannot be undone.')) return;
+    try {
+      setError(null);
+      await deleteContest(id);
+      await loadContests();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete contest');
     }
   };
 
@@ -181,8 +192,9 @@ export default function ContestManager() {
                        <button onClick={() => handleStatusChange(c._id, 'active')} className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-lg text-xs font-bold transition-colors">Start Contest</button>
                     )}
                     {c.status === 'active' && (
-                       <button onClick={() => handleStatusChange(c._id, 'ended')} className="bg-red-500/10 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-lg text-xs font-bold transition-colors">End Contest</button>
+                       <button onClick={() => handleStatusChange(c._id, 'ended')} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-4 py-2 rounded-lg text-xs font-bold transition-colors">End Contest</button>
                     )}
+                    <button onClick={() => handleDelete(c._id)} className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-lg text-xs font-bold transition-colors">Delete Contest</button>
                  </div>
               </div>
             </div>

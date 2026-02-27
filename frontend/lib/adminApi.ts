@@ -118,3 +118,14 @@ export async function updateContestStatus(id: string, status: 'pending' | 'activ
     return res.json();
 }
 
+export async function deleteContest(id: string): Promise<{ message: string }> {
+    const res = await fetch(`${BASE}/api/v1/contest/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+    if (!res.ok) {
+        try { const err = await res.json(); throw new Error(err.message || `Failed to delete contest: ${res.status}`); }
+        catch (e: any) { throw new Error(e.message || `Failed to delete contest: ${res.status}`); }
+    }
+    return res.json();
+}

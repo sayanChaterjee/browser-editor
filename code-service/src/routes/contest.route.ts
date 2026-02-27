@@ -100,4 +100,21 @@ contestRouter.patch('/:id/status', verifyToken, isAdmin, async (req: Request, re
     }
 });
 
+// DELETE /contest/:id - Delete a contest (Admin)
+contestRouter.delete('/:id', verifyToken, isAdmin, async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { id } = req.params;
+        const contest = await Contest.findByIdAndDelete(id);
+
+        if (!contest) {
+            return res.status(404).json({ message: 'Contest not found' });
+        }
+
+        res.json({ message: 'Contest deleted successfully' });
+    } catch (error) {
+        logger.error(`[DELETE /api/v1/contest/${req.params.id}] Error:`, error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 export { contestRouter };
