@@ -1,4 +1,8 @@
-export default function QuestionPanel() {
+interface QuestionPanelProps {
+  imageUrl?: string;
+}
+
+export default function QuestionPanel({ imageUrl }: QuestionPanelProps) {
   return (
     <div className="w-full min-w-[320px] flex flex-col bg-[#1e1e1e] border-l border-[#333] overflow-hidden flex-1 h-full">
       <div className="h-9 px-3 flex items-center justify-between bg-[#020617] text-[#e5e7eb] text-[12px] font-medium border-b border-[#1e293b]">
@@ -6,11 +10,17 @@ export default function QuestionPanel() {
       </div>
 
       <div className="p-4 overflow-auto">
-        <img
-          src="/questions/q1.png"
-          alt="Question"
-          className="w-full"
-        />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt="Question"
+            className="w-full"
+          />
+        ) : (
+          <div className="flex items-center justify-center p-8 text-gray-500 text-sm italic">
+            Waiting for contest image...
+          </div>
+        )}
       </div>
     </div>
   );

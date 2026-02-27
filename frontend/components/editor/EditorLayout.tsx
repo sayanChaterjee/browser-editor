@@ -87,6 +87,7 @@ export default function EditorLayout() {
     handleCreateProject,
     saveCode,
     isLoading,
+    activeContest,
   } = useProjectManager({
     onLogout: logoutUser,
     contestDuration: CONTEST_DURATION,
@@ -280,6 +281,7 @@ export default function EditorLayout() {
         onStartContest={startContest}
         onNewProject={openNewProjectModal}
         formatTime={formatTime}
+        activeContest={activeContest}
       />
 
       <div className={`flex h-[calc(100vh-100px)] min-w-0 ${showWarningModal ? "blur-sm pointer-events-none" : ""}`}>
@@ -319,7 +321,7 @@ export default function EditorLayout() {
           />
           <div className="flex-1 overflow-hidden flex flex-col">
             {showQuestion ? (
-              <QuestionPanel />
+              <QuestionPanel imageUrl={activeContest?.imageUrl} />
             ) : (
               <Preview html={html} css={css} js={js} />
             )}

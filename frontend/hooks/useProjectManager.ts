@@ -54,6 +54,7 @@ export function useProjectManager({
     const [isCreatingProject, setIsCreatingProject] = useState(false);
     const [isModalCancelable, setIsModalCancelable] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeContest, setActiveContest] = useState<{ _id: string, title: string, imageUrl: string } | null>(null);
 
     const [lastSyncedHtml, setLastSyncedHtml] = useState("");
     const [lastSyncedCss, setLastSyncedCss] = useState("");
@@ -68,6 +69,18 @@ export function useProjectManager({
     useEffect(() => {
         const initData = async () => {
             let profile: any = null;
+
+            // 0. Fetch Active Contest
+            try {
+                const contestRes = await fetch(`/api/v1/contest/active`, { credentials: 'include' });
+                if (contestRes.ok) {
+                    const contestInfo = await contestRes.json();
+                    setActiveContest(contestInfo);
+                }
+            } catch (err) {
+                console.error("Failed to fetch active contest", err);
+            }
+
             // 1. Fetch User Profile
             try {
                 const profRes = await fetch(
@@ -358,5 +371,6 @@ export function useProjectManager({
         handleCreateProject,
         saveCode,
         isLoading,
+        activeContest,
     };
 }

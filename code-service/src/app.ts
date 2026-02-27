@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { config } from './config';
 import logger from './config/logger';
 import { codeRouter } from './routes/code.route';
+import { contestRouter } from './routes/contest.route';
 import mongoose from 'mongoose';
 import { setupGracefulShutdown } from './utils/shutdown';
 import { correlationMiddleware } from './middlewares/correlation.middleware';
@@ -26,6 +27,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/', internalSecurity, codeRouter);
+app.use('/contest', internalSecurity, contestRouter);
 
 import { startSecurityConsumer } from './events/consumers/security.consumer';
 

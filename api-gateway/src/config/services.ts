@@ -31,6 +31,13 @@ class ServiceProxy {
       name: 'code-service',
       timeout: 60000,
     },
+    {
+      path: '/api/v1/contest',
+      url: config.CODE_SERVICE_URL || 'http://localhost:3003',
+      pathRewrite: { '^/api/v1/contest': '/contest' },
+      name: 'code-service-contest',
+      timeout: 60000,
+    },
   ];
 
   // Map to store circuit breakers for each service

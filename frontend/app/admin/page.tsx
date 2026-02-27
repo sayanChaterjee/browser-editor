@@ -11,6 +11,7 @@ import {
 } from '@/lib/adminApi';
 import UserList from '@/components/admin/UserList';
 import PreviewPanel from '@/components/admin/PreviewPanel';
+import ContestManager from '@/components/admin/ContestManager';
 import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
@@ -18,6 +19,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'users' | 'contests'>('users');
   
   const [projects, setProjects] = useState<Project[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -138,20 +140,43 @@ export default function AdminDashboard() {
           </div>
         </div>
         
+        <div className="flex border-b border-gray-800 text-xs font-bold uppercase tracking-widest text-gray-500">
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={`flex-1 py-3 transition-colors ${activeTab === 'users' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-gray-900/30' : 'hover:bg-gray-800/50 hover:text-gray-300'}`}
+          >
+            Users
+          </button>
+          <button 
+            onClick={() => setActiveTab('contests')}
+            className={`flex-1 py-3 transition-colors ${activeTab === 'contests' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-gray-900/30' : 'hover:bg-gray-800/50 hover:text-gray-300'}`}
+          >
+            Contests
+          </button>
+        </div>
+        
         <div className="flex-1 overflow-hidden">
-          <UserList 
-            users={users}
-            selectedUserId={selectedUser?._id || null}
-            onSelectUser={setSelectedUser}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-          />
+          {activeTab === 'users' ? (
+            <UserList 
+              users={users}
+              selectedUserId={selectedUser?._id || null}
+              onSelectUser={setSelectedUser}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+            />
+          ) : (
+            <div className="p-6 text-center text-sm text-gray-500 italic">
+               Contest configuration selected.
+            </div>
+          )}
         </div>
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#0a0e1a]">
-        {selectedUser ? (
+        {activeTab === 'contests' ? (
+          <ContestManager />
+        ) : selectedUser ? (
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Header / Info Bar */}
             <header className="h-16 px-8 border-b border-gray-800 flex items-center justify-between bg-[#0c1222]/50 backdrop-blur-md">
