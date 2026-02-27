@@ -14,6 +14,7 @@ const projectSchema = z.object({
   css: z.string().optional(),
   js: z.string().optional(),
   timeLeft: z.number().optional(),
+  timeTaken: z.number().optional(),
 });
 
 // GET / - Get all user's projects
@@ -326,7 +327,7 @@ codeRouter.post('/warning/:projectId', verifyToken, async (req: Request, res: Re
 // POST /submit - Submit a snapshot of the current code
 codeRouter.post('/submit', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
-    const { html, css, js, timeLeft } = projectSchema.parse(req.body);
+    const { html, css, js, timeLeft, timeTaken } = projectSchema.parse(req.body);
     const { projectId } = req.body;
     const userId = req.userId!;
 
@@ -343,6 +344,7 @@ codeRouter.post('/submit', verifyToken, async (req: Request, res: Response): Pro
       css,
       js,
       timeLeft,
+      timeTaken: timeTaken || 0,
       warningCount: project ? project.warningCount : 0
     });
 

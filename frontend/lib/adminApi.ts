@@ -16,6 +16,7 @@ export interface Submission {
     css: string;
     js: string;
     timeLeft: number;
+    timeTaken?: number;
     warningCount?: number;
     createdAt: string;
     updatedAt: string;

@@ -251,14 +251,7 @@ export default function AdminDashboard() {
                     <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Previous Submissions</h3>
                   </div>
                   {submissions.map((s) => {
-                    // Time elapsed = Total Duration - Time Left
-                    // Submissions older than the 2-hour update will have `timeLeft > 7200`.
-                    let initialTime = 7200; // 2 hours
-                    if (s.timeLeft > 7200) {
-                      initialTime = 10800; // 3 hours (fallback for old submissions)
-                    }
-                    
-                    const timeElapsedSeconds = Math.max(0, initialTime - s.timeLeft);
+                    const timeElapsedSeconds = s.timeTaken || 0;
                     const hours = Math.floor(timeElapsedSeconds / 3600);
                     const minutes = Math.floor((timeElapsedSeconds % 3600) / 60);
                     const seconds = timeElapsedSeconds % 60;

@@ -34,6 +34,7 @@ export default function EditorLayout() {
   const [isContestPending, setIsContestPending] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [startDuration, setStartDuration] = useState<number>(0);
   const [logs, setLogs] = useState<{ type: string; args: any[] }[]>([]);
 
   const { toasts, showToast, dismissToast } = useToast();
@@ -161,6 +162,7 @@ export default function EditorLayout() {
       if (activeContest?.startTime && activeContest?.endTime) {
          duration = Math.max(0, Math.floor((new Date(activeContest.endTime).getTime() - Date.now()) / 1000));
       }
+      setStartDuration(duration);
       setTimeLeft(duration);
       startTimer();
     } catch {
@@ -201,13 +203,15 @@ export default function EditorLayout() {
     try {
       await saveCode({ html, css, js, timeLeft });
 
+      const timeTaken = Math.max(0, startDuration - timeLeft);
+
       const res = await fetch(`/api/v1/code/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: 'include',
-        body: JSON.stringify({ projectId, html, css, js, timeLeft }),
+        body: JSON.stringify({ projectId, html, css, js, timeLeft, timeTaken }),
       });
 
       if (res.ok) {

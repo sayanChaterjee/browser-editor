@@ -7,6 +7,7 @@ export interface ISubmission extends Document {
   css: string;
   js: string;
   timeLeft: number;
+  timeTaken: number;
   warningCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -19,6 +20,7 @@ const SubmissionSchema: Schema = new Schema({
   css: { type: String, default: '' },
   js: { type: String, default: '' },
   timeLeft: { type: Number, default: 0 },
+  timeTaken: { type: Number, default: 0 },
   warningCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
