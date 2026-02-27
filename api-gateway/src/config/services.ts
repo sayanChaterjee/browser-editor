@@ -34,7 +34,8 @@ class ServiceProxy {
     {
       path: '/api/v1/contest',
       url: config.CODE_SERVICE_URL || 'http://localhost:3003',
-      pathRewrite: { '^/api/v1/contest': '/contest' },
+      // Proxy uses app.use which strips '/api/v1/contest', so req.url is '/'
+      pathRewrite: { '^/': '/contest/' },
       name: 'code-service-contest',
       timeout: 60000,
     },
