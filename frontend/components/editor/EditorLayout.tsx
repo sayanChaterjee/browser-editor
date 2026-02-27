@@ -25,7 +25,6 @@ import { useContestSecurity } from "../../hooks/useContestSecurity";
 import { signOut } from "../../lib/auth-client";
 
 const MAX_WARNINGS = 4;
-const CONTEST_DURATION = 120 * 60; // 2 hours
 
 export default function EditorLayout() {
   const router = useRouter();
@@ -90,7 +89,6 @@ export default function EditorLayout() {
     activeContest,
   } = useProjectManager({
     onLogout: logoutUser,
-    contestDuration: CONTEST_DURATION,
     onContestStart: () => {
         handleContestStart();
     },
@@ -133,7 +131,7 @@ export default function EditorLayout() {
     startTimer,
     stopTimer,
     formatTime,
-  } = useContestTimer(CONTEST_DURATION, () => {
+  } = useContestTimer(0, () => {
     setIgnoreNextBlur(true);
     showToast("Time's up! Your session has ended.", "warning");
     logoutUser();
@@ -157,7 +155,13 @@ export default function EditorLayout() {
       await document.documentElement.requestFullscreen();
       setStrikeCount(0);
       setContestStarted(true);
-      setTimeLeft(CONTEST_DURATION);
+
+      // Determine duration dynamically based on the active contest
+      let duration = 0;
+      if (activeContest?.startTime && activeContest?.endTime) {
+         duration = Math.max(0, Math.floor((new Date(activeContest.endTime).getTime() - Date.now()) / 1000));
+      }
+      setTimeLeft(duration);
       startTimer();
     } catch {
       setIgnoreNextBlur(true);
@@ -228,7 +232,7 @@ export default function EditorLayout() {
       setJs("");
       setContestStarted(false);
       stopTimer();
-      setTimeLeft(CONTEST_DURATION);
+      setTimeLeft(0);
       
       logoutUser();
     }
@@ -273,7 +277,7 @@ export default function EditorLayout() {
       )}
 
       <ContestBar 
-        timeLeft={timeLeft}
+        timeLeft={contestStarted ? timeLeft : 0}
         strikeCount={strikeCount}
         MAX_WARNINGS={MAX_WARNINGS}
         projectName={projectName}

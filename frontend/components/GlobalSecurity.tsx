@@ -1,9 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export default function GlobalSecurity() {
+  const pathname = usePathname();
+
   useEffect(() => {
+    // Disable security checks on admin routes to allow inspection
+    if (pathname?.startsWith("/admin")) {
+      return;
+    }
+
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       return false;
@@ -31,7 +39,7 @@ export default function GlobalSecurity() {
       document.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [pathname]);
 
   return null;
 }

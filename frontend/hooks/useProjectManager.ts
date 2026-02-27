@@ -17,7 +17,6 @@ interface Project {
 
 interface UseProjectManagerProps {
     onLogout: () => void;
-    contestDuration: number;
     onContestStart: () => void;
     isContestPending: boolean;
     setIsContestPending: (pending: boolean) => void;
@@ -29,7 +28,6 @@ interface UseProjectManagerProps {
 
 export function useProjectManager({
     onLogout,
-    contestDuration,
     onContestStart,
     isContestPending,
     setIsContestPending,
@@ -54,7 +52,7 @@ export function useProjectManager({
     const [isCreatingProject, setIsCreatingProject] = useState(false);
     const [isModalCancelable, setIsModalCancelable] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeContest, setActiveContest] = useState<{ _id: string, title: string, imageUrl: string } | null>(null);
+    const [activeContest, setActiveContest] = useState<{ _id: string, title: string, imageUrl: string, startTime: string, endTime: string } | null>(null);
 
     const [lastSyncedHtml, setLastSyncedHtml] = useState("");
     const [lastSyncedCss, setLastSyncedCss] = useState("");
@@ -275,7 +273,7 @@ export function useProjectManager({
                     html: INITIAL_HTML,
                     css: INITIAL_CSS,
                     js: INITIAL_JS,
-                    timeLeft: contestDuration,
+                    timeLeft: 0, // updated on start
                 }),
             });
 
