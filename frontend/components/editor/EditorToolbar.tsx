@@ -21,7 +21,14 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     <div className="p-2.5 flex gap-2.5 border-b border-[#1e293b]">
       <button
         onClick={() => setShowQuestion(!showQuestion)}
-        className={`flex-1 p-2 rounded cursor-pointer text-white border transition-colors ${showQuestion ? "bg-[#334155] border-[#334155]" : "bg-[#1e293b] border-[#334155]"}`}
+        disabled={!contestStarted}
+        className={`flex-1 p-2 rounded border transition-colors ${
+          !contestStarted
+            ? "bg-[#1e293b] border-[#334155] text-[#94a3b8] cursor-not-allowed opacity-70"
+            : showQuestion 
+              ? "bg-[#334155] border-[#334155] text-white cursor-pointer" 
+              : "bg-[#1e293b] border-[#334155] text-white cursor-pointer"
+        }`}
       >
         {showQuestion ? "👁 Preview" : "📝 Question"}
       </button>

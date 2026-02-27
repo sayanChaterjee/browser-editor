@@ -259,9 +259,15 @@ export default function AdminDashboard() {
                     }
                     
                     const timeElapsedSeconds = Math.max(0, initialTime - s.timeLeft);
-                    const minutes = Math.floor(timeElapsedSeconds / 60);
+                    const hours = Math.floor(timeElapsedSeconds / 3600);
+                    const minutes = Math.floor((timeElapsedSeconds % 3600) / 60);
                     const seconds = timeElapsedSeconds % 60;
-                    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    let formattedTime = "";
+                    if (hours > 0) formattedTime += `${hours} hour${hours > 1 ? 's' : ''} `;
+                    if (minutes > 0) formattedTime += `${minutes} minute${minutes > 1 ? 's' : ''}`;
+                    if (hours === 0 && minutes === 0) formattedTime = `${seconds} second${seconds !== 1 ? 's' : ''}`;
+                    formattedTime = formattedTime.trim();
                     
                     return (
                       <button
