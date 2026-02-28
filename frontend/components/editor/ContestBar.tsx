@@ -11,7 +11,7 @@ interface ContestBarProps {
   onStartContest: () => void;
   onNewProject: () => void;
   formatTime: (seconds: number) => string;
-  activeContest: { _id: string, title: string, imageUrl: string } | null;
+  activeContest: { _id: string, title: string, imageUrl: string, endTime?: string } | null;
 }
 
 export default function ContestBar({
@@ -25,6 +25,23 @@ export default function ContestBar({
   formatTime,
   activeContest,
 }: ContestBarProps) {
+  const [isEnded, setIsEnded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!activeContest?.endTime) {
+      setIsEnded(false);
+      return;
+    }
+
+    const checkEnded = () => {
+      setIsEnded(new Date(activeContest.endTime!).getTime() <= Date.now());
+    };
+
+    checkEnded();
+    const interval = setInterval(checkEnded, 1000);
+    return () => clearInterval(interval);
+  }, [activeContest?.endTime]);
+
   return (
     <div className="bg-[#0f172a] border-b border-[#1e293b] h-[50px] px-5 flex items-center justify-between">
       <div className="flex items-center gap-5">
@@ -54,16 +71,18 @@ export default function ContestBar({
         </button>
         <button
           onClick={onStartContest}
-          disabled={contestStarted || !activeContest}
+          disabled={contestStarted || !activeContest || isEnded}
           className={`px-5 py-2 rounded-md border-none text-[14px] font-semibold transition-all ${
             contestStarted 
               ? "bg-[#1e293b] text-white cursor-not-allowed shadow-none" 
               : !activeContest
               ? "bg-[#334155] text-[#94a3b8] cursor-not-allowed shadow-none"
+              : isEnded
+              ? "bg-[#334155] text-[#f87171] cursor-not-allowed shadow-none"
               : "bg-gradient-to-br from-[#0ea5e9] to-[#2563eb] text-white cursor-pointer shadow-[0_4px_12px_rgba(37,99,235,0.3)] hover:opacity-90 active:scale-95"
           }`}
         >
-          {contestStarted ? "Contest Active" : !activeContest ? "No live contest" : "Start Contest"}
+          {contestStarted ? "Contest Active" : !activeContest ? "No live contest" : isEnded ? "Contest Ended" : "Start Contest"}
         </button>
       </div>
     </div>
