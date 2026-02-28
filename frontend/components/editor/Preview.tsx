@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 
 type Props = {
   html: string;
@@ -10,6 +11,7 @@ type Props = {
 
 export default function Preview({ html, css, js }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Build srcDoc with properly isolated system scripts in <head>
   const buildSrcDoc = () => {
@@ -152,15 +154,25 @@ try {
       <div className="h-9 px-3 flex items-center justify-between bg-[#020617] text-[#e5e7eb] text-[12px] font-medium border-b border-[#1e293b]">
         <span>Preview</span>
 
-        <button
-          className="text-[#e5e7eb] hover:text-white transition-colors"
-          onClick={() => setIsFullscreen((v) => !v)}
-        >
-          {isFullscreen ? "Exit" : "⛶"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            className="text-[#e5e7eb] hover:text-white transition-colors"
+            title="Refresh Preview"
+            onClick={() => setRefreshKey((k) => k + 1)}
+          >
+            <RefreshCw size={14} />
+          </button>
+          <button
+            className="text-[#e5e7eb] hover:text-white transition-colors"
+            onClick={() => setIsFullscreen((v) => !v)}
+          >
+            {isFullscreen ? "Exit" : "⛶"}
+          </button>
+        </div>
       </div>
 
       <iframe
+        key={refreshKey}
         className="flex-1 w-full h-full border-none bg-white block"
         srcDoc={srcDoc}
         sandbox="allow-scripts"
