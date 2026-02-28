@@ -66,7 +66,10 @@ export interface Contest {
     title: string;
     startTime: string;
     endTime: string;
-    imageUrl: string;
+    imageUrl?: string;
+    html?: string;
+    css?: string;
+    js?: string;
     status: 'pending' | 'active' | 'ended';
     createdAt: string;
     updatedAt: string;
@@ -91,7 +94,7 @@ export async function fetchActiveContest(): Promise<Contest | null> {
     return res.json();
 }
 
-export async function createContest(data: { title: string; startTime: string; endTime: string; imageUrl: string }): Promise<Contest> {
+export async function createContest(data: { title: string; startTime: string; endTime: string; imageUrl?: string; html?: string; css?: string; js?: string; }): Promise<Contest> {
     const res = await fetch(`${BASE}/api/v1/contest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

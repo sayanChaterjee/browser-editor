@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Contest, fetchAllContests, createContest, updateContestStatus, deleteContest } from '@/lib/adminApi';
+import PreviewPanel from '@/components/admin/PreviewPanel';
 
 export default function ContestManager() {
   const [contests, setContests] = useState<Contest[]>([]);
@@ -11,6 +12,9 @@ export default function ContestManager() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [html, setHtml] = useState('');
+  const [css, setCss] = useState('');
+  const [js, setJs] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const loadContests = async () => {
@@ -34,19 +38,28 @@ export default function ContestManager() {
     setSubmitLoading(true);
     setError(null);
     try {
-      if (!title || !startTime || !endTime || !imageUrl) {
-         throw new Error("All fields are required");
+      if (!title || !startTime || !endTime) {
+         throw new Error("Title and time fields are required");
+      }
+      if (!imageUrl && !html && !css && !js) {
+         throw new Error("Provide either an image URL or code for the question");
       }
       await createContest({
         title,
         startTime: new Date(startTime).toISOString(),
         endTime: new Date(endTime).toISOString(),
-        imageUrl
+        imageUrl: imageUrl || undefined,
+        html: html || undefined,
+        css: css || undefined,
+        js: js || undefined
       });
       setTitle('');
       setStartTime('');
       setEndTime('');
       setImageUrl('');
+      setHtml('');
+      setCss('');
+      setJs('');
       await loadContests();
     } catch (err: any) {
        setError(err.message || 'Failed to create contest');
@@ -85,7 +98,7 @@ export default function ContestManager() {
   }
 
   return (
-    <div className="flex-1 flex flex-col p-8 overflow-y-auto">
+    <div className="flex-1 flex flex-col p-8 overflow-y-auto w-full">
       <div className="flex justify-between items-center mb-8">
          <div>
             <h2 className="text-2xl font-bold text-white tracking-tight">Contest Management</h2>
@@ -100,59 +113,116 @@ export default function ContestManager() {
       )}
 
       {/* Create Contest Form */}
-      <div className="bg-[#0c1222] border border-gray-800 rounded-xl p-6 mb-8 shadow-xl">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-gray-800">New Contest Schema</h3>
-        <form onSubmit={handleCreate} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-             <div>
-                <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Contest Title</label>
-                <input 
-                  type="text" 
-                  value={title} 
-                  onChange={(e) => setTitle(e.target.value)} 
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                  placeholder="e.g. Weekly Battle #42"
-                />
-             </div>
-             <div>
-                <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Cloudinary Image URL</label>
-                <input 
-                  type="url" 
-                  value={imageUrl} 
-                  onChange={(e) => setImageUrl(e.target.value)} 
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                  placeholder="https://res.cloudinary.com/..."
-                />
-             </div>
-             <div>
-                <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Start Time</label>
-                <input 
-                  type="datetime-local" 
-                  value={startTime} 
-                  onChange={(e) => setStartTime(e.target.value)} 
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors [color-scheme:dark]"
-                />
-             </div>
-             <div>
-                <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">End Time</label>
-                <input 
-                  type="datetime-local" 
-                  value={endTime} 
-                  onChange={(e) => setEndTime(e.target.value)} 
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors [color-scheme:dark]"
-                />
-             </div>
+      <div className="bg-[#0c1222] border border-gray-800 rounded-xl p-6 mb-8 shadow-xl flex flex-col xl:flex-row gap-6">
+        <div className="flex-1">
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-gray-800">New Contest Schema</h3>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+               <div>
+                  <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Contest Title</label>
+                  <input 
+                    type="text" 
+                    value={title} 
+                    onChange={(e) => setTitle(e.target.value)} 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    placeholder="e.g. Weekly Battle #42"
+                  />
+               </div>
+               <div>
+                  <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Image URL (Optional)</label>
+                  <input 
+                    type="url" 
+                    value={imageUrl} 
+                    onChange={(e) => setImageUrl(e.target.value)} 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                    placeholder="https://res.cloudinary.com/..."
+                  />
+               </div>
+               <div>
+                  <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Start Time</label>
+                  <input 
+                    type="datetime-local" 
+                    value={startTime} 
+                    onChange={(e) => setStartTime(e.target.value)} 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors [color-scheme:dark]"
+                  />
+               </div>
+               <div>
+                  <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">End Time</label>
+                  <input 
+                    type="datetime-local" 
+                    value={endTime} 
+                    onChange={(e) => setEndTime(e.target.value)} 
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors [color-scheme:dark]"
+                  />
+               </div>
+            </div>
+            
+            <div className="border-t border-gray-800 pt-4 mt-4">
+               <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 text-center">OR PROVIDE TARGET CODE</label>
+               <div className="grid grid-cols-3 gap-2">
+                 <div>
+                    <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">HTML</label>
+                    <textarea 
+                      value={html} 
+                      onChange={(e) => setHtml(e.target.value)} 
+                      className="w-full h-32 bg-gray-900 border border-gray-700 rounded flex-1 px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                      placeholder="<div>...</div>"
+                    />
+                 </div>
+                 <div>
+                    <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">CSS</label>
+                    <textarea 
+                      value={css} 
+                      onChange={(e) => setCss(e.target.value)} 
+                      className="w-full h-32 bg-gray-900 border border-gray-700 rounded flex-1 px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                      placeholder="div { ... }"
+                    />
+                 </div>
+                 <div>
+                    <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">JS</label>
+                    <textarea 
+                      value={js} 
+                      onChange={(e) => setJs(e.target.value)} 
+                      className="w-full h-32 bg-gray-900 border border-gray-700 rounded flex-1 px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                      placeholder="console.log(...)"
+                    />
+                 </div>
+               </div>
+            </div>
+            
+            <div className="pt-4 flex justify-end flex-row">
+              <button 
+                 type="submit" 
+                 disabled={submitLoading}
+                 className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+              >
+                Initialize Contest
+              </button>
+            </div>
+          </form>
+        </div>
+        
+        {/* Preview Side */}
+        <div className="flex-1 border border-gray-800 rounded-xl overflow-hidden min-h-[400px] xl:min-h-full bg-black relative flex flex-col">
+          <div className="absolute inset-x-0 top-0 h-8 bg-gray-900 border-b border-gray-800 flex items-center px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest z-10">
+             Target Preview
           </div>
-          <div className="pt-4 flex justify-end flex-row">
-            <button 
-               type="submit" 
-               disabled={submitLoading}
-               className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
-            >
-              Initialize Contest
-            </button>
+          <div className="pt-8 flex-1 h-full w-full">
+            {(html || css || js) ? (
+              <PreviewPanel html={html} css={css} js={js} projectName="Live Preview" />
+            ) : imageUrl ? (
+              <img src={imageUrl} alt="Preview" className="w-full h-full object-contain bg-gray-900" />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-600">
+                 <div className="w-16 h-16 rounded-full border border-dashed border-gray-700 flex items-center justify-center mb-4">
+                    <span className="text-2xl opacity-20">🖼️</span>
+                 </div>
+                 <p className="text-xs">Preview will appear here</p>
+              </div>
+            )}
           </div>
-        </form>
+        </div>
       </div>
 
       {/* Contest List */}

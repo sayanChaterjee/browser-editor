@@ -11,7 +11,10 @@ const createContestSchema = z.object({
     title: z.string().min(1, 'Title is required'),
     startTime: z.string(),
     endTime: z.string(),
-    imageUrl: z.string().url('Must be a valid URL'),
+    imageUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+    html: z.string().optional(),
+    css: z.string().optional(),
+    js: z.string().optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -62,6 +65,9 @@ contestRouter.post('/', verifyToken, isAdmin, async (req: Request, res: Response
             startTime: new Date(data.startTime),
             endTime: new Date(data.endTime),
             imageUrl: data.imageUrl,
+            html: data.html,
+            css: data.css,
+            js: data.js,
             status: 'pending' // default
         });
         res.status(201).json(newContest);

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import Editor from "@monaco-editor/react";
+import { X, Copy, ClipboardPaste } from "lucide-react";
 
 type Props = {
   language: "html" | "css" | "javascript";
@@ -12,16 +13,27 @@ type Props = {
 // Global-ish clipboard for the app session
 let internalClipboard = "";
 
+type FloatingAction = {
+  type: 'copy' | 'paste';
+  text?: string;
+  top: number;
+  left: number;
+} | null;
+
 export default function CodeEditor({ language, value, onChange }: Props) {
-  const [selection, setSelection] = useState<{ text: string; top: number; left: number } | null>(null);
-  const [showPaste, setShowPaste] = useState(false);
+  const [floatingAction, setFloatingAction] = useState<FloatingAction>(null);
   const editorRef = useRef<any>(null);
 
   const handleCopy = () => {
-    if (selection) {
-      internalClipboard = selection.text;
-      setSelection(null);
-      // Success feedback could be added here
+    if (floatingAction && floatingAction.type === 'copy' && floatingAction.text) {
+      internalClipboard = floatingAction.text;
+      
+      // Switch to Paste mode where the Copy button was
+      setFloatingAction({
+        type: 'paste',
+        top: floatingAction.top,
+        left: floatingAction.left
+      });
     }
   };
 
@@ -32,31 +44,45 @@ export default function CodeEditor({ language, value, onChange }: Props) {
       const id = { major: 1, minor: 1 };
       const op = { identifier: id, range: selectionObj, text: internalClipboard, forceMoveMarkers: true };
       editor.executeEdits("custom-paste", [op]);
-      setShowPaste(false);
+      setFloatingAction(null);
     }
+  };
+
+  const closeFloating = () => {
+    setFloatingAction(null);
   };
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {/* Custom Copy Button - Appears near selection */}
-      {selection && (
-        <button
-          onClick={handleCopy}
-          className="absolute z-[100] px-3 py-1 bg-[#38bdf8] text-white text-xs font-bold rounded shadow-lg hover:bg-[#0ea5e9] transition-all animate-in fade-in zoom-in duration-150"
-          style={{ top: selection.top - 35, left: selection.left }}
+      {/* Floating Toolbar */}
+      {floatingAction && (
+        <div 
+          className="absolute z-[100] flex items-center gap-1 bg-[#1e293b] border border-slate-700 p-1.5 rounded-lg shadow-2xl animate-in fade-in zoom-in duration-150"
+          style={{ top: Math.max(10, floatingAction.top - 50), left: Math.max(10, floatingAction.left - 20) }}
         >
-          Copy
-        </button>
-      )}
-
-      {/* Floating Paste Button - Appears when clipboard has items */}
-      {showPaste && (
-        <button
-          onClick={handlePaste}
-          className="absolute z-[100] bottom-6 right-6 px-4 py-2 bg-[#10b981] text-white text-sm font-bold rounded-full shadow-2xl hover:bg-[#059669] transition-all animate-bounce"
-        >
-          📋 Paste
-        </button>
+          {floatingAction.type === 'copy' ? (
+             <button
+               onClick={handleCopy}
+               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#38bdf8] hover:bg-[#0ea5e9] text-white text-xs font-bold rounded-md transition-all"
+             >
+               <Copy size={14} /> Copy
+             </button>
+          ) : (
+             <button
+               onClick={handlePaste}
+               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold rounded-md transition-all"
+             >
+               <ClipboardPaste size={14} /> Paste
+             </button>
+          )}
+          <div className="w-[1px] h-5 bg-slate-700 mx-0.5"></div>
+          <button 
+             onClick={closeFloating}
+             className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-md transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
       )}
 
       <Editor
@@ -73,6 +99,12 @@ export default function CodeEditor({ language, value, onChange }: Props) {
           readOnly: false,
           contextmenu: false,
           links: false,
+          // Disable built-in search
+          find: {
+            addExtraSpaceOnTop: false,
+            autoFindInSelection: 'never',
+            seedSearchStringFromSelection: 'never'
+          },
           scrollbar: {
             vertical: 'visible',
             horizontal: 'visible'
@@ -81,18 +113,27 @@ export default function CodeEditor({ language, value, onChange }: Props) {
         onMount={(editor) => {
           editorRef.current = editor;
 
-          // Block OS level clipboard shortcuts (Ctrl+C/V/X) 
-          // but allow other features like Shift+Tab, Ctrl+F, etc.
+          // Block OS level clipboard shortcuts (Ctrl+C/V/X) and Search (Ctrl+F)
           editor.onKeyDown((e) => {
             const { ctrlKey, metaKey, code } = e;
-            if ((ctrlKey || metaKey) && (code === 'KeyC' || code === 'KeyV' || code === 'KeyX')) {
+            if ((ctrlKey || metaKey) && (code === 'KeyC' || code === 'KeyV' || code === 'KeyX' || code === 'KeyF')) {
               e.preventDefault();
               e.stopPropagation();
               
               // If user tries to paste, show the custom paste button
               if (code === 'KeyV' && internalClipboard) {
-                setShowPaste(true);
-                setTimeout(() => setShowPaste(false), 3000);
+                const selectionObj = editor.getSelection();
+                if (selectionObj) {
+                  const position = editor.getScrolledVisiblePosition(selectionObj.getStartPosition());
+                  if (position) {
+                     setFloatingAction({ type: 'paste', top: position.top, left: position.left });
+                     
+                     // Auto hide after 4 seconds
+                     setTimeout(() => {
+                        setFloatingAction(prev => prev?.type === 'paste' ? null : prev);
+                     }, 4000);
+                  }
+                }
               }
             }
           });
@@ -108,7 +149,8 @@ export default function CodeEditor({ language, value, onChange }: Props) {
               const domNode = editor.getDomNode();
 
               if (position && domNode) {
-                setSelection({
+                setFloatingAction({
+                  type: 'copy',
                   text,
                   top: position.top,
                   left: position.left
@@ -116,16 +158,13 @@ export default function CodeEditor({ language, value, onChange }: Props) {
                 return;
               }
             }
-            setSelection(null);
+            // Only clear selection if we are currently in copy mode or we no longer have a selection
+            // We want to keep paste mode open if they just clicked copy.
+            setFloatingAction(prev => prev?.type === 'copy' ? null : prev);
           });
 
           // Show paste indicator when clicking inside if content exists
-          editor.onMouseDown(() => {
-            if (internalClipboard) {
-              setShowPaste(true);
-              setTimeout(() => setShowPaste(false), 5000);
-            }
-          });
+          // Disabling generic bottom-right paste. Let it just be shown when pasting via keyboard OR after copy.
         }}
       />
     </div>

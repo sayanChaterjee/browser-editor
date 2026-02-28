@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import Preview from "./Preview";
@@ -292,46 +293,64 @@ export default function EditorLayout() {
       <div className={`flex h-[calc(100vh-100px)] min-w-0 ${showWarningModal ? "blur-sm pointer-events-none" : ""}`}>
         <FileExplorer activeFile={activeFile} setActiveFile={setActiveFile} />
 
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0f172a]">
-          <div className="h-[70%] flex flex-col border-b border-[#333]">
-            <FileTabs activeFile={activeFile} />
-            <div className="flex-1 overflow-hidden">
-              <CodeEditor
-                {...getEditorConfig(activeFile, {
-                  html,
-                  setHtml,
-                  css,
-                  setCss,
-                  js,
-                  setJs,
-                })}
-              />
-            </div>
-          </div>
-          <div className="h-[30%]">
-            <Terminal logs={logs} />
-          </div>
-        </div>
+        <PanelGroup orientation="horizontal" className="flex-1 w-full min-w-0">
+          <Panel defaultSize={50} minSize={20} className="flex flex-col min-w-0 overflow-hidden bg-[#0f172a]">
+            <PanelGroup orientation="vertical">
+              <Panel defaultSize={70} minSize={30} className="flex flex-col border-b border-[#333]">
+                <FileTabs activeFile={activeFile} />
+                <div className="flex-1 overflow-hidden">
+                  <CodeEditor
+                    {...getEditorConfig(activeFile, {
+                      html,
+                      setHtml,
+                      css,
+                      setCss,
+                      js,
+                      setJs,
+                    })}
+                  />
+                </div>
+              </Panel>
+              
+              <PanelResizeHandle className="h-1 bg-[#1e293b] hover:bg-cyan-500 transition-colors w-full cursor-row-resize flex justify-center items-center z-10">
+                <div className="h-0.5 w-8 bg-slate-500 rounded-full" />
+              </PanelResizeHandle>
+              
+              <Panel defaultSize={30} minSize={10} className="flex flex-col">
+                <Terminal logs={logs} />
+              </Panel>
+            </PanelGroup>
+          </Panel>
 
-        <div className="flex-1 w-full min-w-[320px] flex flex-col bg-[#0f172a] border-l border-[#333] overflow-hidden">
-          <EditorToolbar 
-            showQuestion={showQuestion}
-            setShowQuestion={setShowQuestion}
-            contestStarted={contestStarted}
-            onSave={() => {
-                setIgnoreNextBlur(true);
-                saveCode({ html, css, js, timeLeft });
-            }}
-            onSubmit={handleSubmitRequest}
-          />
-          <div className="flex-1 overflow-hidden flex flex-col">
-            {showQuestion ? (
-              <QuestionPanel imageUrl={activeContest?.imageUrl} />
-            ) : (
-              <Preview html={html} css={css} js={js} />
-            )}
-          </div>
-        </div>
+          <PanelResizeHandle className="w-1.5 bg-[#1e293b] hover:bg-cyan-500 transition-colors h-full cursor-col-resize flex flex-col items-center justify-center z-10">
+            <div className="w-0.5 h-8 bg-slate-500 rounded-full" />
+          </PanelResizeHandle>
+
+          <Panel defaultSize={50} minSize={20} className="flex flex-col bg-[#0f172a] border-l border-[#333] overflow-hidden">
+            <EditorToolbar 
+              showQuestion={showQuestion}
+              setShowQuestion={setShowQuestion}
+              contestStarted={contestStarted}
+              onSave={() => {
+                  setIgnoreNextBlur(true);
+                  saveCode({ html, css, js, timeLeft });
+              }}
+              onSubmit={handleSubmitRequest}
+            />
+            <div className="flex-1 overflow-hidden flex flex-col">
+              {showQuestion ? (
+                <QuestionPanel 
+                  imageUrl={activeContest?.imageUrl}
+                  html={(activeContest as any)?.html}
+                  css={(activeContest as any)?.css}
+                  js={(activeContest as any)?.js}
+                />
+              ) : (
+                <Preview html={html} css={css} js={js} />
+              )}
+            </div>
+          </Panel>
+        </PanelGroup>
       </div>
     </div>
   );
