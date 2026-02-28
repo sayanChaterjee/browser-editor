@@ -106,6 +106,40 @@ contestRouter.patch('/:id/status', verifyToken, isAdmin, async (req: Request, re
     }
 });
 
+// PUT /contest/:id - Update contest details (Admin)
+contestRouter.put('/:id', verifyToken, isAdmin, async (req: Request, res: Response): Promise<any> => {
+    try {
+        const { id } = req.params;
+        const data = createContestSchema.parse(req.body);
+
+        const contest = await Contest.findByIdAndUpdate(
+            id,
+            {
+                title: data.title,
+                startTime: new Date(data.startTime),
+                endTime: new Date(data.endTime),
+                imageUrl: data.imageUrl,
+                html: data.html,
+                css: data.css,
+                js: data.js,
+            },
+            { new: true }
+        );
+
+        if (!contest) {
+            return res.status(404).json({ message: 'Contest not found' });
+        }
+
+        res.json(contest);
+    } catch (error) {
+        logger.error(`[PUT /api/v1/contest/${req.params.id}] Error:`, error);
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ errors: error.errors });
+        }
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // DELETE /contest/:id - Delete a contest (Admin)
 contestRouter.delete('/:id', verifyToken, isAdmin, async (req: Request, res: Response): Promise<any> => {
     try {

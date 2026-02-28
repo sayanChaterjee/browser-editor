@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Contest, fetchAllContests, createContest, updateContestStatus, deleteContest } from '@/lib/adminApi';
+import { Contest, fetchAllContests, createContest, updateContest, updateContestStatus, deleteContest } from '@/lib/adminApi';
 import PreviewPanel from '@/components/admin/PreviewPanel';
 
 export default function ContestManager() {
@@ -16,6 +16,8 @@ export default function ContestManager() {
   const [css, setCss] = useState('');
   const [js, setJs] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editContestId, setEditContestId] = useState<string | null>(null);
 
   const loadContests = async () => {
     try {
@@ -44,28 +46,71 @@ export default function ContestManager() {
       if (!imageUrl && !html && !css && !js) {
          throw new Error("Provide either an image URL or code for the question");
       }
-      await createContest({
-        title,
-        startTime: new Date(startTime).toISOString(),
-        endTime: new Date(endTime).toISOString(),
-        imageUrl: imageUrl || undefined,
-        html: html || undefined,
-        css: css || undefined,
-        js: js || undefined
-      });
-      setTitle('');
-      setStartTime('');
-      setEndTime('');
-      setImageUrl('');
-      setHtml('');
-      setCss('');
-      setJs('');
+      if (editMode && editContestId) {
+        await updateContest(editContestId, {
+          title,
+          startTime: new Date(startTime).toISOString(),
+          endTime: new Date(endTime).toISOString(),
+          imageUrl: imageUrl || undefined,
+          html: html || undefined,
+          css: css || undefined,
+          js: js || undefined
+        });
+        setEditMode(false);
+        setEditContestId(null);
+      } else {
+        await createContest({
+          title,
+          startTime: new Date(startTime).toISOString(),
+          endTime: new Date(endTime).toISOString(),
+          imageUrl: imageUrl || undefined,
+          html: html || undefined,
+          css: css || undefined,
+          js: js || undefined
+        });
+      }
+      resetForm();
       await loadContests();
     } catch (err: any) {
-       setError(err.message || 'Failed to create contest');
+       setError(err.message || (editMode ? 'Failed to update contest' : 'Failed to create contest'));
     } finally {
       setSubmitLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setTitle('');
+    setStartTime('');
+    setEndTime('');
+    setImageUrl('');
+    setHtml('');
+    setCss('');
+    setJs('');
+    setEditMode(false);
+    setEditContestId(null);
+  };
+
+  const handleEditClick = (contest: Contest) => {
+    setEditMode(true);
+    setEditContestId(contest._id);
+    setTitle(contest.title);
+    
+    // Format date for datetime-local input
+    const start = new Date(contest.startTime);
+    start.setMinutes(start.getMinutes() - start.getTimezoneOffset());
+    setStartTime(start.toISOString().slice(0, 16));
+    
+    const end = new Date(contest.endTime);
+    end.setMinutes(end.getMinutes() - end.getTimezoneOffset());
+    setEndTime(end.toISOString().slice(0, 16));
+    
+    setImageUrl(contest.imageUrl || '');
+    setHtml(contest.html || '');
+    setCss(contest.css || '');
+    setJs(contest.js || '');
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleStatusChange = async (id: string, newStatus: 'pending' | 'active' | 'ended') => {
@@ -112,10 +157,11 @@ export default function ContestManager() {
         </div>
       )}
 
-      {/* Create Contest Form */}
       <div className="bg-[#0c1222] border border-gray-800 rounded-xl p-6 mb-8 shadow-xl flex flex-col xl:flex-row gap-6">
         <div className="flex-1">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-gray-800">New Contest Schema</h3>
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-gray-800">
+            {editMode ? 'Edit Contest' : 'New Contest Schema'}
+          </h3>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
                <div>
@@ -191,13 +237,22 @@ export default function ContestManager() {
                </div>
             </div>
             
-            <div className="pt-4 flex justify-end flex-row">
+            <div className="pt-4 flex justify-end flex-row gap-3">
+              {editMode && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-6 py-2.5 rounded-lg text-sm font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
               <button 
                  type="submit" 
                  disabled={submitLoading}
                  className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
               >
-                Initialize Contest
+                {submitLoading ? 'Saving...' : (editMode ? 'Save Changes' : 'Initialize Contest')}
               </button>
             </div>
           </form>
@@ -264,6 +319,7 @@ export default function ContestManager() {
                     {c.status === 'active' && (
                        <button onClick={() => handleStatusChange(c._id, 'ended')} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-4 py-2 rounded-lg text-xs font-bold transition-colors">End Contest</button>
                     )}
+                    <button onClick={() => handleEditClick(c)} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-4 py-2 rounded-lg text-xs font-bold transition-colors">Edit Contest</button>
                     <button onClick={() => handleDelete(c._id)} className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-lg text-xs font-bold transition-colors">Delete Contest</button>
                  </div>
               </div>

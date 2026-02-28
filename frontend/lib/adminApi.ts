@@ -108,6 +108,20 @@ export async function createContest(data: { title: string; startTime: string; en
     return res.json();
 }
 
+export async function updateContest(id: string, data: { title: string; startTime: string; endTime: string; imageUrl?: string; html?: string; css?: string; js?: string; }): Promise<Contest> {
+    const res = await fetch(`${BASE}/api/v1/contest/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+        try { const err = await res.json(); throw new Error(err.message || `Failed to update contest: ${res.status}`); }
+        catch (e: any) { throw new Error(e.message || `Failed to update contest: ${res.status}`); }
+    }
+    return res.json();
+}
+
 export async function updateContestStatus(id: string, status: 'pending' | 'active' | 'ended'): Promise<Contest> {
     const res = await fetch(`${BASE}/api/v1/contest/${id}/status`, {
         method: 'PATCH',
