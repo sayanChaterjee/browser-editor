@@ -35,6 +35,18 @@ export default function ContestManager() {
     loadContests();
   }, []);
 
+  // Auto-update contest status when endTime passes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      contests.forEach(c => {
+        if (c.status === 'active' && new Date(c.endTime).getTime() <= Date.now()) {
+          handleStatusChange(c._id, 'ended');
+        }
+      });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [contests]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitLoading(true);

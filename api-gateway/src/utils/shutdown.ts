@@ -40,6 +40,6 @@ export const setupGracefulShutdown = (server: Server) => {
 
     process.on('unhandledRejection', (reason, promise) => {
         logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-        shutdown('unhandledRejection');
+        // Log only — do not crash the process for transient failures (e.g. Redis ECONNREFUSED)
     });
 };

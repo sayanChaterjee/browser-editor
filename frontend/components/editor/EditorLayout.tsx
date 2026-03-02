@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import FileExplorer from "./FileExplorer";
@@ -36,6 +36,8 @@ export default function EditorLayout() {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [startDuration, setStartDuration] = useState<number>(0);
+  const startDurationRef = useRef(0);
+  const timeLeftRef = useRef(0);
   const [logs, setLogs] = useState<{ type: string; args: any[] }[]>([]);
 
   const { toasts, showToast, dismissToast } = useToast();
@@ -139,6 +141,10 @@ export default function EditorLayout() {
     await submitProject(true);
   });
 
+  // Keep refs in sync with state to avoid stale closures in timer/beacon callbacks
+  useEffect(() => { startDurationRef.current = startDuration; }, [startDuration]);
+  useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+
   const submitProject = async (isAutoSubmit = false) => {
     isQuittingRef.current = true;
     setIgnoreNextBlur(true);
@@ -146,7 +152,7 @@ export default function EditorLayout() {
     try {
       await saveCode({ html, css, js, timeLeft });
 
-      const timeTaken = Math.max(0, startDuration - timeLeft);
+      const timeTaken = Math.max(0, startDurationRef.current - timeLeftRef.current);
 
       const res = await fetch(`/api/v1/code/submit`, {
         method: "POST",
@@ -195,6 +201,25 @@ export default function EditorLayout() {
     onLoadFromIDB: () => {},
   });
 
+  // Auto-submit via sendBeacon when user closes the browser window
+  useEffect(() => {
+    if (!contestStarted) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isQuittingRef.current) return; // Already submitting via normal flow
+      const timeTaken = Math.max(0, startDurationRef.current - timeLeftRef.current);
+      const payload = JSON.stringify({
+        projectId, html, css, js,
+        timeLeft: timeLeftRef.current,
+        timeTaken,
+      });
+      navigator.sendBeacon('/api/v1/code/submit', new Blob([payload], { type: 'application/json' }));
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [contestStarted, projectId, html, css, js]);
+
   const handleContestStart = async () => {
     try {
       await document.documentElement.requestFullscreen();
@@ -216,7 +241,16 @@ export default function EditorLayout() {
   };
 
   const startContest = async () => {
-    // Always force the user to create a new project for the contest
+    // If user already has a project from the current contest (e.g. admin extended time),
+    // allow them to resume it directly instead of forcing a new project.
+    if (projectId && activeContest?.startTime) {
+      const existingProject = projects.find(p => p._id === projectId);
+      if (existingProject && new Date(existingProject.updatedAt) >= new Date(activeContest.startTime)) {
+        handleContestStart();
+        return;
+      }
+    }
+    // Otherwise, force the user to create a new project for the contest
     setIsContestPending(true);
     setIsModalCancelable(true);
     setShowCreateModal(true);
