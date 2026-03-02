@@ -133,11 +133,54 @@ export default function EditorLayout() {
     startTimer,
     stopTimer,
     formatTime,
-  } = useContestTimer(0, () => {
+  } = useContestTimer(0, async () => {
     setIgnoreNextBlur(true);
-    showToast("Time's up! Your session has ended.", "warning");
-    logoutUser();
+    showToast("Time's up! Auto-submitting your project...", "info");
+    await submitProject(true);
   });
+
+  const submitProject = async (isAutoSubmit = false) => {
+    isQuittingRef.current = true;
+    setIgnoreNextBlur(true);
+
+    try {
+      await saveCode({ html, css, js, timeLeft });
+
+      const timeTaken = Math.max(0, startDuration - timeLeft);
+
+      const res = await fetch(`/api/v1/code/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({ projectId, html, css, js, timeLeft, timeTaken }),
+      });
+
+      if (res.ok) {
+        showToast(isAutoSubmit ? "Time's up! Project autosubmitted successfully!" : "Project submitted successfully! Your progress has been saved.", "success");
+      }
+    } catch (err) {
+      console.error("Submission/Save failed", err);
+    } finally {
+      if (document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch (err) {
+          console.error("Error exiting fullscreen:", err);
+        }
+      }
+
+      setHtml("");
+      setCss("");
+      setJs("");
+      setContestStarted(false);
+      stopTimer();
+      setTimeLeft(0);
+      
+      logoutUser();
+    }
+  };
 
   const { saveToIDB } = useEditorPersistence({
     html,
@@ -196,48 +239,11 @@ export default function EditorLayout() {
     setShowSubmitConfirm(true);
   };
 
+
+
   const handleSubmitConfirm = async () => {
     setShowSubmitConfirm(false);
-    isQuittingRef.current = true;
-    setIgnoreNextBlur(true);
-
-    try {
-      await saveCode({ html, css, js, timeLeft });
-
-      const timeTaken = Math.max(0, startDuration - timeLeft);
-
-      const res = await fetch(`/api/v1/code/submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: 'include',
-        body: JSON.stringify({ projectId, html, css, js, timeLeft, timeTaken }),
-      });
-
-      if (res.ok) {
-        showToast("Project submitted successfully! Your progress has been saved.", "success");
-      }
-    } catch (err) {
-      console.error("Submission/Save failed", err);
-    } finally {
-      if (document.fullscreenElement) {
-        try {
-          await document.exitFullscreen();
-        } catch (err) {
-          console.error("Error exiting fullscreen:", err);
-        }
-      }
-
-      setHtml("");
-      setCss("");
-      setJs("");
-      setContestStarted(false);
-      stopTimer();
-      setTimeLeft(0);
-      
-      logoutUser();
-    }
+    await submitProject();
   };
 
   const handleSubmitCancel = () => {
