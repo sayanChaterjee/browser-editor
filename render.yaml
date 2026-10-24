@@ -35,10 +35,8 @@ services:
       # Public URLs on purpose: free-tier Render services can't receive private-network
       # traffic, and `fromService: host` yields a port-less internal hostname. Blueprint
       # syncs re-apply these values, so they must be the working ones.
-      # identity-service's public URL (https://identity-service-xxxx.onrender.com): set it in
-      # the dashboard once the Blueprint has created that service, then pin it here.
       - key: IDENTITY_SERVICE_URL
-        sync: false
+        value: https://identity-service-ltmg.onrender.com
       - key: CODE_SERVICE_URL
         value: https://code-service-2aa7.onrender.com
       - key: REDIS_URL
