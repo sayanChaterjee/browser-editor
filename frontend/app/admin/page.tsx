@@ -79,7 +79,7 @@ export default function AdminDashboard() {
         if (projData.length > 0) {
           setSelectedActivity(projData[0]);
         } else if (subData.length > 0) {
-          setSelectedActivity(subData[0] as any);
+          setSelectedActivity(subData[0]);
         } else {
           setSelectedActivity(null);
         }
@@ -297,7 +297,7 @@ export default function AdminDashboard() {
                     html={selectedActivity.html}
                     css={selectedActivity.css}
                     js={selectedActivity.js}
-                    projectName={(selectedActivity as any).name || `Submission ${selectedActivity._id.slice(-6)}`}
+                    projectName={('name' in selectedActivity && selectedActivity.name) || `Submission ${selectedActivity._id.slice(-6)}`}
                   />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-gray-600 bg-[#0a0e1a]">

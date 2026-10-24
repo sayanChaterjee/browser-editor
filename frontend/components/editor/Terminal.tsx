@@ -1,31 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { Terminal as XTerm } from "xterm";
+import type { FitAddon } from "xterm-addon-fit";
 
 
 interface TerminalProps {
-  logs: { type: string; args: any[] }[];
+  logs: { type: string; args: unknown[] }[];
 }
 
 export default function Terminal({ logs }: TerminalProps) {
   const [isTerminalReady, setIsTerminalReady] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
-  const xtermRef = useRef<any | null>(null);
-  const fitAddonRef = useRef<any | null>(null);
+  const xtermRef = useRef<XTerm | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
   const lastLogIndexRef = useRef(0);
 
   useEffect(() => {
     if (!terminalRef.current) return;
 
-    let term: any;
-    let fitAddon: any;
+    let term: XTerm;
+    let fitAddon: FitAddon;
 
     const initTerminal = async () => {
-      const { Terminal: XTerm } = await import("xterm");
-      const { FitAddon } = await import("xterm-addon-fit");
+      const { Terminal: XTermClass } = await import("xterm");
+      const { FitAddon: FitAddonClass } = await import("xterm-addon-fit");
       await import("xterm/css/xterm.css");
 
-      term = new XTerm({
+      term = new XTermClass({
         theme: {
           background: "#020617",
           foreground: "#f8fafc",
@@ -36,7 +38,7 @@ export default function Terminal({ logs }: TerminalProps) {
         cursorBlink: false,
       });
       
-      fitAddon = new FitAddon();
+      fitAddon = new FitAddonClass();
       term.loadAddon(fitAddon);
 
       term.open(terminalRef.current!);
@@ -76,7 +78,7 @@ export default function Terminal({ logs }: TerminalProps) {
 
     for (let i = lastLogIndexRef.current; i < logs.length; i++) {
       const log = logs[i];
-      const formatArg = (arg: any): string => {
+      const formatArg = (arg: unknown): string => {
         if (typeof arg === "string") return arg;
         if (arg instanceof Error) return arg.toString();
         try {

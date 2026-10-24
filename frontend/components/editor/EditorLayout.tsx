@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import FileExplorer from "./FileExplorer";
@@ -38,7 +38,7 @@ export default function EditorLayout() {
   const [startDuration, setStartDuration] = useState<number>(0);
   const startDurationRef = useRef(0);
   const timeLeftRef = useRef(0);
-  const [logs, setLogs] = useState<{ type: string; args: any[] }[]>([]);
+  const [logs, setLogs] = useState<{ type: string; args: unknown[] }[]>([]);
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -81,7 +81,6 @@ export default function EditorLayout() {
     projectName,
     projectId,
     projects,
-    userProfile,
     showCreateModal,
     setShowCreateModal,
     isCreatingProject,
@@ -109,7 +108,6 @@ export default function EditorLayout() {
   const {
     strikeCount,
     setStrikeCount,
-    violate,
     resumeContest,
     isQuittingRef,
     setIgnoreNextBlur,
@@ -188,7 +186,7 @@ export default function EditorLayout() {
     }
   };
 
-  const { saveToIDB } = useEditorPersistence({
+  useEditorPersistence({
     html,
     css,
     js,
@@ -198,14 +196,13 @@ export default function EditorLayout() {
     userId: currentUserId,
     contestStarted,
     isLoading,
-    onLoadFromIDB: () => {},
   });
 
   // Auto-submit via sendBeacon when user closes the browser window
   useEffect(() => {
     if (!contestStarted) return;
 
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = () => {
       if (isQuittingRef.current) return; // Already submitting via normal flow
       const timeTaken = Math.max(0, startDurationRef.current - timeLeftRef.current);
       const payload = JSON.stringify({
@@ -381,9 +378,9 @@ export default function EditorLayout() {
               {showQuestion ? (
                 <QuestionPanel 
                   imageUrl={activeContest?.imageUrl}
-                  html={(activeContest as any)?.html}
-                  css={(activeContest as any)?.css}
-                  js={(activeContest as any)?.js}
+                  html={activeContest?.html}
+                  css={activeContest?.css}
+                  js={activeContest?.js}
                 />
               ) : (
                 <Preview html={html} css={css} js={js} />
@@ -396,8 +393,23 @@ export default function EditorLayout() {
   );
 }
 
-function getEditorConfig(activeFile: string, states: any) {
-  const configs: Record<string, any> = {
+type EditorStates = {
+  html: string;
+  css: string;
+  js: string;
+  setHtml: (value: string) => void;
+  setCss: (value: string) => void;
+  setJs: (value: string) => void;
+};
+
+type EditorConfig = {
+  language: "html" | "css" | "javascript" | "markdown";
+  value: string;
+  onChange: (value: string) => void;
+};
+
+function getEditorConfig(activeFile: string, states: EditorStates) {
+  const configs: Record<string, EditorConfig> = {
     "index.html": { language: "html", value: states.html, onChange: states.setHtml },
     "styles.css": { language: "css", value: states.css, onChange: states.setCss },
     "script.js": { language: "javascript", value: states.js, onChange: states.setJs },

@@ -1,4 +1,4 @@
-import { openDB, IDBPDatabase } from 'idb';
+import { openDB, IDBPDatabase, DBSchema } from 'idb';
 
 const DB_NAME = 'ProjectDatabase';
 const STORE_NAME = 'projects';
@@ -15,12 +15,19 @@ export interface LocalProject {
     isSynced: boolean;
 }
 
-let dbPromise: Promise<IDBPDatabase<any>> | null = null;
+interface ProjectDB extends DBSchema {
+    projects: {
+        key: string;
+        value: LocalProject;
+    };
+}
+
+let dbPromise: Promise<IDBPDatabase<ProjectDB>> | null = null;
 
 const getDB = () => {
     if (!dbPromise) {
-        dbPromise = openDB(DB_NAME, VERSION, {
-            upgrade(db, oldVersion, newVersion, transaction) {
+        dbPromise = openDB<ProjectDB>(DB_NAME, VERSION, {
+            upgrade(db, oldVersion, newVersion) {
                 console.log(`Upgrading IDB from ${oldVersion} to ${newVersion}`);
                 if (!db.objectStoreNames.contains(STORE_NAME)) {
                     db.createObjectStore(STORE_NAME, { keyPath: 'id' });

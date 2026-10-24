@@ -3,7 +3,6 @@
 import React from "react";
 import { FloatingDock } from "@/components/ui/floating-dock";
 import {
-  IconBrandGithub,
   IconHome,
   IconTerminal2,
   IconUser,
