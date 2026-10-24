@@ -15,7 +15,6 @@
 - [Services](#-services)
 - [Tech Stack](#-tech-stack)
 - [Quick Start](#-quick-start)
-- [Environment Setup](#-environment-setup)
 - [API Documentation](#-api-documentation)
 - [Design Patterns](#-design-patterns)
 - [Security](#-security)
@@ -350,102 +349,50 @@ graph LR
 
 ## 🚀 Quick Start
 
+Local development runs entirely in Docker (MongoDB, Redis, Kafka and the 4 backend services);
+nothing touches production. The frontend runs with `npm run dev`.
+
 ### Prerequisites
 - Docker & Docker Compose
-- Node.js 20+ (for local development)
-- MongoDB Atlas account (or local MongoDB)
-- Google Cloud Console account (for OAuth)
+- Node.js 20+
+- Google Cloud OAuth client (optional, for Google sign-in)
 
-### 1. Clone Repository
+### 1. Configure environment
 ```bash
-git clone https://github.com/yourusername/browser-editor.git
-cd browser-editor
+cp .env.example .env                       # shared secrets used by docker compose
+for s in api-gateway auth-service user-service code-service; do cp $s/.env.example $s/.env; done
+cp frontend/.env.example frontend/.env.local
+```
+Generate `BETTER_AUTH_SECRET` and `INTERNAL_GATEWAY_SECRET` with `openssl rand -base64 32`.
+Each service's `.env` holds `localhost` values for running it with `npm run dev`;
+`docker-compose.yml` overrides infrastructure addresses with container hostnames.
+
+For Google sign-in, add `http://localhost:3005/api/auth/callback/google` as an authorized redirect URI.
+
+### 2. Start the backend
+```bash
+docker compose up -d --build --wait
+scripts/smoke.sh          # sign up -> profile -> save -> list -> open
 ```
 
-### 2. Environment Configuration
+### 3. Start the frontend
 ```bash
-# Copy environment template
-cp .env.example .env
-
-# Edit .env with your credentials
-nano .env
+cd frontend && npm install && npm run dev
 ```
 
-**Required credentials:**
-- MongoDB Atlas connection strings (3 databases)
-- Better-Auth secret (32+ chars)
-- Redis password
-- Google OAuth credentials (optional)  
-- Resend API key (optional, for emails)
-
-### 3. Start with Docker
-```bash
-# Build and start all services
-docker-compose up --build
-
-# Or run in detached mode
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-```
-
-### 4. Access Services
+### 4. Access services
 - **Frontend:** http://localhost:3005
 - **API Gateway:** http://localhost:3000
-- **Kafka UI:** http://localhost:8080
-- **Redis Insight:** http://localhost:8001
+- **Redis Insight / Kafka UI** (optional): `docker compose --profile tools up -d`, then http://localhost:5540 and http://localhost:8080
+- **MongoDB:** mongodb://localhost:27017
 
----
+### Production
+Production uses MongoDB Atlas, Upstash Redis and Aiven Kafka, configured in the Render and Vercel
+dashboards (see `render.yaml`). Kafka client certificates (`ca.pem`, `service.cert`, `service.key`)
+are Render secret files, read from `/etc/secrets`.
 
-## ⚙️ Environment Setup
-
-### Complete Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
-#### Database Connections
-```bash
-# MongoDB Atlas (create 3 separate databases)
-AUTH_DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/ceditor_auth
-USER_DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/ceditor_user
-CODE_DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/ceditor_code
-```
-
-#### Redis Configuration
-```bash
-REDIS_PASSWORD=your-strong-password-here
-```
-
-#### Authentication Secrets
-```bash
-# Generate with: openssl rand -base64 32
-BETTER_AUTH_SECRET=your-secret-min-32-chars
-BETTER_AUTH_URL=http://localhost:3000
-
-# x-user-id Header (API Gateway -> Services)
-# Ensure API Gateway is configured with the same secret if using legacy JWT verification
-```
-
-#### Google OAuth (Optional)
-Get credentials from [Google Cloud Console](https://console.cloud.google.com/):
-
-1. Create OAuth 2.0 Client ID
-2. Application type: Web application
-3. Authorized redirect URIs:
-   - Development: `http://localhost:3000/api/auth/callback/google`
-   - Production: `https://yourdomain.com/api/auth/callback/google`
-
-```bash
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
-```
-
-#### Email Service (Optional)
-```bash
-# Get from https://resend.com/api-keys
-RESEND_API_KEY=re_your_api_key
-```
+### Load testing
+See [loadtest/README.md](loadtest/README.md).
 
 ---
 

@@ -1,0 +1,17 @@
+# Overlay for load tests: caps each app container near a small production instance
+# so results reflect constrained hardware rather than a fast laptop.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.loadtest.yml up -d --build --wait
+
+x-limits: &limits
+  cpus: "0.5"
+  mem_limit: 512m
+
+services:
+  api-gateway:
+    <<: *limits
+  auth-service:
+    <<: *limits
+  user-service:
+    <<: *limits
+  code-service:
+    <<: *limits

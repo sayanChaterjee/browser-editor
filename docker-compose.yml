@@ -1,16 +1,37 @@
 name: ceditor
 
+# Local development stack: all infrastructure runs in containers, nothing touches production.
+# Each app loads its own <service>/.env, shared secrets come from the root .env,
+# and the addresses below override localhost values with container hostnames.
+
+x-app-healthcheck: &app-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 20s
+
 services:
+  mongo:
+    image: mongo:7
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   redis:
-    image: redis/redis-stack:6.2.6-v19
+    # Plain Redis, like production (Upstash); the code uses no Redis Stack modules.
+    image: redis:7.2-alpine
     container_name: redis
-    environment:
-      REDIS_ARGS: "--requirepass ${REDIS_PASSWORD}"
     ports:
       - "6379:6379"
-      - "8001:8001"
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -36,14 +57,38 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     healthcheck:
-      test: [ "CMD", "nc", "-z", "localhost", "9092" ]
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1" ]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 15s
+
+  # Creates the topics the services subscribe to, so consumers never start before their topic exists.
+  kafka-init:
+    image: apache/kafka:3.7.0
+    container_name: kafka-init
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        for t in user-registered user-registered-dlq user-security-updates saga-events; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t" --partitions 1 --replication-factor 1 || exit 1
+        done
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # Optional UIs: docker compose --profile tools up -d
+  redis-insight:
+    image: redis/redisinsight:2.58
+    container_name: redis-insight
+    profiles: [ tools ]
+    ports:
+      - "5540:5540"
 
   kafka-ui:
-    image: provectuslabs/kafka-ui
+    image: provectuslabs/kafka-ui:v0.7.2
     container_name: kafka-ui
+    profiles: [ tools ]
     ports:
       - "8080:8080"
     environment:
@@ -59,15 +104,13 @@ services:
     restart: on-failure
     ports:
       - "3000:3000"
+    env_file: ./api-gateway/.env
     environment:
-      - PORT=3000
+      - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
+      - REDIS_URL=redis://redis:6379
       - AUTH_SERVICE_URL=http://auth-service:3001
       - USER_SERVICE_URL=http://user-service:3002
       - CODE_SERVICE_URL=http://code-service:3003
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - ALLOWED_ORIGINS=http://localhost:3001,http://localhost:3005,http://localhost:3000,http://localhost:3004,http://localhost:3006
-      - DEFAULT_TIMEOUT=30000
     depends_on:
       redis:
         condition: service_healthy
@@ -78,10 +121,8 @@ services:
       code-service:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', (e) => process.exit(1))" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
+      <<: *app-healthcheck
 
   auth-service:
     build: ./auth-service
@@ -89,26 +130,28 @@ services:
     restart: on-failure
     ports:
       - "3001:3001"
+    env_file: ./auth-service/.env
     environment:
-      - PORT=3001
-      - DATABASE_URL=${AUTH_DATABASE_URL}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_URL=http://localhost:3000
-      - KAFKA_BROKER=kafka:9092
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - FRONTEND_URL=http://localhost:3005
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - DATABASE_URL=mongodb://mongo:27017/ceditor_auth
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_BROKER=kafka:9092
+      - USER_SERVICE_URL=http://user-service:3002
+      - CODE_SERVICE_URL=http://code-service:3003
     depends_on:
+      mongo:
+        condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', (e) => process.exit(1))" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
+      <<: *app-healthcheck
 
   user-service:
     build: ./user-service
@@ -116,21 +159,23 @@ services:
     restart: on-failure
     ports:
       - "3002:3002"
+    env_file: ./user-service/.env
     environment:
-      - PORT=3002
-      - DATABASE_URL=${USER_DATABASE_URL}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - DATABASE_URL=mongodb://mongo:27017/ceditor_user
+      - REDIS_URL=redis://redis:6379
       - KAFKA_BROKER=kafka:9092
     depends_on:
+      mongo:
+        condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', (e) => process.exit(1))" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
+      <<: *app-healthcheck
 
   code-service:
     build: ./code-service
@@ -138,21 +183,24 @@ services:
     restart: on-failure
     ports:
       - "3003:3003"
+    env_file: ./code-service/.env
     environment:
-      - PORT=3003
-      - DATABASE_URL=${CODE_DATABASE_URL}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
+      - DATABASE_URL=mongodb://mongo:27017/ceditor_code
+      - REDIS_URL=redis://redis:6379
       - KAFKA_BROKER=kafka:9092
     depends_on:
+      mongo:
+        condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3003/health', (res) => { if (res.statusCode === 200) process.exit(0); else process.exit(1); }).on('error', (e) => process.exit(1))" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3003/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
+      <<: *app-healthcheck
 
 volumes:
+  mongo_data:
   redis_data:
