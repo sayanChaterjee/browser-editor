@@ -16,7 +16,17 @@ services:
   - type: web
     name: api-gateway
     runtime: docker
-    rootDir: api-gateway
+    # Builds from the repo root: npm workspaces share one lockfile and packages/common
+    dockerContext: .
+    dockerfilePath: ./api-gateway/Dockerfile
+    # Only redeploy when this service or shared code changes (replaces rootDir)
+    buildFilter:
+      paths:
+        - api-gateway/**
+        - packages/**
+        - package.json
+        - package-lock.json
+        - tsconfig.base.json
     plan: free
     envVars:
       - fromGroup: internal-security-group
@@ -49,7 +59,17 @@ services:
   - type: web
     name: auth-service
     runtime: docker
-    rootDir: auth-service
+    # Builds from the repo root: npm workspaces share one lockfile and packages/common
+    dockerContext: .
+    dockerfilePath: ./auth-service/Dockerfile
+    # Only redeploy when this service or shared code changes (replaces rootDir)
+    buildFilter:
+      paths:
+        - auth-service/**
+        - packages/**
+        - package.json
+        - package-lock.json
+        - tsconfig.base.json
     plan: free
     envVars:
       - fromGroup: internal-security-group
@@ -77,7 +97,17 @@ services:
   - type: web
     name: code-service
     runtime: docker
-    rootDir: code-service
+    # Builds from the repo root: npm workspaces share one lockfile and packages/common
+    dockerContext: .
+    dockerfilePath: ./code-service/Dockerfile
+    # Only redeploy when this service or shared code changes (replaces rootDir)
+    buildFilter:
+      paths:
+        - code-service/**
+        - packages/**
+        - package.json
+        - package-lock.json
+        - tsconfig.base.json
     plan: free
     envVars:
       - fromGroup: internal-security-group
@@ -97,7 +127,17 @@ services:
   - type: web
     name: user-service
     runtime: docker
-    rootDir: user-service
+    # Builds from the repo root: npm workspaces share one lockfile and packages/common
+    dockerContext: .
+    dockerfilePath: ./user-service/Dockerfile
+    # Only redeploy when this service or shared code changes (replaces rootDir)
+    buildFilter:
+      paths:
+        - user-service/**
+        - packages/**
+        - package.json
+        - package-lock.json
+        - tsconfig.base.json
     plan: free
     envVars:
       - fromGroup: internal-security-group

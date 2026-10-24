@@ -1,27 +1,4 @@
-import winston from 'winston';
+import { createLogger } from '@ceditor/common';
 import { config } from '.';
-import { correlationContext } from '../utils/context';
 
-const logger = winston.createLogger({
-  level: config.LOG_LEVEL || 'info',
-  defaultMeta: { service: config.SERVICE_NAME },
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.printf(({ level, message, timestamp, service, stack }) => {
-          const correlationId = correlationContext.getStore();
-          const cidStr = correlationId ? ` [CID: ${correlationId}]` : '';
-          return `${timestamp}${cidStr} [${level}] [${service}]: ${stack || message}`;
-        })
-      )
-    })
-  ],
-});
-
-export default logger;
+export default createLogger(config.SERVICE_NAME, config.LOG_LEVEL);

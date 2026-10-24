@@ -70,7 +70,7 @@ services:
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
-        for t in user-registered user-registered-dlq user-security-updates saga-events; do
+        for t in user-registered user-registered-dlq user-security-updates; do
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t" --partitions 1 --replication-factor 1 || exit 1
         done
     depends_on:
@@ -99,7 +99,9 @@ services:
         condition: service_healthy
 
   api-gateway:
-    build: ./api-gateway
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
     container_name: api-gateway
     restart: on-failure
     ports:
@@ -125,7 +127,9 @@ services:
       <<: *app-healthcheck
 
   auth-service:
-    build: ./auth-service
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
     container_name: auth-service
     restart: on-failure
     ports:
@@ -154,7 +158,9 @@ services:
       <<: *app-healthcheck
 
   user-service:
-    build: ./user-service
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
     container_name: user-service
     restart: on-failure
     ports:
@@ -178,7 +184,9 @@ services:
       <<: *app-healthcheck
 
   code-service:
-    build: ./code-service
+    build:
+      context: .
+      dockerfile: code-service/Dockerfile
     container_name: code-service
     restart: on-failure
     ports:

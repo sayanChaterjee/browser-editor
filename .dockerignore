@@ -1,0 +1,14 @@
+# Backend images build from the repository root; send only what they need.
+.git
+**/node_modules
+**/dist
+**/dist-test
+**/.env
+**/.env.*
+!**/.env.example
+**/certs
+*.log
+frontend
+loadtest
+scripts
+.github

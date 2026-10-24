@@ -7,7 +7,7 @@ export const errorHandler = (
   error: CustomError,
   req: Request,
   res: Response,
-  next: NextFunction,
+  _next: NextFunction,
 ): void => {
   logger.error(error);
 

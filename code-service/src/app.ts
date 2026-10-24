@@ -2,15 +2,22 @@ import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
 import helmet from 'helmet';
+import mongoose from 'mongoose';
+import {
+  correlationMiddleware,
+  healthRoutes,
+  internalSecurity,
+  isRedisReady,
+  setupGracefulShutdown,
+} from '@ceditor/common';
 import { config } from './config';
 import logger from './config/logger';
+import redis from './config/redis';
 import { codeRouter } from './routes/code.route';
 import { contestRouter } from './routes/contest.route';
-import mongoose from 'mongoose';
-import { setupGracefulShutdown } from './utils/shutdown';
-import { correlationMiddleware } from './middlewares/correlation.middleware';
-
-import { internalSecurity } from './middlewares/internalSecurity.middleware';
+import { startSecurityConsumer, isKafkaConnected, disconnectSecurityConsumer } from './events/consumers/security.consumer';
+import { startFlusherWorker } from './scripts/flusher.worker';
+import { startCodeJanitor } from './scripts/janitor.worker';
 
 const app = express();
 
@@ -21,36 +28,23 @@ app.use(helmet({
 app.use(express.json());
 app.use(correlationMiddleware);
 
-// Public health check (liveness: the process is up)
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: config.SERVICE_NAME });
-});
+// /health (liveness) and /ready: MongoDB and Redis are required; Kafka is reported but
+// optional (the consumer retries in the background)
+app.use(healthRoutes(config.SERVICE_NAME, {
+  mongo: { isUp: () => mongoose.connection.readyState === 1, required: true },
+  redis: { isUp: () => isRedisReady(redis), required: true },
+  kafka: { isUp: isKafkaConnected, required: false },
+}));
 
-// Readiness: MongoDB and Redis are required to serve requests; Kafka is reported
-// but optional (the service retries it in the background)
-app.get('/ready', (req, res) => {
-  const checks = {
-    mongo: mongoose.connection.readyState === 1 ? 'up' : 'down',
-    redis: redis.status === 'ready' ? 'up' : 'down',
-    kafka: isKafkaConnected() ? 'up' : 'down',
-  };
-  const ready = checks.mongo === 'up' && checks.redis === 'up';
-  res.status(ready ? 200 : 503).json({ status: ready ? 'ready' : 'not_ready', service: config.SERVICE_NAME, checks });
-});
-
-app.use('/', internalSecurity, codeRouter);
-app.use('/contest', internalSecurity, contestRouter);
-
-import { startSecurityConsumer, isKafkaConnected } from './events/consumers/security.consumer';
-import redis from './config/redis';
+const requireGateway = internalSecurity(config.INTERNAL_GATEWAY_SECRET, logger);
+app.use('/', requireGateway, codeRouter);
+app.use('/contest', requireGateway, contestRouter);
 
 const startServer = async () => {
   try {
     await mongoose.connect(config.DATABASE_URL);
     logger.info('Connected to MongoDB');
 
-    const { startFlusherWorker } = require('./scripts/flusher.worker');
-    const { startCodeJanitor } = require('./scripts/janitor.worker');
     startFlusherWorker();
     startCodeJanitor();
 
@@ -58,10 +52,17 @@ const startServer = async () => {
       logger.info(`${config.SERVICE_NAME} running on port ${config.PORT}`);
     });
 
-    setupGracefulShutdown(server);
+    setupGracefulShutdown(server, logger, {
+      cleanup: [
+        // Leave the Kafka consumer group cleanly
+        { name: 'Kafka', run: disconnectSecurityConsumer },
+        { name: 'Redis', run: () => redis.quit() },
+        { name: 'MongoDB', run: () => mongoose.connection.close() },
+      ],
+    });
 
     // Kafka connects in the background (with retries) so it can't block or crash the API
-    void startSecurityConsumer();
+    startSecurityConsumer();
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);

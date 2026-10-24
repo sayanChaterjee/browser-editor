@@ -11,15 +11,11 @@ import logger from './config/logger';
 import { reqLogger } from './middlewares/req.middleware';
 import { config } from './config';
 import { indexRouter } from './routes';
-import init from './init';
-import { setupGracefulShutdown } from './utils/shutdown';
-import { connectDB } from './db/db';
-import { connectKafka } from './config/kafka';
-import { correlationMiddleware } from './middlewares/correlation.middleware';
+import { correlationMiddleware, setupGracefulShutdown } from '@ceditor/common';
+import { connectDB, disconnectDB } from './db/db';
+import { producer } from './config/kafka';
 import { getAuth } from './lib/auth';
 import { toNodeHandler } from 'better-auth/node';
-import { webhookRouter } from './routes/webhook.route';
-import { internalSecurity } from './middlewares/internalSecurity.middleware';
 
 const app = express();
 
@@ -36,7 +32,7 @@ app.use(reqLogger);
 app.use(express.json());
 
 // Mount better-auth handler at /api/auth (will be initialized after DB connection)
-app.use('/api/auth', (req, res, next) => {
+app.use('/api/auth', (req, res) => {
   try {
     const auth = getAuth();
     const handler = toNodeHandler(auth);
@@ -46,9 +42,6 @@ app.use('/api/auth', (req, res, next) => {
     res.status(500).json({ error: 'Authentication service unavailable' });
   }
 });
-
-// Apply internal security to all remaining /api routes (webhooks, etc.)
-app.use('/api', internalSecurity, webhookRouter);
 
 // Keep the index router for health checks
 app.use('/', indexRouter);
@@ -60,16 +53,12 @@ app.use(errorHandler);
   try {
     await connectDB();
     // Kafka connects in the background (with retries) so it can't block or crash the API
-    void connectKafka();
-    await init();
+    producer.start();
 
     // Initialize auth after DB connection
     logger.info('Initializing better-auth...');
     getAuth();
     logger.info('Better-auth initialized successfully');
-
-    const { startAuthJanitor } = require('./scripts/janitor');
-    startAuthJanitor();
 
     const server = app.listen(config.PORT, '0.0.0.0', () => {
       logger.info(
@@ -77,7 +66,12 @@ app.use(errorHandler);
       );
     });
 
-    setupGracefulShutdown(server);
+    setupGracefulShutdown(server, logger, {
+      cleanup: [
+        { name: 'Kafka', run: () => producer.stop() },
+        { name: 'MongoDB', run: disconnectDB },
+      ],
+    });
   } catch (err) {
     logger.error('error during application initialization', err);
     process.exit(1);

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getCorrelationId } from '../utils/context';
+import { getCorrelationId } from '@ceditor/common';
 import logger from '../config/logger';
 
 /**
