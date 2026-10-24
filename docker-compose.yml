@@ -69,14 +69,14 @@ services:
       retries: 10
       start_period: 15s
 
-  # Creates the topics the services subscribe to, so consumers never start before their topic exists.
+  # Creates the topics (names from @ceditor/contracts), so consumers never start before their topic exists.
   kafka-init:
     image: apache/kafka:3.7.0
     container_name: kafka-init
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
-        for t in user-security-updates; do
+        for t in identity.user-events dead-letter; do
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t" --partitions 1 --replication-factor 1 || exit 1
         done
     depends_on:

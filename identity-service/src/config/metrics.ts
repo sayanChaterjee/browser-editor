@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { createMetrics } from '@ceditor/common';
+import { createMetrics, prom } from '@ceditor/common';
 import { config } from '.';
 
 // Better Auth serves every /api/auth/* endpoint from one handler, so there is no Express
@@ -12,3 +12,10 @@ const routeLabel = (req: Request) => {
 };
 
 export const metrics = createMetrics(config.SERVICE_NAME, { token: config.METRICS_TOKEN, routeLabel });
+
+export const eventsPublished = new prom.Counter({
+  name: 'events_published_total',
+  help: 'Events sent to Kafka, by type and result (published, failed = dropped after retries)',
+  labelNames: ['type', 'result'] as const,
+  registers: [metrics.registry],
+});

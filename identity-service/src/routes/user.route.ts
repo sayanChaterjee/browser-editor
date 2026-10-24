@@ -5,6 +5,7 @@ import redis from '../config/redis';
 import logger from '../config/logger';
 import { config } from '../config';
 import { requireAdmin, requireUser } from '../middlewares/userContext.middleware';
+import { publishUserEvent } from '../events/publisher';
 
 // Users are Better Auth's own records; its internal adapter handles ID conversion and
 // keeps its session cache consistent, so all access goes through it.
@@ -49,7 +50,8 @@ userRouter.post('/warning/:userId', requireAdmin, async (req: Request, res: Resp
 
 /**
  * Ban: blocks new sign-ins (database hook in lib/auth), deletes the user's sessions and
- * clears them from the gateway's session cache, so their next request is rejected.
+ * clears them from the gateway's session cache, so their next request is rejected. Then
+ * announces user.banned.v1 for other services (code-service disqualifies submissions).
  */
 userRouter.post('/admin/:userId/ban', requireAdmin, async (req: Request, res: Response): Promise<any> => {
   const adapter = await users();
@@ -68,6 +70,11 @@ userRouter.post('/admin/:userId/ban', requireAdmin, async (req: Request, res: Re
     logger.warn(`Could not clear cached sessions for ${user.id}: ${err.message}`);
   }
 
+  publishUserEvent('user.banned.v1', {
+    userId: user.id,
+    bannedBy: req.userContext!.id,
+    bannedAt: new Date().toISOString(),
+  });
   logger.info(`User ${user.id} banned by ${req.userContext!.email}`);
   res.json({ ...toUserResponse(user), banned: true });
 });
@@ -78,6 +85,11 @@ userRouter.post('/admin/:userId/unban', requireAdmin, async (req: Request, res: 
   if (!user) return res.status(404).json({ message: 'User not found' });
 
   await adapter.updateUser(user.id, { banned: false });
+  publishUserEvent('user.unbanned.v1', {
+    userId: user.id,
+    unbannedBy: req.userContext!.id,
+    unbannedAt: new Date().toISOString(),
+  });
   logger.info(`User ${user.id} unbanned by ${req.userContext!.email}`);
   res.json({ ...toUserResponse(user), banned: false });
 });

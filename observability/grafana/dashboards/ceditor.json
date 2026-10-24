@@ -1455,9 +1455,9 @@
     },
     {
       "id": 23,
-      "type": "timeseries",
-      "title": "Kafka messages by result",
-      "description": "",
+      "type": "bargauge",
+      "title": "Events (selected range)",
+      "description": "Kafka events published by identity-service and consumed by code-service. Red: dropped after retries, malformed, or dead-lettered.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1474,56 +1474,45 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (topic, result) (rate(kafka_messages_total[5m]))",
-          "legendFormat": "{{topic}} \u00b7 {{result}}",
-          "refId": "A"
+          "refId": "A",
+          "instant": true,
+          "expr": "round(sum by (type, result) (increase(events_published_total[$__range])))",
+          "legendFormat": "published \u00b7 {{type}} \u00b7 {{result}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "B",
+          "instant": true,
+          "expr": "round(sum by (type, result) (increase(events_consumed_total[$__range])))",
+          "legendFormat": "consumed \u00b7 {{type}} \u00b7 {{result}}"
         }
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "min": 0,
+          "decimals": 0,
           "color": {
             "mode": "fixed",
             "fixedColor": "#3987e5"
           },
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 0,
-            "showPoints": "never",
-            "spanNulls": true,
-            "axisSoftMin": 0,
-            "gradientMode": "none"
-          },
-          "noValue": "No Kafka messages in range"
+          "noValue": "No events in range"
         },
         "overrides": [
           {
             "matcher": {
-              "id": "byName",
-              "options": "user-security-updates \u00b7 processed"
+              "id": "byRegexp",
+              "options": ".*(failed|invalid|dead_lettered)$"
             },
             "properties": [
               {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
-                  "fixedColor": "#c98500"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "user-security-updates \u00b7 failed"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d55181"
+                  "fixedColor": "#d03b3b"
                 }
               }
             ]
@@ -1531,15 +1520,20 @@
         ]
       },
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "color",
+        "namePlacement": "top",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "minVizHeight": 10,
+        "maxVizHeight": 24
       }
     },
     {
