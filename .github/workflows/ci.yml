@@ -30,6 +30,10 @@ jobs:
       - run: npm ci
       - name: Type check
         run: npx tsc --noEmit -p .
+      # Backend services get a shared ESLint config in Session 2
+      - name: Lint
+        if: matrix.service == 'frontend'
+        run: npx eslint .
       - name: Build
         run: npm run build
         env:

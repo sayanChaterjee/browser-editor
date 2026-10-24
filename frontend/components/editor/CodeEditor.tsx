@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef } from "react";
-import Editor from "@monaco-editor/react";
+import Editor, { type OnMount } from "@monaco-editor/react";
 import { X, Copy, ClipboardPaste } from "lucide-react";
 
 type Props = {
-  language: "html" | "css" | "javascript";
+  language: "html" | "css" | "javascript" | "markdown";
   value: string;
   onChange: (value: string) => void;
 };
@@ -22,7 +22,7 @@ type FloatingAction = {
 
 export default function CodeEditor({ language, value, onChange }: Props) {
   const [floatingAction, setFloatingAction] = useState<FloatingAction>(null);
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
   const handleCopy = () => {
     if (floatingAction && floatingAction.type === 'copy' && floatingAction.text) {
@@ -41,6 +41,7 @@ export default function CodeEditor({ language, value, onChange }: Props) {
     if (internalClipboard && editorRef.current) {
       const editor = editorRef.current;
       const selectionObj = editor.getSelection();
+      if (!selectionObj) return; // nothing to paste into (e.g. editor not focused yet)
       const id = { major: 1, minor: 1 };
       const op = { identifier: id, range: selectionObj, text: internalClipboard, forceMoveMarkers: true };
       editor.executeEdits("custom-paste", [op]);

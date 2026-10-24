@@ -24,8 +24,8 @@ export default function ContestManager() {
       setLoading(true);
       const data = await fetchAllContests();
       setContests(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load contests');
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'Failed to load contests');
     } finally {
       setLoading(false);
     }
@@ -83,8 +83,8 @@ export default function ContestManager() {
       }
       resetForm();
       await loadContests();
-    } catch (err: any) {
-       setError(err.message || (editMode ? 'Failed to update contest' : 'Failed to create contest'));
+    } catch (err) {
+       setError((err instanceof Error && err.message) || (editMode ? 'Failed to update contest' : 'Failed to create contest'));
     } finally {
       setSubmitLoading(false);
     }
@@ -130,8 +130,8 @@ export default function ContestManager() {
       setError(null);
       await updateContestStatus(id, newStatus);
       await loadContests();
-    } catch (err: any) {
-      setError(err.message || 'Failed to update status');
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'Failed to update status');
     }
   };
 
@@ -141,8 +141,8 @@ export default function ContestManager() {
       setError(null);
       await deleteContest(id);
       await loadContests();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete contest');
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'Failed to delete contest');
     }
   };
 

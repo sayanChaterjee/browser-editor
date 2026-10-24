@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useSession } from "../../../lib/auth-client";
 
 export default function LoginPage() {
@@ -186,7 +185,7 @@ export default function LoginPage() {
         </button>
 
         <div className="mt-5 text-[12px] text-[#aaa]">
-          Don't have an account? <a href="/register" className="text-white font-bold no-underline ml-1 hover:underline">REGISTER HERE</a>
+          Don&apos;t have an account? <a href="/register" className="text-white font-bold no-underline ml-1 hover:underline">REGISTER HERE</a>
         </div>
       </div>
     </div>

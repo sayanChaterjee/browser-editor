@@ -52,7 +52,7 @@ export function useProjectManager({
     const [isCreatingProject, setIsCreatingProject] = useState(false);
     const [isModalCancelable, setIsModalCancelable] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeContest, setActiveContest] = useState<{ _id: string, title: string, imageUrl: string, startTime: string, endTime: string } | null>(null);
+    const [activeContest, setActiveContest] = useState<{ _id: string, title: string, imageUrl: string, startTime: string, endTime: string, html?: string, css?: string, js?: string } | null>(null);
 
     const [lastSyncedHtml, setLastSyncedHtml] = useState("");
     const [lastSyncedCss, setLastSyncedCss] = useState("");
@@ -66,7 +66,7 @@ export function useProjectManager({
 
     useEffect(() => {
         const initData = async () => {
-            let profile: any = null;
+            let profile: { id?: string; name: string; email: string } | null = null;
 
             // 0. Fetch Active Contest
             try {
@@ -133,7 +133,7 @@ export function useProjectManager({
                                         setProjectId(fullProject._id);
                                         setProjectName(fullProject.name);
 
-                                        const localData = await getLocalProject(fullProject._id, profile?.id || profile?.email);
+                                        const localData = await getLocalProject(fullProject._id, profile?.id || profile?.email || '');
                                         if (localData && new Date(localData.updatedAt) > new Date(fullProject.updatedAt)) {
                                             setHtml(localData.html);
                                             setCss(localData.css);
@@ -169,7 +169,7 @@ export function useProjectManager({
                         setProjectId(targetProject._id);
                         setProjectName(targetProject.name);
 
-                        const localData = await getLocalProject(targetProject._id, profile?.id || profile?.email);
+                        const localData = await getLocalProject(targetProject._id, profile?.id || profile?.email || '');
                         if (localData && new Date(localData.updatedAt) > new Date(targetProject.updatedAt)) {
                             setHtml(localData.html);
                             setCss(localData.css);
@@ -217,7 +217,7 @@ export function useProjectManager({
         }
 
         const syncDebounce = setTimeout(async () => {
-            const payload: any = {};
+            const payload: { html?: string; css?: string; js?: string } = {};
             if (html !== lastSyncedHtml) payload.html = html;
             if (css !== lastSyncedCss) payload.css = css;
             if (js !== lastSyncedJs) payload.js = js;
@@ -304,7 +304,7 @@ export function useProjectManager({
                 if (setIgnoreNextBlur) setIgnoreNextBlur(true);
                 notify(`Failed to create project: ${errorText}`, "error");
             }
-        } catch (error) {
+        } catch {
             if (setIgnoreNextBlur) setIgnoreNextBlur(true);
             notify("Network error while creating project.", "error");
         } finally {

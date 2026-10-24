@@ -13,7 +13,6 @@ interface PersistenceProps {
     userId: string | null;
     contestStarted: boolean;
     isLoading: boolean;
-    onLoadFromIDB?: (data: any) => void;
 }
 
 export function useEditorPersistence({
@@ -26,7 +25,6 @@ export function useEditorPersistence({
     userId,
     contestStarted,
     isLoading,
-    onLoadFromIDB,
 }: PersistenceProps) {
     const syncRef = useRef<NodeJS.Timeout | null>(null);
 

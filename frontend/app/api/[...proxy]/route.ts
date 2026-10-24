@@ -131,8 +131,8 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         });
 
         // 5. Robust Set-Cookie handling
-        const cookiesToSet = (response.headers as any).getSetCookie
-            ? (response.headers as any).getSetCookie()
+        const cookiesToSet = typeof response.headers.getSetCookie === 'function'
+            ? response.headers.getSetCookie()
             : response.headers.get('set-cookie')?.split(', ');
 
         if (cookiesToSet && Array.isArray(cookiesToSet)) {
@@ -172,10 +172,11 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
             statusText: response.statusText,
             headers: responseHeaders,
         });
-    } catch (error: any) {
-        console.error(`[Proxy][${requestId}] Fatal Error:`, error.message);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[Proxy][${requestId}] Fatal Error:`, message);
         return NextResponse.json(
-            { error: 'Proxy error', message: error.message, requestId },
+            { error: 'Proxy error', message, requestId },
             { status: 500 }
         );
     }
