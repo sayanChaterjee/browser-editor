@@ -16,6 +16,9 @@ const common: Partial<Options> = {
   legacyHeaders: false,
   // If Redis is unavailable, serve the request rather than failing it.
   passOnStoreError: true,
+  // Keys come from clientIpMiddleware, not req.ip, so the X-Forwarded-For checks don't apply.
+  keyGenerator: (req: Request) => req.clientIp ?? 'unknown',
+  validate: { trustProxy: false, xForwardedForHeader: false },
   message: { error: 'Too Many Requests', message: 'Rate limit exceeded, please slow down' },
 };
 
@@ -44,5 +47,5 @@ export const userLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: config.RATE_LIMIT_USER_PER_MINUTE,
   store: redisStore('rl:user:'),
-  keyGenerator: (req: Request) => (req as any).user?.id ?? req.ip ?? 'unknown',
+  keyGenerator: (req: Request) => (req as any).user?.id ?? req.clientIp ?? 'unknown',
 });

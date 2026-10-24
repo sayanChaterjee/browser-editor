@@ -9,6 +9,7 @@ import cookieParser from "cookie-parser";
 import { config } from "./config/index";
 import redis from "./config/redis";
 import { ipLimiter, authLimiter, userLimiter } from "./middlewares/rateLimiter.middleware";
+import { clientIpMiddleware } from "./middlewares/clientIp.middleware";
 import { proxyServices } from "./config/services";
 import { setupGracefulShutdown } from "./utils/shutdown";
 import { correlationMiddleware } from "./middlewares/correlation.middleware";
@@ -70,8 +71,10 @@ app.get("/ready", (req: Request, res: Response) => {
   });
 });
 
-// 5. Rate limiters: per-IP flood backstop, strict per-IP limit on credential endpoints
+// 5. Rate limiters: resolve the real client IP first (see clientIpMiddleware), then a per-IP
+// flood backstop and a strict per-IP limit on credential endpoints
 // (the per-user API limit is applied after authentication below)
+app.use(clientIpMiddleware);
 app.use(ipLimiter);
 app.use(authLimiter);
 

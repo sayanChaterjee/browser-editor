@@ -43,9 +43,13 @@ services:
         sync: false # Set this to your Vercel frontend URL
       - key: LOG_LEVEL
         value: info
-      # Proxies in front of the gateway: Vercel's /api proxy + Render's load balancer
-      - key: TRUST_PROXY_HOPS
-        value: 2
+      # Client IP for rate limiting: the Vercel /api proxy vouches for it with this
+      # secret (same value as BFF_SHARED_SECRET in Vercel); direct callers are keyed by
+      # Cloudflare's CF-Connecting-IP, which Render's Cloudflare edge always overwrites.
+      - key: BFF_SHARED_SECRET
+        sync: false
+      - key: TRUST_CF_CONNECTING_IP
+        value: "true"
 
   # 2. AUTH SERVICE (Public - Web Type for Free Tier)
   - type: web

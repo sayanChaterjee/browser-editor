@@ -10,6 +10,8 @@ interface Config {
   ALLOWED_ORIGINS: string;
   INTERNAL_GATEWAY_SECRET: string;
   TRUST_PROXY_HOPS: number;
+  BFF_SHARED_SECRET: string;
+  TRUST_CF_CONNECTING_IP: boolean;
   RATE_LIMIT_IP_PER_MINUTE: number;
   RATE_LIMIT_AUTH_PER_15_MINUTES: number;
   RATE_LIMIT_USER_PER_MINUTE: number;
@@ -28,9 +30,13 @@ export const config: Config = {
   USER_SERVICE_URL: normalizeServiceUrl(process.env.USER_SERVICE_URL || 'http://localhost:3002'),
   CODE_SERVICE_URL: normalizeServiceUrl(process.env.CODE_SERVICE_URL || 'http://localhost:3003'),
   INTERNAL_GATEWAY_SECRET: process.env.INTERNAL_GATEWAY_SECRET || '',
-  // Number of reverse proxies in front of the gateway whose X-Forwarded-For can be trusted.
-  // 0 = direct exposure (header ignored); production behind Vercel + Render's load balancer = 2.
+  // Number of reverse proxies in front of the gateway whose X-Forwarded-For can be trusted
+  // (0 = header ignored). Only affects req.ip; rate limiting uses clientIpMiddleware.
   TRUST_PROXY_HOPS: Number(process.env.TRUST_PROXY_HOPS || '0'),
+  // Shared with the frontend's /api proxy, which uses it to vouch for the client IP it forwards.
+  BFF_SHARED_SECRET: process.env.BFF_SHARED_SECRET || '',
+  // Only true where the gateway sits behind Cloudflare (Render), which overwrites this header.
+  TRUST_CF_CONNECTING_IP: process.env.TRUST_CF_CONNECTING_IP === 'true',
   RATE_LIMIT_IP_PER_MINUTE: Number(process.env.RATE_LIMIT_IP_PER_MINUTE || '600'),
   RATE_LIMIT_AUTH_PER_15_MINUTES: Number(process.env.RATE_LIMIT_AUTH_PER_15_MINUTES || '20'),
   RATE_LIMIT_USER_PER_MINUTE: Number(process.env.RATE_LIMIT_USER_PER_MINUTE || '120'),
