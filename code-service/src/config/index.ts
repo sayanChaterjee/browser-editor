@@ -4,9 +4,6 @@ interface Config {
   DATABASE_URL: string;
   REDIS_URL: string;
   KAFKA_BROKER: string;
-  KAFKA_CA_CERT: string;
-  KAFKA_SERVICE_KEY: string;
-  KAFKA_SERVICE_CERT: string;
   LOG_LEVEL: string;
   ADMIN_EMAILS: string[];
 }
@@ -17,9 +14,6 @@ export const config: Config = {
   DATABASE_URL: process.env.DATABASE_URL || '',
   REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
   KAFKA_BROKER: process.env.KAFKA_BROKER || 'localhost:9092',
-  KAFKA_CA_CERT: process.env.KAFKA_CA_CERT || '',
-  KAFKA_SERVICE_KEY: process.env.KAFKA_SERVICE_KEY || '',
-  KAFKA_SERVICE_CERT: process.env.KAFKA_SERVICE_CERT || '',
   LOG_LEVEL: process.env.LOG_LEVEL || 'info',
   ADMIN_EMAILS: (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()),
 };

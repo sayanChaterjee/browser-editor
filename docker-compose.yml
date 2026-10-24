@@ -70,7 +70,7 @@ services:
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
-        for t in user-registered user-registered-dlq user-security-updates saga-events; do
+        for t in user-registered user-registered-dlq user-security-updates; do
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t" --partitions 1 --replication-factor 1 || exit 1
         done
     depends_on:

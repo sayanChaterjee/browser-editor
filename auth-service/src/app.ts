@@ -11,15 +11,12 @@ import logger from './config/logger';
 import { reqLogger } from './middlewares/req.middleware';
 import { config } from './config';
 import { indexRouter } from './routes';
-import init from './init';
 import { setupGracefulShutdown } from './utils/shutdown';
 import { connectDB } from './db/db';
 import { connectKafka } from './config/kafka';
 import { correlationMiddleware } from './middlewares/correlation.middleware';
 import { getAuth } from './lib/auth';
 import { toNodeHandler } from 'better-auth/node';
-import { webhookRouter } from './routes/webhook.route';
-import { internalSecurity } from './middlewares/internalSecurity.middleware';
 
 const app = express();
 
@@ -47,9 +44,6 @@ app.use('/api/auth', (req, res, next) => {
   }
 });
 
-// Apply internal security to all remaining /api routes (webhooks, etc.)
-app.use('/api', internalSecurity, webhookRouter);
-
 // Keep the index router for health checks
 app.use('/', indexRouter);
 
@@ -61,15 +55,11 @@ app.use(errorHandler);
     await connectDB();
     // Kafka connects in the background (with retries) so it can't block or crash the API
     void connectKafka();
-    await init();
 
     // Initialize auth after DB connection
     logger.info('Initializing better-auth...');
     getAuth();
     logger.info('Better-auth initialized successfully');
-
-    const { startAuthJanitor } = require('./scripts/janitor');
-    startAuthJanitor();
 
     const server = app.listen(config.PORT, '0.0.0.0', () => {
       logger.info(
