@@ -15,6 +15,23 @@ interface Project {
     timeLeft?: number;
 }
 
+// A new user's starter project is created asynchronously after sign-up (code-service
+// handles the user.registered.v1 event), so the first list request can beat it. An empty
+// list is retried for a few seconds before the user is asked to create a project.
+const EMPTY_LIST_RETRY_DELAYS_MS = [1000, 1500, 2000, 2000];
+
+async function fetchProjectList(): Promise<Response> {
+    let res = await fetch(`/api/v1/code`, { credentials: 'include' });
+    for (const delay of EMPTY_LIST_RETRY_DELAYS_MS) {
+        if (!res.ok) break;
+        const data = await res.clone().json().catch(() => null);
+        if (!Array.isArray(data) || data.length > 0) break;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        res = await fetch(`/api/v1/code`, { credentials: 'include' });
+    }
+    return res;
+}
+
 interface UseProjectManagerProps {
     onLogout: () => void;
     onContestStart: () => void;
@@ -110,10 +127,7 @@ export function useProjectManager({
 
             // 2. Fetch Projects
             try {
-                const res = await fetch(
-                    `/api/v1/code`,
-                    { credentials: 'include' }
-                );
+                const res = await fetchProjectList();
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data) && data.length > 0) {
