@@ -23,11 +23,19 @@ export const rateLimitRejections = new prom.Counter({
   registers,
 });
 
-// Every authenticated API request asks auth-service to validate the session
+// Every authenticated API request validates its session: from the Redis session cache when
+// possible, otherwise by asking identity-service
 export const sessionCheckDuration = new prom.Histogram({
   name: 'session_check_duration_seconds',
-  help: 'Gateway -> auth-service session validation time, by result (valid, invalid, error)',
-  labelNames: ['result'] as const,
+  help: 'Session validation time, by source (cache, identity) and result (valid, invalid, error)',
+  labelNames: ['source', 'result'] as const,
   buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 3],
+  registers,
+});
+
+export const sessionCacheLookups = new prom.Counter({
+  name: 'session_cache_lookups_total',
+  help: 'Gateway session cache lookups, by result (hit, miss, unavailable)',
+  labelNames: ['result'] as const,
   registers,
 });

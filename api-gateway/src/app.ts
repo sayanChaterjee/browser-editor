@@ -12,7 +12,7 @@ import { ipLimiter, authLimiter, userLimiter } from "./middlewares/rateLimiter.m
 import { clientIpMiddleware } from "./middlewares/clientIp.middleware";
 import { proxyServices } from "./config/services";
 import { correlationMiddleware, isRedisReady, registerDependencyGauge, setupGracefulShutdown } from "@ceditor/common";
-import { authMiddleware } from "./middlewares/auth.middleware";
+import { authMiddleware, sessionCacheInvalidation } from "./middlewares/auth.middleware";
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorHandler } from './middlewares/error.middleware';
 import { setupAxiosInterceptors } from './utils/axios-interceptors';
@@ -113,6 +113,9 @@ app.get('/', (req: Request, res: Response) => {
 // Apply auth middleware to protected routes (matches /api/v1 and all subpaths)
 app.use('/api/v1', authMiddleware, userLimiter);
 
+// Sign-out and session revocation clear the gateway's session cache before reaching Better Auth
+app.use('/api/auth', sessionCacheInvalidation);
+
 
 /**
  * Gateway Aggregation Pattern
@@ -126,9 +129,10 @@ app.get("/api/v1/dashboard", async (req: Request, res: Response) => {
     logger.info(`Fetching dashboard data for user: ${userId}`);
 
     const [profileRes, projectsRes] = await Promise.all([
-      internalClient.get(`${config.USER_SERVICE_URL}/profile`, {
+      internalClient.get(`${config.IDENTITY_SERVICE_URL}/users/profile`, {
         headers: {
           'x-user-id': userId,
+          'x-user-email': req.headers['x-user-email'],
         }
       }),
       internalClient.get(`${config.CODE_SERVICE_URL}/`, {

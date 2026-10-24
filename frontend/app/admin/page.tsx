@@ -7,7 +7,8 @@ import {
   Submission, 
   fetchAllUsers, 
   fetchUserProjectsAdmin, 
-  fetchUserSubmissionsAdmin 
+  fetchUserSubmissionsAdmin,
+  setUserBanned
 } from '@/lib/adminApi';
 import UserList from '@/components/admin/UserList';
 import PreviewPanel from '@/components/admin/PreviewPanel';
@@ -29,6 +30,25 @@ export default function AdminDashboard() {
   const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [moderating, setModerating] = useState(false);
+  const [moderationError, setModerationError] = useState<string | null>(null);
+
+  const toggleBan = async () => {
+    if (!selectedUser) return;
+    const ban = !selectedUser.banned;
+    if (ban && !window.confirm(`Ban ${selectedUser.name}? They are signed out immediately and can't sign in again until unbanned.`)) return;
+    setModerating(true);
+    setModerationError(null);
+    try {
+      const updated = await setUserBanned(selectedUser._id, ban);
+      setSelectedUser(updated);
+      setUsers((prev) => prev.map((u) => (u._id === updated._id ? updated : u)));
+    } catch (err) {
+      setModerationError(err instanceof Error ? err.message : 'Moderation failed');
+    } finally {
+      setModerating(false);
+    }
+  };
 
   // Initial fetch of all users and check authorization
   useEffect(() => {
@@ -160,7 +180,7 @@ export default function AdminDashboard() {
             <UserList 
               users={users}
               selectedUserId={selectedUser?._id || null}
-              onSelectUser={setSelectedUser}
+              onSelectUser={(user) => { setSelectedUser(user); setModerationError(null); }}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
             />
@@ -207,6 +227,23 @@ export default function AdminDashboard() {
                   <span className="text-sm font-semibold text-gray-300">
                     {new Date(selectedUser.createdAt).toLocaleDateString()}
                   </span>
+                </div>
+                <div className="h-8 w-[1px] bg-gray-800"></div>
+                <div className="flex flex-col items-end">
+                  <button
+                    onClick={toggleBan}
+                    disabled={moderating}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors disabled:opacity-50 ${
+                      selectedUser.banned
+                        ? 'border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10'
+                        : 'border-red-500/40 text-red-400 hover:bg-red-500/10'
+                    }`}
+                  >
+                    {moderating ? '...' : selectedUser.banned ? 'Unban' : 'Ban'}
+                  </button>
+                  {moderationError && (
+                    <span className="text-[10px] text-red-400 mt-1 max-w-[180px] text-right">{moderationError}</span>
+                  )}
                 </div>
               </div>
             </header>

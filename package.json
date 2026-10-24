@@ -5,8 +5,7 @@
   "workspaces": [
     "packages/*",
     "api-gateway",
-    "auth-service",
-    "user-service",
+    "identity-service",
     "code-service"
   ],
   "engines": {
@@ -20,8 +19,8 @@
   },
   "scripts": {
     "build": "npm run build -w @ceditor/common && npm run build --workspaces --if-present",
-    "lint": "eslint packages api-gateway auth-service user-service code-service",
+    "lint": "eslint packages api-gateway identity-service code-service",
     "test": "npm test --workspaces --if-present",
-    "typecheck": "npm run build -w @ceditor/common && tsc --noEmit -p api-gateway && tsc --noEmit -p auth-service && tsc --noEmit -p user-service && tsc --noEmit -p code-service"
+    "typecheck": "npm run build -w @ceditor/common && tsc --noEmit -p api-gateway && tsc --noEmit -p identity-service && tsc --noEmit -p code-service"
   }
 }

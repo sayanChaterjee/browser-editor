@@ -9,19 +9,20 @@ class ServiceProxy {
   private static readonly serviceConfigs: ServiceConfig[] = [
     {
       path: '/api/auth',
-      url: config.AUTH_SERVICE_URL,
+      url: config.IDENTITY_SERVICE_URL,
       // Proxy strips '/api/auth' from the request, leaving the rest
       // We need to add '/api/auth' back for the auth service
       // Example: /api/auth/sign-in/google -> /sign-in/google (stripped) -> /api/auth/sign-in/google (rewritten)
       pathRewrite: { '^/': '/api/auth/' },
-      name: 'auth-service',
+      name: 'identity-service',
       timeout: 60000,
     },
     {
       path: '/api/v1/user',
-      url: config.USER_SERVICE_URL || 'http://localhost:3002',
-      pathRewrite: { '^/api/v1/user': '' },
-      name: 'user-service',
+      url: config.IDENTITY_SERVICE_URL,
+      // app.use strips '/api/v1/user'; identity-service serves these under /users
+      pathRewrite: { '^/': '/users/' },
+      name: 'identity-service-users',
       timeout: 60000,
     },
     {
@@ -61,7 +62,7 @@ class ServiceProxy {
           proxyReq.removeHeader('Authorization');
 
           // Debug logging for auth service
-          if (service.name === 'auth-service') {
+          if (service.name === 'identity-service') {
             logger.info(`Auth proxy: ${req.method} ${req.url} -> ${proxyReq.path}`);
           }
 

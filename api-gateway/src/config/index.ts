@@ -13,8 +13,7 @@ const schema = z.object({
     .string()
     .default('http://localhost:3001,http://localhost:3005,http://localhost:3000,http://localhost:3004,http://localhost:3006'),
   REDIS_URL: z.string().default('redis://localhost:6379'),
-  AUTH_SERVICE_URL: serviceUrl('http://localhost:3001'),
-  USER_SERVICE_URL: serviceUrl('http://localhost:3002'),
+  IDENTITY_SERVICE_URL: serviceUrl('http://localhost:3001'),
   CODE_SERVICE_URL: serviceUrl('http://localhost:3003'),
   INTERNAL_GATEWAY_SECRET: envRequired('shared with the backend services'),
   // Number of reverse proxies in front of the gateway whose X-Forwarded-For can be trusted

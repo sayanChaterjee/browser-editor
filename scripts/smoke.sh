@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # End-to-end smoke test against the API gateway.
 # Usage: scripts/smoke.sh [gateway_url] [origin]
-# Signs up a fresh user, then exercises profile -> save -> list -> open.
+# Signs up a fresh user, then exercises profile -> save -> list -> open, sign-out and,
+# when SMOKE_ADMIN_EMAIL is in the stack's ADMIN_EMAILS, ban -> unban.
 set -euo pipefail
 
 GATEWAY="${1:-http://localhost:3000}"
 ORIGIN="${2:-http://localhost:3005}"
+ADMIN_EMAIL="${SMOKE_ADMIN_EMAIL:-you@example.com}"
 JAR="$(mktemp)"
-trap 'rm -f "$JAR"' EXIT
+OLD_JAR="$(mktemp)"
+ADMIN_JAR="$(mktemp)"
+trap 'rm -f "$JAR" "$OLD_JAR" "$ADMIN_JAR"' EXIT
 
 EMAIL="smoke-$(date +%s)-$RANDOM@example.com"
 PASSWORD="Smoke-Test-123!"
@@ -16,17 +20,29 @@ PROJECT="smoke-project-$RANDOM"
 pass() { printf '  \033[32m✔\033[0m %s\n' "$1"; }
 fail() { printf '  \033[31m✘\033[0m %s\n%s\n' "$1" "$2"; exit 1; }
 
-# request <name> <method> <path> [json-body] -> sets BODY, fails on non-2xx
-request() {
-  local name="$1" method="$2" path="$3" data="${4:-}"
-  local args=(-s -w '\n%{http_code}' -X "$method" -b "$JAR" -c "$JAR" -H "Origin: $ORIGIN")
+# call <jar> <method> <path> [json-body] -> sets STATUS and BODY
+call() {
+  local jar="$1" method="$2" path="$3" data="${4:-}"
+  local args=(-s -w '\n%{http_code}' -X "$method" -b "$jar" -c "$jar" -H "Origin: $ORIGIN")
   [[ -n "$data" ]] && args+=(-H 'Content-Type: application/json' -d "$data")
-  local out status
+  local out
   out="$(curl "${args[@]}" "$GATEWAY$path")"
-  status="${out##*$'\n'}"
+  STATUS="${out##*$'\n'}"
   BODY="${out%$'\n'*}"
-  [[ "$status" =~ ^2 ]] || fail "$name ($method $path -> $status)" "$BODY"
-  pass "$name ($status)"
+}
+
+# request <name> <method> <path> [json-body] -> as the test user, fails on non-2xx
+request() {
+  call "$JAR" "$2" "$3" "${4:-}"
+  [[ "$STATUS" =~ ^2 ]] || fail "$1 ($2 $3 -> $STATUS)" "$BODY"
+  pass "$1 ($STATUS)"
+}
+
+# expect_status <name> <status> <jar> <method> <path> [json-body]
+expect_status() {
+  call "$3" "$4" "$5" "${6:-}"
+  [[ "$STATUS" == "$2" ]] || fail "$1 ($4 $5 -> $STATUS, expected $2)" "$BODY"
+  pass "$1 ($STATUS)"
 }
 
 echo "Smoke test: $GATEWAY (origin $ORIGIN)"
@@ -38,6 +54,7 @@ request "sign up" POST /api/auth/sign-up/email \
 
 request "session" GET /api/auth/get-session
 [[ "$(jq -r '.user.email' <<<"$BODY")" == "$EMAIL" ]] || fail "session user matches" "$BODY"
+USER_ID="$(jq -r '.user.id' <<<"$BODY")"
 
 request "profile" GET /api/v1/user/profile
 
@@ -65,5 +82,30 @@ request "open project after edit" GET "/api/v1/code/$PROJECT_ID"
 request "list after edit" GET /api/v1/code
 jq -e --arg id "$PROJECT_ID" '.[] | select(._id == $id) | .html == "<h1>edited</h1>"' <<<"$BODY" >/dev/null \
   || fail "list returns latest edit" "$BODY"
+
+# Sign-out must take effect immediately, although the gateway had cached the session:
+# a copy of the old cookie is rejected on the next request.
+cp "$JAR" "$OLD_JAR"
+request "sign out" POST /api/auth/sign-out '{}'
+expect_status "old cookie rejected after sign-out" 401 "$OLD_JAR" GET /api/v1/user/profile
+request "sign in again" POST /api/auth/sign-in/email "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
+
+# Ban: needs an admin, i.e. SMOKE_ADMIN_EMAIL listed in ADMIN_EMAILS (CI uses the .env.example values)
+ADMIN_BODY="{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$PASSWORD\",\"name\":\"Smoke Admin\"}"
+call "$ADMIN_JAR" POST /api/auth/sign-in/email "$ADMIN_BODY"
+[[ "$STATUS" =~ ^2 ]] || call "$ADMIN_JAR" POST /api/auth/sign-up/email "$ADMIN_BODY"
+call "$ADMIN_JAR" GET /api/v1/user/profile
+if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
+  request "profile before ban (session cached)" GET /api/v1/user/profile
+  expect_status "admin bans user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/ban"
+  expect_status "banned user's next request rejected" 401 "$JAR" GET /api/v1/user/profile
+  expect_status "banned user cannot sign in" 403 "$JAR" POST /api/auth/sign-in/email \
+    "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
+  expect_status "admin unbans user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/unban"
+  request "sign in after unban" POST /api/auth/sign-in/email "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
+  request "profile after unban" GET /api/v1/user/profile
+else
+  printf '  - ban checks skipped: %s is not an admin (add it to ADMIN_EMAILS)\n' "$ADMIN_EMAIL"
+fi
 
 echo "All smoke checks passed ($EMAIL)"

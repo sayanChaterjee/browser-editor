@@ -14,9 +14,7 @@ services:
       - TRUST_PROXY_HOPS=1
       # Test setup signs up hundreds of users; keep the limiter out of the measurement.
       - RATE_LIMIT_AUTH_PER_15_MINUTES=100000
-  auth-service:
-    <<: *limits
-  user-service:
+  identity-service:
     <<: *limits
   code-service:
     <<: *limits

@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "better-auth/adapters/mongodb";
+import { APIError } from "better-auth/api";
 import mongoose from "mongoose";
 import { config } from "../config";
 
@@ -19,6 +20,30 @@ export function getAuth() {
             emailAndPassword: {
                 enabled: true,
                 autoSignIn: true,
+            },
+
+            // Profile and moderation fields live on Better Auth's own user record, so there's
+            // one user collection. input: false keeps them out of sign-up/update-user bodies.
+            user: {
+                additionalFields: {
+                    warningCount: { type: "number", defaultValue: 0, input: false },
+                    banned: { type: "boolean", defaultValue: false, input: false },
+                },
+            },
+
+            // A banned user can't start a session (sign-in, sign-up or OAuth).
+            databaseHooks: {
+                session: {
+                    create: {
+                        before: async (session) => {
+                            const ctx = await authInstance.$context;
+                            const user = await ctx.internalAdapter.findUserById(session.userId);
+                            if (user?.banned) {
+                                throw new APIError("FORBIDDEN", { message: "This account has been banned" });
+                            }
+                        },
+                    },
+                },
             },
 
             socialProviders: {

@@ -6,6 +6,7 @@ export interface User {
     createdAt: string;
     email?: string;
     isAdmin?: boolean;
+    banned?: boolean;
 }
 
 export interface Submission {
@@ -50,6 +51,18 @@ async function errorFrom(res: Response, fallback: string): Promise<Error> {
 export async function fetchAllUsers(): Promise<User[]> {
     const res = await fetch(`${BASE}/api/v1/user/all`, { credentials: 'include' });
     if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
+    return res.json();
+}
+
+// Ban signs the user out everywhere immediately and blocks sign-in; unban lifts the block.
+export async function setUserBanned(userId: string, banned: boolean): Promise<User> {
+    const res = await fetch(`${BASE}/api/v1/user/admin/${userId}/${banned ? 'ban' : 'unban'}`, {
+        method: 'POST',
+        credentials: 'include'
+    });
+    if (!res.ok) {
+        throw await errorFrom(res, `Failed to ${banned ? 'ban' : 'unban'} user: ${res.status}`);
+    }
     return res.json();
 }
 

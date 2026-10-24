@@ -360,7 +360,7 @@ nothing touches production. The frontend runs with `npm run dev`.
 ### 1. Configure environment
 ```bash
 cp .env.example .env                       # shared secrets used by docker compose
-for s in api-gateway auth-service user-service code-service; do cp $s/.env.example $s/.env; done
+for s in api-gateway identity-service code-service; do cp $s/.env.example $s/.env; done
 cp frontend/.env.example frontend/.env.local
 ```
 Generate `BETTER_AUTH_SECRET` and `INTERNAL_GATEWAY_SECRET` with `openssl rand -base64 32`.
@@ -607,26 +607,13 @@ browser-editor/
 │   │       └── correlation.middleware.ts
 │   └── Dockerfile
 │
-├── auth-service/             # Authentication service
+├── identity-service/         # Sign-up/sign-in, sessions, profiles, admin moderation
 │   ├── src/
 │   │   ├── app.ts
 │   │   ├── lib/
-│   │   │   └── auth.ts      # Better-Auth configuration
-│   │   ├── sagas/           # Saga pattern implementation
-│   │   │   ├── saga-coordinator.ts
-│   │   │   └── user-registration.saga.ts
+│   │   │   └── auth.ts      # Better-Auth configuration (user fields, ban hook)
 │   │   └── routes/
-│   └── Dockerfile
-│
-├── user-service/             # User profile service
-│   ├── src/
-│   │   ├── app.ts
-│   │   ├── models/
-│   │   │   └── user.model.ts
-│   │   ├── routes/
-│   │   │   └── user.route.ts
-│   │   └── events/
-│   │       └── consumer.ts   # Kafka consumer
+│   │       └── user.route.ts # /users: profile, admin list, warnings, ban/unban
 │   └── Dockerfile
 │
 ├── code-service/             # Code/project service
@@ -767,7 +754,7 @@ Ensure `Origin` header is set in requests. Browser automatically sends this; cur
 ### Google OAuth Redirect Failures
 1. Ensure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct in `.env`.
 2. Verify that `http://localhost:3000/api/auth/callback/google` is added as an Authorized Redirect URI in the Google Cloud Console.
-3. Check `BETTER_AUTH_URL` in `auth-service` environment; it should point to the API Gateway (`http://localhost:3000`).
+3. Check `BETTER_AUTH_URL` in the `identity-service` environment; it should be the public frontend URL (`http://localhost:3005`).
 
 ### Frontend shows "Service Degraded"
 Circuit breaker has tripped. Check if backend services are running: `docker ps`

@@ -356,7 +356,7 @@
       "id": 9,
       "type": "timeseries",
       "title": "Request rate by service",
-      "description": "Every authenticated API request through the gateway also makes one session check at auth-service, so their two lines largely overlap.",
+      "description": "Every authenticated API request through the gateway is counted there and at the service it reaches; session checks hit identity-service only on a session-cache miss.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -414,7 +414,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "auth-service"
+              "options": "identity-service"
             },
             "properties": [
               {
@@ -422,21 +422,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#d95926"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "user-service"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#199e70"
                 }
               }
             ]
@@ -532,7 +517,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "auth-service"
+              "options": "identity-service"
             },
             "properties": [
               {
@@ -540,21 +525,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#d95926"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "user-service"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#199e70"
                 }
               }
             ]
@@ -651,7 +621,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "auth-service"
+              "options": "identity-service"
             },
             "properties": [
               {
@@ -659,21 +629,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#d95926"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "user-service"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#199e70"
                 }
               }
             ]
@@ -771,7 +726,7 @@
     {
       "id": 13,
       "type": "row",
-      "title": "Gateway: auth & rate limiting",
+      "title": "Gateway: sessions & rate limiting",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -784,8 +739,8 @@
     {
       "id": 14,
       "type": "timeseries",
-      "title": "Session check p95 (gateway -> auth-service)",
-      "description": "Every authenticated API call waits for this; the main remaining hop (Session 3).",
+      "title": "Session check p95 by source",
+      "description": "Valid sessions: answered from the gateway's Redis session cache, or by identity-service on a cache miss.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -793,7 +748,7 @@
       "gridPos": {
         "x": 0,
         "y": 23,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "targets": [
@@ -802,8 +757,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (result, le) (rate(session_check_duration_seconds_bucket[1m])))",
-          "legendFormat": "{{result}}",
+          "expr": "histogram_quantile(0.95, sum by (source, le) (rate(session_check_duration_seconds_bucket{result=\"valid\"}[1m])))",
+          "legendFormat": "{{source}}",
           "refId": "A"
         }
       ],
@@ -828,7 +783,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "valid"
+              "options": "cache"
             },
             "properties": [
               {
@@ -843,7 +798,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "invalid"
+              "options": "identity"
             },
             "properties": [
               {
@@ -851,21 +806,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#d95926"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "error"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#199e70"
                 }
               }
             ]
@@ -885,6 +825,65 @@
       }
     },
     {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Session cache hit ratio",
+      "description": "Share of authenticated requests whose session came from the cache (no identity-service call).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 23,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(session_cache_lookups_total{result=\"hit\"}[5m])) / sum(rate(session_cache_lookups_total[5m]))",
+          "legendFormat": "hit ratio",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#3987e5"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "spanNulls": true,
+            "axisSoftMin": 0,
+            "gradientMode": "none"
+          },
+          "max": 1,
+          "noValue": "No authenticated requests in range"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
       "id": 15,
       "type": "timeseries",
       "title": "429 rejections by limiter",
@@ -894,9 +893,9 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "x": 12,
+        "x": 16,
         "y": 23,
-        "w": 12,
+        "w": 8,
         "h": 8
       },
       "targets": [
@@ -1310,7 +1309,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "auth-service"
+              "options": "identity-service"
             },
             "properties": [
               {
@@ -1318,21 +1317,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#d95926"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "user-service"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#199e70"
                 }
               }
             ]
@@ -1428,7 +1412,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "auth-service"
+              "options": "identity-service"
             },
             "properties": [
               {
@@ -1436,21 +1420,6 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#d95926"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "user-service"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#199e70"
                 }
               }
             ]
@@ -1529,51 +1498,6 @@
           "noValue": "No Kafka messages in range"
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "user-registered \u00b7 processed"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#3987e5"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "user-registered \u00b7 invalid"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#d95926"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "user-registered \u00b7 dead_lettered"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#199e70"
-                }
-              }
-            ]
-          },
           {
             "matcher": {
               "id": "byName",
