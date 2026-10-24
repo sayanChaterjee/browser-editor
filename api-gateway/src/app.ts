@@ -7,6 +7,7 @@ import helmet from "helmet";
 import axios from "axios";
 import cookieParser from "cookie-parser";
 import { config } from "./config/index";
+import redis from "./config/redis";
 import { ipLimiter, authLimiter, userLimiter } from "./middlewares/rateLimiter.middleware";
 import { proxyServices } from "./config/services";
 import { setupGracefulShutdown } from "./utils/shutdown";
@@ -53,15 +54,26 @@ app.use(helmet({
 // 4. Correlation - creates AsyncLocalStorage context for the entire request lifecycle
 app.use(correlationMiddleware);
 
+// Health checks sit before the rate limiters so probes never consume limits or get a 429.
+// Liveness:
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).send("OK");
+});
+
+// Readiness: the gateway can route without Redis (rate limiting fails open), so Redis
+// is reported but doesn't make it unready.
+app.get("/ready", (req: Request, res: Response) => {
+  res.status(200).json({
+    status: "ready",
+    service: config.SERVICE_NAME,
+    checks: { redis: redis.status === "ready" ? "up" : "down" },
+  });
+});
+
 // 5. Rate limiters: per-IP flood backstop, strict per-IP limit on credential endpoints
 // (the per-user API limit is applied after authentication below)
 app.use(ipLimiter);
 app.use(authLimiter);
-
-// Health check (no auth required)
-app.get("/health", (req: Request, res: Response) => {
-  res.status(200).send("OK");
-});
 
 // apply middleware to log all incoming requests with correlation ID
 app.use((req: Request, res: Response, next: NextFunction) => {

@@ -63,6 +63,10 @@ consumer.on(consumer.events.CRASH, ({ payload }) => {
     void startConsumer();
   }
 });
+// Joining the consumer group marks Kafka as up, including after kafkajs' own restarts.
+consumer.on(consumer.events.GROUP_JOIN, () => {
+  kafkaConnected = true;
+});
 consumer.on(consumer.events.DISCONNECT, () => {
   kafkaConnected = false;
 });
@@ -72,7 +76,6 @@ consumer.on(consumer.events.DISCONNECT, () => {
 export const startConsumer = async (attempt = 1): Promise<void> => {
   try {
     await connectAndRun();
-    kafkaConnected = true;
   } catch (err) {
     if (shuttingDown) return;
     const delay = Math.min(RETRY_BASE_MS * 2 ** (attempt - 1), RETRY_MAX_MS);

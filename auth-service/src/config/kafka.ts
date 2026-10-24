@@ -57,6 +57,9 @@ let shuttingDown = false;
 
 export const isKafkaConnected = () => kafkaConnected;
 
+producer.on(producer.events.CONNECT, () => {
+  kafkaConnected = true;
+});
 producer.on(producer.events.DISCONNECT, () => {
   kafkaConnected = false;
 });
@@ -66,7 +69,6 @@ producer.on(producer.events.DISCONNECT, () => {
 export const connectKafka = async (attempt = 1): Promise<void> => {
   try {
     await producer.connect();
-    kafkaConnected = true;
     logger.info('Kafka producer connected');
   } catch (err) {
     if (shuttingDown) return;
