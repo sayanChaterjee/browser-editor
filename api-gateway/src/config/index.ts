@@ -6,6 +6,8 @@ const serviceUrl = (fallback: string) => z.string().default(fallback).transform(
 const schema = z.object({
   PORT: envNumber(3000),
   LOG_LEVEL: z.string().default('info'),
+  // Bearer token for /metrics (Prometheus); unset = endpoint disabled
+  METRICS_TOKEN: z.string().default(''),
   DEFAULT_TIMEOUT: envNumber(30000),
   ALLOWED_ORIGINS: z
     .string()

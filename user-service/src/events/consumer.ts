@@ -3,6 +3,7 @@ import { createKafka, ManagedConsumer, ManagedProducer } from '@ceditor/common';
 import { config } from '../config';
 import User from '../models/user.model';
 import logger from '../config/logger';
+import { kafkaMessages } from '../config/metrics';
 
 const kafka = createKafka({ clientId: config.SERVICE_NAME, broker: config.KAFKA_BROKER, logger });
 
@@ -18,6 +19,7 @@ const handleMessage = async ({ topic, message }: EachMessagePayload) => {
   try {
     data = JSON.parse(value);
   } catch (err) {
+    kafkaMessages.inc({ topic, result: 'invalid' });
     logger.error('Failed to parse Kafka message', err);
     return;
   }
@@ -48,6 +50,7 @@ const handleMessage = async ({ topic, message }: EachMessagePayload) => {
       );
 
       logger.info(`[${topic}] User ${data.userId} synced successfully on attempt ${attempt}`);
+      kafkaMessages.inc({ topic, result: 'processed' });
       success = true;
     } catch (err: any) {
       lastError = err;
@@ -64,6 +67,7 @@ const handleMessage = async ({ topic, message }: EachMessagePayload) => {
 
   if (!success) {
     logger.error(`[${topic}] Message failed after ${MAX_RETRIES} attempts. Sending to DLQ. Reason: ${lastError?.message || 'Unknown'}`);
+    kafkaMessages.inc({ topic, result: 'dead_lettered' });
     await dlqProducer.send({
       topic: 'user-registered-dlq',
       messages: [

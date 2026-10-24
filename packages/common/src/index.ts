@@ -3,6 +3,7 @@ export * from './context';
 export * from './health';
 export * from './kafka';
 export * from './logger';
+export * from './metrics';
 export * from './middleware';
 export * from './redis';
 export * from './retry';

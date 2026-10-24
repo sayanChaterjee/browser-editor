@@ -7,10 +7,11 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { config } from "./config/index";
 import redis from "./config/redis";
+import { metrics } from "./config/metrics";
 import { ipLimiter, authLimiter, userLimiter } from "./middlewares/rateLimiter.middleware";
 import { clientIpMiddleware } from "./middlewares/clientIp.middleware";
 import { proxyServices } from "./config/services";
-import { correlationMiddleware, setupGracefulShutdown } from "@ceditor/common";
+import { correlationMiddleware, isRedisReady, registerDependencyGauge, setupGracefulShutdown } from "@ceditor/common";
 import { authMiddleware } from "./middlewares/auth.middleware";
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorHandler } from './middlewares/error.middleware';
@@ -26,6 +27,9 @@ const app = express();
 // Trust proxy - only as many hops as actually sit in front of the gateway, so clients
 // can't spoof X-Forwarded-For to dodge IP rate limits (see TRUST_PROXY_HOPS)
 app.set("trust proxy", config.TRUST_PROXY_HOPS);
+
+// Time every request first, so 429s and auth failures are measured too
+app.use(metrics.httpMetrics);
 
 app.use(corsMiddleware);
 
@@ -68,6 +72,10 @@ app.get("/ready", (req: Request, res: Response) => {
     checks: { redis: redis.status === "ready" ? "up" : "down" },
   });
 });
+
+// Prometheus metrics (token-protected), before the limiters like the health checks
+app.use(metrics.metricsRoute);
+registerDependencyGauge(metrics, { redis: { isUp: () => isRedisReady(redis), required: false } });
 
 // 5. Rate limiters: resolve the real client IP first (see clientIpMiddleware), then a per-IP
 // flood backstop and a strict per-IP limit on credential endpoints

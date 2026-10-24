@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { config } from '../config';
 import logger from '../config/logger';
+import { sessionCheckDuration } from '../config/metrics';
 import axios from 'axios';
 
 /**
@@ -24,6 +25,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         }
 
         // Verify session by calling better-auth's session endpoint
+        const endSessionCheck = sessionCheckDuration.startTimer();
         try {
             // Forward all cookies as received: besides the session token, Better Auth's signed
             // session_data cookie lets it validate the session without a database lookup.
@@ -45,12 +47,15 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
             if (!session || !session.user || !session.user.id ||
                 session.user.id === 'undefined' || session.user.id === 'null') {
+                endSessionCheck({ result: 'invalid' });
                 logger.warn(`Invalid or incomplete session for ${req.path}. User ID: ${session?.user?.id}`);
                 return res.status(401).json({
                     error: 'Unauthorized',
                     message: 'Invalid or expired session context'
                 });
             }
+
+            endSessionCheck({ result: 'valid' });
 
             // Inject user context headers for downstream services - ONLY if valid
             req.headers['x-user-id'] = session.user.id;
@@ -64,6 +69,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
             logger.info(`Authenticated request from user: ${session.user.name || session.user.id} (ID: ${session.user.id})`);
             next();
         } catch (sessionError: any) {
+            endSessionCheck({ result: 'error' });
             logger.error(`Session verification failed via ${config.AUTH_SERVICE_URL}:`, sessionError.message);
             return res.status(401).json({
                 error: 'Unauthorized',

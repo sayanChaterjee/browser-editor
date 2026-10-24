@@ -14,6 +14,7 @@ import { indexRouter } from './routes';
 import { correlationMiddleware, setupGracefulShutdown } from '@ceditor/common';
 import { connectDB, disconnectDB } from './db/db';
 import { producer } from './config/kafka';
+import { metrics } from './config/metrics';
 import { getAuth } from './lib/auth';
 import { toNodeHandler } from 'better-auth/node';
 
@@ -26,6 +27,7 @@ app.use(helmet({
 }));
 app.use(corsMiddleware);
 
+app.use(metrics.httpMetrics);
 app.use(cookieParser());
 app.use(correlationMiddleware);
 app.use(reqLogger);

@@ -3,10 +3,11 @@ import { createKafka, ManagedConsumer } from '@ceditor/common';
 import { config } from '../../config';
 import redis from '../../config/redis';
 import logger from '../../config/logger';
+import { kafkaMessages } from '../../config/metrics';
 
 const kafka = createKafka({ clientId: config.SERVICE_NAME, broker: config.KAFKA_BROKER, logger });
 
-const handleMessage = async ({ message }: EachMessagePayload) => {
+const handleMessage = async ({ topic, message }: EachMessagePayload) => {
     const value = message.value?.toString();
     if (!value) return;
 
@@ -22,7 +23,9 @@ const handleMessage = async ({ message }: EachMessagePayload) => {
 
             logger.info(`Cache purged for user: ${userId}`);
         }
+        kafkaMessages.inc({ topic, result: 'processed' });
     } catch (err) {
+        kafkaMessages.inc({ topic, result: 'failed' });
         logger.error('Error processing security event message', err);
     }
 };
