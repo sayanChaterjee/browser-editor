@@ -47,41 +47,72 @@ const kafka = new Kafka(kafkaConfig);
 
 const consumer = kafka.consumer({ groupId: 'code-service-security-group' });
 
-export const startSecurityConsumer = async () => {
+const RETRY_BASE_MS = 1000;
+const RETRY_MAX_MS = 30000;
+let kafkaConnected = false;
+let shuttingDown = false;
+
+export const isKafkaConnected = () => kafkaConnected;
+
+// A crash kafkajs won't recover from on its own goes back through the retry loop.
+consumer.on(consumer.events.CRASH, ({ payload }) => {
+    kafkaConnected = false;
+    if (!payload.restart && !shuttingDown) {
+        logger.error(`Security consumer crashed, restarting: ${payload.error.message}`);
+        void startSecurityConsumer();
+    }
+});
+consumer.on(consumer.events.DISCONNECT, () => {
+    kafkaConnected = false;
+});
+
+// Kafka isn't needed to serve HTTP, so it never blocks startup: on failure, retry in
+// the background with exponential backoff until it connects.
+export const startSecurityConsumer = async (attempt = 1): Promise<void> => {
     try {
-        await consumer.connect();
-        await consumer.subscribe({ topic: 'user-security-updates', fromBeginning: false });
-
-        logger.info('Kafka security consumer connected and subscribed to user-security-updates');
-
-        await consumer.run({
-            eachMessage: async ({ topic, message }) => {
-                const value = message.value?.toString();
-                if (!value) return;
-
-                try {
-                    const { userId, event } = JSON.parse(value);
-
-                    if (event === 'PASSWORD_CHANGED' || event === 'LOGOUT_ALL') {
-                        logger.info(`Security event [${event}] received for user: ${userId}. Purging cache.`);
-
-                        // Purge project list cache
-                        const listCacheKey = `user:projects:${userId}`;
-                        await redis.del(listCacheKey);
-
-                        logger.info(`Cache purged for user: ${userId}`);
-                    }
-                } catch (err) {
-                    logger.error('Error processing security event message', err);
-                }
-            },
-        });
+        await connectAndRun();
+        kafkaConnected = true;
     } catch (err) {
-        logger.error('Security consumer failed to start', err);
+        if (shuttingDown) return;
+        const delay = Math.min(RETRY_BASE_MS * 2 ** (attempt - 1), RETRY_MAX_MS);
+        logger.error(`Security consumer failed to start (attempt ${attempt}), retrying in ${delay}ms: ${(err as Error).message}`);
+        await consumer.disconnect().catch(() => undefined);
+        setTimeout(() => void startSecurityConsumer(attempt + 1), delay);
     }
 };
 
+const connectAndRun = async () => {
+    await consumer.connect();
+    await consumer.subscribe({ topic: 'user-security-updates', fromBeginning: false });
+
+    logger.info('Kafka security consumer connected and subscribed to user-security-updates');
+
+    await consumer.run({
+        eachMessage: async ({ topic, message }) => {
+            const value = message.value?.toString();
+            if (!value) return;
+
+            try {
+                const { userId, event } = JSON.parse(value);
+
+                if (event === 'PASSWORD_CHANGED' || event === 'LOGOUT_ALL') {
+                    logger.info(`Security event [${event}] received for user: ${userId}. Purging cache.`);
+
+                    // Purge project list cache
+                    const listCacheKey = `user:projects:${userId}`;
+                    await redis.del(listCacheKey);
+
+                    logger.info(`Cache purged for user: ${userId}`);
+                }
+            } catch (err) {
+                logger.error('Error processing security event message', err);
+            }
+        },
+    });
+};
+
 export const disconnectSecurityConsumer = async () => {
+    shuttingDown = true;
     try {
         await consumer.disconnect();
         logger.info('Security consumer disconnected');

@@ -36,8 +36,6 @@ const startServer = async () => {
     await mongoose.connect(config.DATABASE_URL);
     logger.info('Connected to MongoDB');
 
-    await startSecurityConsumer();
-
     const { startFlusherWorker } = require('./scripts/flusher.worker');
     const { startCodeJanitor } = require('./scripts/janitor.worker');
     startFlusherWorker();
@@ -48,6 +46,9 @@ const startServer = async () => {
     });
 
     setupGracefulShutdown(server);
+
+    // Kafka connects in the background (with retries) so it can't block or crash the API
+    void startSecurityConsumer();
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);

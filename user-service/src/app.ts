@@ -34,13 +34,14 @@ const startServer = async () => {
     await mongoose.connect(config.DATABASE_URL);
     logger.info('Connected to MongoDB');
 
-    await startConsumer();
-
     const server = app.listen(config.PORT, () => {
       logger.info(`${config.SERVICE_NAME} running on port ${config.PORT}`);
     });
 
     setupGracefulShutdown(server);
+
+    // Kafka connects in the background (with retries) so it can't block or crash the API
+    void startConsumer();
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);

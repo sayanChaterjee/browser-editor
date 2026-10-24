@@ -50,17 +50,34 @@ export const producer = kafka.producer({
   createPartitioner: Partitioners.DefaultPartitioner,
 });
 
-export const connectKafka = async () => {
+const RETRY_BASE_MS = 1000;
+const RETRY_MAX_MS = 30000;
+let kafkaConnected = false;
+let shuttingDown = false;
+
+export const isKafkaConnected = () => kafkaConnected;
+
+producer.on(producer.events.DISCONNECT, () => {
+  kafkaConnected = false;
+});
+
+// Kafka isn't needed to serve HTTP, so it never blocks startup: on failure, retry in
+// the background with exponential backoff until it connects.
+export const connectKafka = async (attempt = 1): Promise<void> => {
   try {
     await producer.connect();
+    kafkaConnected = true;
     logger.info('Kafka producer connected');
   } catch (err) {
-    logger.error('Failed to connect Kafka producer:', err);
-    if (isProduction) throw err; // Fail fast in production
+    if (shuttingDown) return;
+    const delay = Math.min(RETRY_BASE_MS * 2 ** (attempt - 1), RETRY_MAX_MS);
+    logger.error(`Failed to connect Kafka producer (attempt ${attempt}), retrying in ${delay}ms: ${(err as Error).message}`);
+    setTimeout(() => void connectKafka(attempt + 1), delay);
   }
 };
 
 export const disconnectKafka = async () => {
+  shuttingDown = true;
   try {
     await producer.disconnect();
     logger.info('Kafka producer disconnected');
