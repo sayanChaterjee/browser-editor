@@ -1,0 +1,27 @@
+{
+  "name": "ceditor",
+  "private": true,
+  "description": "Backend monorepo: API gateway, services and shared packages (the Next.js frontend is a separate project in frontend/)",
+  "workspaces": [
+    "packages/*",
+    "api-gateway",
+    "auth-service",
+    "user-service",
+    "code-service"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "globals": "^16.4.0",
+    "typescript-eslint": "^8.46.2"
+  },
+  "scripts": {
+    "build": "npm run build -w @ceditor/common && npm run build --workspaces --if-present",
+    "lint": "eslint packages api-gateway auth-service user-service code-service",
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run build -w @ceditor/common && tsc --noEmit -p api-gateway && tsc --noEmit -p auth-service && tsc --noEmit -p user-service && tsc --noEmit -p code-service"
+  }
+}

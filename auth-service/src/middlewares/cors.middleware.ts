@@ -1,7 +1,7 @@
 import cors from 'cors';
 import { config } from '../config';
 
-const allowedOrigins = config.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+const allowedOrigins = config.ALLOWED_ORIGINS;
 
 export const corsMiddleware = cors({
   origin: (origin, callback) => {

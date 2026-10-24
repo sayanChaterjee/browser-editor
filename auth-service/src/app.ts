@@ -11,10 +11,9 @@ import logger from './config/logger';
 import { reqLogger } from './middlewares/req.middleware';
 import { config } from './config';
 import { indexRouter } from './routes';
-import { setupGracefulShutdown } from './utils/shutdown';
-import { connectDB } from './db/db';
-import { connectKafka } from './config/kafka';
-import { correlationMiddleware } from './middlewares/correlation.middleware';
+import { correlationMiddleware, setupGracefulShutdown } from '@ceditor/common';
+import { connectDB, disconnectDB } from './db/db';
+import { producer } from './config/kafka';
 import { getAuth } from './lib/auth';
 import { toNodeHandler } from 'better-auth/node';
 
@@ -33,7 +32,7 @@ app.use(reqLogger);
 app.use(express.json());
 
 // Mount better-auth handler at /api/auth (will be initialized after DB connection)
-app.use('/api/auth', (req, res, next) => {
+app.use('/api/auth', (req, res) => {
   try {
     const auth = getAuth();
     const handler = toNodeHandler(auth);
@@ -54,7 +53,7 @@ app.use(errorHandler);
   try {
     await connectDB();
     // Kafka connects in the background (with retries) so it can't block or crash the API
-    void connectKafka();
+    producer.start();
 
     // Initialize auth after DB connection
     logger.info('Initializing better-auth...');
@@ -67,7 +66,12 @@ app.use(errorHandler);
       );
     });
 
-    setupGracefulShutdown(server);
+    setupGracefulShutdown(server, logger, {
+      cleanup: [
+        { name: 'Kafka', run: () => producer.stop() },
+        { name: 'MongoDB', run: disconnectDB },
+      ],
+    });
   } catch (err) {
     logger.error('error during application initialization', err);
     process.exit(1);

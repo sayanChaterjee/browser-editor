@@ -11,10 +11,7 @@ export function getAuth() {
             throw new Error("MongoDB connection not established. Cannot initialize better-auth.");
         }
 
-        const baseURL = process.env.BETTER_AUTH_URL;
-        if (!baseURL) {
-            throw new Error("BETTER_AUTH_URL is not defined in environment variables");
-        }
+        const baseURL = config.BETTER_AUTH_URL;
 
         authInstance = betterAuth({
             database: mongodbAdapter(mongoose.connection.db),
@@ -26,9 +23,9 @@ export function getAuth() {
 
             socialProviders: {
                 google: {
-                    clientId: process.env.GOOGLE_CLIENT_ID || "",
-                    clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-                    enabled: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+                    clientId: config.GOOGLE_CLIENT_ID,
+                    clientSecret: config.GOOGLE_CLIENT_SECRET,
+                    enabled: !!(config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET),
                     // BFF Proxy: Callback goes to Vercel, which proxies to Render
                     // Construct dynamically to support local development
                     redirectURI: `${baseURL}/api/auth/callback/google`,
@@ -78,10 +75,10 @@ export function getAuth() {
                 "http://localhost:3004",
                 "http://localhost:3000",
                 baseURL,
-                process.env.FRONTEND_URL || "",
+                config.FRONTEND_URL,
             ].filter(Boolean),
 
-            secret: process.env.BETTER_AUTH_SECRET || config.JWT_SECRET,
+            secret: config.BETTER_AUTH_SECRET,
 
             redirects: {
                 onSignIn: `${baseURL}/editor`,

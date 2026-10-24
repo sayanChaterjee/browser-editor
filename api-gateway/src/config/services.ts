@@ -1,9 +1,9 @@
-import { Application, Request, Response } from 'express';
+import { Application, NextFunction, Request, Response } from 'express';
 import { createProxyMiddleware, Options } from 'http-proxy-middleware';
 import CircuitBreaker from 'opossum';
 import { config } from './index';
 import logger from './logger';
-import { ProxyErrorResponse, ServiceConfig } from '../types/index';
+import { ServiceConfig } from '../types/index';
 
 class ServiceProxy {
   private static readonly serviceConfigs: ServiceConfig[] = [
@@ -121,7 +121,7 @@ class ServiceProxy {
 
       // 2. Circuit Breaker Integration
       const breaker = new CircuitBreaker(
-        (req: Request, res: Response, next: any) => {
+        (req: Request, res: Response, _next: NextFunction) => {
           return new Promise((resolve, reject) => {
             const onEnd = () => {
               cleanup();
@@ -143,7 +143,6 @@ class ServiceProxy {
             res.on('close', onEnd);
             res.on('error', onError);
 
-            // @ts-ignore
             proxyMiddleware(req, res, (err) => {
               if (err) {
                 onError(err);

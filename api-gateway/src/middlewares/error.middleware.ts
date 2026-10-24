@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import logger from '../config/logger';
-import { getOrigin } from '../utils/context';
+import { getOrigin } from '@ceditor/common';
 import { config } from '../config';
 
 /**
@@ -26,7 +26,7 @@ function isAllowedOrigin(origin: string | undefined, allowedOrigins: string[]): 
  * Ensures CORS headers are included even on errors
  * Formats error responses consistently
  */
-export function errorHandler(err: any, req: Request, res: Response, next: NextFunction) {
+export function errorHandler(err: any, req: Request, res: Response, _next: NextFunction) {
     // Get origin from request context or  headers
     const origin = getOrigin() || req.headers.origin as string;
     const allowedOrigins = config.ALLOWED_ORIGINS.split(',').map(o => o.trim());

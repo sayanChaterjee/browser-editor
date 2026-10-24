@@ -1,27 +1,42 @@
 # syntax=docker/dockerfile:1
+# Build context: the repository root (npm workspaces: one lockfile, shared packages/common).
+# docker build -f code-service/Dockerfile .
 
-# Shared base: lockfile first so dependency layers are cached across source changes.
 FROM node:20-alpine AS base
 WORKDIR /app
-COPY package.json package-lock.json ./
+# Lockfile and every workspace manifest first, so dependency layers are cached across source changes
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/common/package.json packages/common/
+COPY api-gateway/package.json api-gateway/
+COPY auth-service/package.json auth-service/
+COPY user-service/package.json user-service/
+COPY code-service/package.json code-service/
 
-# Full install + TypeScript compile.
+# Full install of this service + common, then compile both
 FROM base AS build
-RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
-COPY tsconfig.json ./
-COPY src ./src
-RUN npm run build
+RUN --mount=type=cache,target=/root/.npm npm ci -w @ceditor/common -w code-service --no-audit --no-fund
+COPY packages/common/tsconfig.build.json packages/common/
+COPY packages/common/src packages/common/src
+COPY code-service/tsconfig.json code-service/
+COPY code-service/src code-service/src
+RUN npm run build -w @ceditor/common && npm run build -w code-service
 
-# Production dependencies only (no TypeScript, ESLint, Jest, ts-node...).
+# Production dependencies only (no TypeScript, ESLint, test tools)
 FROM base AS prod-deps
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm npm ci -w @ceditor/common -w code-service --omit=dev --no-audit --no-fund \
+ && mkdir -p packages/common/node_modules code-service/node_modules
 
-# Runtime: compiled JS + production node_modules, running as the unprivileged node user.
+# Runtime: compiled JS + production node_modules, running as the unprivileged node user
 FROM node:20-alpine
 WORKDIR /app
-COPY --chown=node:node package.json ./
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
-COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=prod-deps --chown=node:node /app/packages/common/node_modules packages/common/node_modules
+COPY --from=prod-deps --chown=node:node /app/code-service/node_modules code-service/node_modules
+COPY --chown=node:node packages/common/package.json packages/common/
+COPY --from=build --chown=node:node /app/packages/common/dist packages/common/dist
+COPY --chown=node:node code-service/package.json code-service/
+COPY --from=build --chown=node:node /app/code-service/dist code-service/dist
+WORKDIR /app/code-service
 USER node
 EXPOSE 3003
 CMD ["node", "dist/app.js"]

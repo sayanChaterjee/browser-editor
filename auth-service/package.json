@@ -18,13 +18,12 @@
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "helmet": "^8.1.0",
-    "ioredis": "^5.5.0",
     "kafkajs": "^2.2.4",
     "mongodb": "^7.0.0",
     "mongoose": "^9.0.2",
-    "resend": "^6.8.0",
     "winston": "^3.17.0",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "@ceditor/common": "*"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",

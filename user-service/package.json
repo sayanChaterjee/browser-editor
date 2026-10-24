@@ -18,7 +18,8 @@
     "ioredis": "^5.9.1",
     "kafkajs": "^2.2.4",
     "mongoose": "^9.0.2",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "@ceditor/common": "*"
   },
   "devDependencies": {
     "@types/express": "^5.0.1",

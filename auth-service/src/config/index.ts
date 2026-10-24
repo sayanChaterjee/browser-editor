@@ -1,28 +1,20 @@
-interface Config {
-  SERVICE_NAME: string;
-  PORT: number;
-  DATABASE_URL: string;
-  REDIS_URL: string;
-  KAFKA_BROKER: string;
-  LOG_LEVEL: string;
-  ALLOWED_ORIGINS: string;
-  BASE_URL: string;
-  JWT_SECRET: string;
-}
+import { loadConfig, z, envRequired, envNumber, envList } from '@ceditor/common';
 
-export const config: Config = {
-  SERVICE_NAME: require('../../package.json').name,
-  PORT: Number(process.env.PORT) || 3001,
-  DATABASE_URL:
-    process.env.DATABASE_URL || '',
-  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
-  KAFKA_BROKER: process.env.KAFKA_BROKER || 'localhost:9092',
-  LOG_LEVEL: process.env.LOG_LEVEL || 'info',
-  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || 'http://localhost:3000',
-  BASE_URL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
-  JWT_SECRET: process.env.BETTER_AUTH_SECRET || '',
+const schema = z.object({
+  PORT: envNumber(3001),
+  LOG_LEVEL: z.string().default('info'),
+  DATABASE_URL: envRequired('MongoDB connection string'),
+  KAFKA_BROKER: z.string().default('localhost:9092'),
+  ALLOWED_ORIGINS: envList('http://localhost:3000'),
+  // Public URL of the frontend (requests reach auth through its /api proxy)
+  BETTER_AUTH_URL: envRequired('public frontend URL, e.g. http://localhost:3005').url('must be a URL, e.g. http://localhost:3005'),
+  BETTER_AUTH_SECRET: envRequired('generate with: openssl rand -base64 32'),
+  FRONTEND_URL: z.string().default(''),
+  GOOGLE_CLIENT_ID: z.string().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().default(''),
+});
+
+export const config = {
+  SERVICE_NAME: require('../../package.json').name as string,
+  ...loadConfig(schema),
 };
-
-if (!process.env.DATABASE_URL) {
-  console.warn('[WARN] DATABASE_URL is missing. Please set it in .env');
-}

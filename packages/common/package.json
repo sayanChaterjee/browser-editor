@@ -1,0 +1,28 @@
+{
+  "name": "@ceditor/common",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Infrastructure shared by the backend services: config, logging, correlation, Redis, Kafka, health, shutdown",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "tsc -p tsconfig.json && node --test \"dist-test/**/*.test.js\""
+  },
+  "dependencies": {
+    "ioredis": "^5.9.1",
+    "kafkajs": "^2.2.4",
+    "winston": "^3.17.0",
+    "zod": "^3.24.2"
+  },
+  "peerDependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.10.0",
+    "express": "^5.1.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -4,15 +4,13 @@ import logger from "./config/logger";
 
 import express, { NextFunction, Request, Response } from "express";
 import helmet from "helmet";
-import axios from "axios";
 import cookieParser from "cookie-parser";
 import { config } from "./config/index";
 import redis from "./config/redis";
 import { ipLimiter, authLimiter, userLimiter } from "./middlewares/rateLimiter.middleware";
 import { clientIpMiddleware } from "./middlewares/clientIp.middleware";
 import { proxyServices } from "./config/services";
-import { setupGracefulShutdown } from "./utils/shutdown";
-import { correlationMiddleware } from "./middlewares/correlation.middleware";
+import { correlationMiddleware, setupGracefulShutdown } from "@ceditor/common";
 import { authMiddleware } from "./middlewares/auth.middleware";
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorHandler } from './middlewares/error.middleware';
@@ -115,7 +113,6 @@ app.use('/api/v1', authMiddleware, userLimiter);
  */
 app.get("/api/v1/dashboard", async (req: Request, res: Response) => {
   try {
-    const correlationId = req.headers['x-correlation-id'];
     const userId = req.headers['x-user-id'];
 
     logger.info(`Fetching dashboard data for user: ${userId}`);
@@ -175,7 +172,11 @@ const startServer = () => {
       logger.info(`${config.SERVICE_NAME} running on port ${config.PORT}`);
     });
 
-    setupGracefulShutdown(server);
+    // Transient Redis errors must not take the gateway down, so unhandled rejections are logged only
+    setupGracefulShutdown(server, logger, {
+      cleanup: [{ name: 'Redis', run: () => redis.quit() }],
+      exitOnUnhandledRejection: false,
+    });
   } catch (error) {
     logger.error("Failed to start server:", error);
     process.exit(1);
