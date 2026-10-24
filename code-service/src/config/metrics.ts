@@ -42,9 +42,9 @@ export const flusherDuration = new prom.Histogram({
   registers,
 });
 
-export const kafkaMessages = new prom.Counter({
-  name: 'kafka_messages_total',
-  help: 'Kafka messages handled by topic and result (processed, invalid, dead_lettered, failed)',
-  labelNames: ['topic', 'result'] as const,
+export const eventsConsumed = new prom.Counter({
+  name: 'events_consumed_total',
+  help: 'Events consumed from Kafka, by topic, type and result (processed, duplicate, invalid, dead_lettered)',
+  labelNames: ['topic', 'type', 'result'] as const,
   registers: [metrics.registry],
 });

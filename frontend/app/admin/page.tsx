@@ -318,7 +318,11 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-[10px] text-gray-500">
-                          <span className="text-emerald-500/80 uppercase font-bold tracking-tighter">Final</span>
+                          {s.disqualified ? (
+                            <span className="text-red-400 uppercase font-bold tracking-tighter" title="The user is banned">Disqualified</span>
+                          ) : (
+                            <span className="text-emerald-500/80 uppercase font-bold tracking-tighter">Final</span>
+                          )}
                           <span>{new Date(s.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </button>

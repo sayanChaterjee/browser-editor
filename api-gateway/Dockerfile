@@ -7,6 +7,7 @@ WORKDIR /app
 # Lockfile and every workspace manifest first, so dependency layers are cached across source changes
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/common/package.json packages/common/
+COPY packages/contracts/package.json packages/contracts/
 COPY api-gateway/package.json api-gateway/
 COPY identity-service/package.json identity-service/
 COPY code-service/package.json code-service/

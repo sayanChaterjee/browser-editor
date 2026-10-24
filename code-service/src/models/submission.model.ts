@@ -9,6 +9,8 @@ export interface ISubmission extends Document {
   timeLeft: number;
   timeTaken: number;
   warningCount: number;
+  // Set while the user is banned (user.banned.v1), cleared on unban
+  disqualified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +24,7 @@ const SubmissionSchema: Schema = new Schema({
   timeLeft: { type: Number, default: 0 },
   timeTaken: { type: Number, default: 0 },
   warningCount: { type: Number, default: 0 },
+  disqualified: { type: Boolean, default: false },
 }, { timestamps: true });
 
 SubmissionSchema.index({ userId: 1 });

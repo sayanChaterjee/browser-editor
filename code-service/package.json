@@ -22,7 +22,8 @@
     "node-cron": "^4.2.1",
     "winston": "^3.17.0",
     "zod": "^3.24.2",
-    "@ceditor/common": "*"
+    "@ceditor/common": "*",
+    "@ceditor/contracts": "*"
   },
   "devDependencies": {
     "@types/express": "^5.0.1",

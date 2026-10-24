@@ -19,6 +19,8 @@ export interface Submission {
     timeLeft: number;
     timeTaken?: number;
     warningCount?: number;
+    // Set while the user is banned
+    disqualified?: boolean;
     createdAt: string;
     updatedAt: string;
 }

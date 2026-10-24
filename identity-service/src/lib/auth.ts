@@ -3,6 +3,7 @@ import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { APIError } from "better-auth/api";
 import mongoose from "mongoose";
 import { config } from "../config";
+import { publishUserEvent } from "../events/publisher";
 
 let authInstance: any = null;
 
@@ -31,8 +32,20 @@ export function getAuth() {
                 },
             },
 
-            // A banned user can't start a session (sign-in, sign-up or OAuth).
             databaseHooks: {
+                // Runs after the user is committed (email sign-up and first Google sign-in)
+                user: {
+                    create: {
+                        after: async (user) => {
+                            publishUserEvent("user.registered.v1", {
+                                userId: user.id,
+                                name: user.name,
+                                registeredAt: new Date(user.createdAt).toISOString(),
+                            });
+                        },
+                    },
+                },
+                // A banned user can't start a session (sign-in, sign-up or OAuth).
                 session: {
                     create: {
                         before: async (session) => {

@@ -18,9 +18,9 @@
     "typescript-eslint": "^8.46.2"
   },
   "scripts": {
-    "build": "npm run build -w @ceditor/common && npm run build --workspaces --if-present",
+    "build": "npm run build -w @ceditor/common -w @ceditor/contracts && npm run build --workspaces --if-present",
     "lint": "eslint packages api-gateway identity-service code-service",
     "test": "npm test --workspaces --if-present",
-    "typecheck": "npm run build -w @ceditor/common && tsc --noEmit -p api-gateway && tsc --noEmit -p identity-service && tsc --noEmit -p code-service"
+    "typecheck": "npm run build -w @ceditor/common -w @ceditor/contracts && tsc --noEmit -p api-gateway && tsc --noEmit -p identity-service && tsc --noEmit -p code-service"
   }
 }

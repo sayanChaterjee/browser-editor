@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # End-to-end smoke test against the API gateway.
 # Usage: scripts/smoke.sh [gateway_url] [origin]
-# Signs up a fresh user, then exercises profile -> save -> list -> open, sign-out and,
-# when SMOKE_ADMIN_EMAIL is in the stack's ADMIN_EMAILS, ban -> unban.
+# Signs up a fresh user, then exercises the starter project (user.registered.v1 event),
+# profile -> save -> list -> open, sign-out and, when SMOKE_ADMIN_EMAIL is in the stack's
+# ADMIN_EMAILS, ban -> unban (including the submission disqualification events).
 set -euo pipefail
 
 GATEWAY="${1:-http://localhost:3000}"
@@ -45,6 +46,20 @@ expect_status() {
   pass "$1 ($STATUS)"
 }
 
+# eventually <name> <jar> <path> <jq-condition>: polls a GET until the condition holds (events are async)
+eventually() {
+  local deadline=$((SECONDS + 20))
+  while :; do
+    call "$2" GET "$3"
+    if [[ "$STATUS" == 200 ]] && jq -e "$4" <<<"$BODY" >/dev/null 2>&1; then
+      pass "$1"
+      return
+    fi
+    (( SECONDS < deadline )) || fail "$1 (GET $3, waited 20s)" "$BODY"
+    sleep 1
+  done
+}
+
 echo "Smoke test: $GATEWAY (origin $ORIGIN)"
 
 request "gateway health" GET /health
@@ -57,6 +72,9 @@ request "session" GET /api/auth/get-session
 USER_ID="$(jq -r '.user.id' <<<"$BODY")"
 
 request "profile" GET /api/v1/user/profile
+
+# identity-service publishes user.registered.v1; code-service creates the starter project
+eventually "starter project created (event)" "$JAR" /api/v1/code 'map(.name) | index("Welcome") != null'
 
 request "save project" POST /api/v1/code/save \
   "{\"name\":\"$PROJECT\",\"html\":\"<h1>smoke</h1>\",\"css\":\"h1{color:red}\",\"js\":\"console.log(1)\"}"
@@ -97,13 +115,19 @@ call "$ADMIN_JAR" POST /api/auth/sign-in/email "$ADMIN_BODY"
 call "$ADMIN_JAR" GET /api/v1/user/profile
 if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
   request "profile before ban (session cached)" GET /api/v1/user/profile
+  request "submit project" POST /api/v1/code/submit \
+    "{\"projectId\":\"$PROJECT_ID\",\"html\":\"<h1>final</h1>\",\"css\":\"\",\"js\":\"\",\"timeTaken\":60}"
   expect_status "admin bans user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/ban"
   expect_status "banned user's next request rejected" 401 "$JAR" GET /api/v1/user/profile
   expect_status "banned user cannot sign in" 403 "$JAR" POST /api/auth/sign-in/email \
     "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
+  eventually "submission disqualified (event)" "$ADMIN_JAR" "/api/v1/code/admin/submissions/$USER_ID" \
+    'length > 0 and all(.disqualified == true)'
   expect_status "admin unbans user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/unban"
   request "sign in after unban" POST /api/auth/sign-in/email "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
   request "profile after unban" GET /api/v1/user/profile
+  eventually "submission reinstated (event)" "$ADMIN_JAR" "/api/v1/code/admin/submissions/$USER_ID" \
+    'length > 0 and all(.disqualified == false)'
 else
   printf '  - ban checks skipped: %s is not an admin (add it to ADMIN_EMAILS)\n' "$ADMIN_EMAIL"
 fi
