@@ -8,8 +8,7 @@
     "dev": "ts-node-dev src/app.ts",
     "build": "tsc",
     "lint": "eslint --fix",
-    "format": "prettier --write 'src/**/*.ts'",
-    "test": "jest"
+    "format": "prettier --write 'src/**/*.ts'"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
