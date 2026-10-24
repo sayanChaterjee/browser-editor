@@ -22,21 +22,15 @@ services:
       - fromGroup: internal-security-group
       - key: PORT
         value: 10000
+      # Public URLs on purpose: free-tier Render services can't receive private-network
+      # traffic, and `fromService: host` yields a port-less internal hostname. Blueprint
+      # syncs re-apply these values, so they must be the working ones.
       - key: AUTH_SERVICE_URL
-        fromService:
-          type: web
-          name: auth-service
-          property: host
+        value: https://auth-service-x0vq.onrender.com
       - key: USER_SERVICE_URL
-        fromService:
-          type: web
-          name: user-service
-          property: host
+        value: https://user-service-5jps.onrender.com
       - key: CODE_SERVICE_URL
-        fromService:
-          type: web
-          name: code-service
-          property: host
+        value: https://code-service-2aa7.onrender.com
       - key: REDIS_URL
         sync: false
       - key: ALLOWED_ORIGINS
