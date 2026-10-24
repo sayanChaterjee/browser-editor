@@ -11,7 +11,9 @@ import logger from './config/logger';
 import { reqLogger } from './middlewares/req.middleware';
 import { config } from './config';
 import { indexRouter } from './routes';
-import { correlationMiddleware, setupGracefulShutdown } from '@ceditor/common';
+import { userRouter } from './routes/user.route';
+import redis from './config/redis';
+import { correlationMiddleware, internalSecurity, setupGracefulShutdown } from '@ceditor/common';
 import { connectDB, disconnectDB } from './db/db';
 import { producer } from './config/kafka';
 import { metrics } from './config/metrics';
@@ -25,7 +27,6 @@ app.set("trust proxy", true);
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(corsMiddleware);
 
 app.use(metrics.httpMetrics);
 app.use(cookieParser());
@@ -34,7 +35,7 @@ app.use(reqLogger);
 app.use(express.json());
 
 // Mount better-auth handler at /api/auth (will be initialized after DB connection)
-app.use('/api/auth', (req, res) => {
+app.use('/api/auth', corsMiddleware, (req, res) => {
   try {
     const auth = getAuth();
     const handler = toNodeHandler(auth);
@@ -45,7 +46,10 @@ app.use('/api/auth', (req, res) => {
   }
 });
 
-// Keep the index router for health checks
+// User profiles and admin moderation, reached only through the gateway (/api/v1/user/*)
+app.use('/users', internalSecurity(config.INTERNAL_GATEWAY_SECRET, logger), userRouter);
+
+// Health checks and metrics
 app.use('/', indexRouter);
 
 
@@ -71,6 +75,7 @@ app.use(errorHandler);
     setupGracefulShutdown(server, logger, {
       cleanup: [
         { name: 'Kafka', run: () => producer.stop() },
+        { name: 'Redis', run: () => redis.quit() },
         { name: 'MongoDB', run: disconnectDB },
       ],
     });

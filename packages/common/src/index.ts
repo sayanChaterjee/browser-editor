@@ -8,3 +8,4 @@ export * from './middleware';
 export * from './redis';
 export * from './retry';
 export * from './shutdown';
+export * from './sessionCache';

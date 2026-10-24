@@ -2,7 +2,7 @@
   "name": "@ceditor/common",
   "version": "1.0.0",
   "private": true,
-  "description": "Infrastructure shared by the backend services: config, logging, correlation, Redis, Kafka, health, shutdown",
+  "description": "Infrastructure shared by the backend services: config, logging, correlation, Redis, Kafka, health, shutdown, metrics, session cache",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [

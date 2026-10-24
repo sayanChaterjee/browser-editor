@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 OUT="$ROOT/results/$LABEL-$SCENARIO"
 mkdir -p "$OUT"
 
-APPS=(api-gateway auth-service user-service code-service)
+APPS=(api-gateway identity-service code-service)
 ENV_ARGS=()
 for kv in "$@"; do ENV_ARGS+=(-e "$kv"); done
 

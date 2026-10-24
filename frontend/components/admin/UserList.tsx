@@ -69,6 +69,11 @@ export default function UserList({
                 }`}>
                   {user.name}
                 </span>
+                {user.banned && (
+                  <span className="flex-shrink-0 ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 ring-1 ring-red-500/30">
+                    banned
+                  </span>
+                )}
                 {user.warningCount > 0 && (
                   <span className={`flex-shrink-0 ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     user.warningCount >= 3

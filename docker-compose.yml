@@ -76,7 +76,7 @@ services:
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
-        for t in user-registered user-registered-dlq user-security-updates; do
+        for t in user-security-updates; do
           /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$t" --partitions 1 --replication-factor 1 || exit 1
         done
     depends_on:
@@ -145,15 +145,12 @@ services:
       - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
       - REDIS_URL=redis://redis:6379
-      - AUTH_SERVICE_URL=http://auth-service:3001
-      - USER_SERVICE_URL=http://user-service:3002
+      - IDENTITY_SERVICE_URL=http://identity-service:3001
       - CODE_SERVICE_URL=http://code-service:3003
     depends_on:
       redis:
         condition: service_healthy
-      auth-service:
-        condition: service_healthy
-      user-service:
+      identity-service:
         condition: service_healthy
       code-service:
         condition: service_healthy
@@ -161,27 +158,25 @@ services:
       test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
       <<: *app-healthcheck
 
-  auth-service:
+  identity-service:
     build:
       context: .
-      dockerfile: auth-service/Dockerfile
-    container_name: auth-service
+      dockerfile: identity-service/Dockerfile
+    container_name: identity-service
     restart: on-failure
     ports:
       - "3001:3001"
-    env_file: ./auth-service/.env
+    env_file: ./identity-service/.env
     environment:
       - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - RESEND_API_KEY=${RESEND_API_KEY}
+      - ADMIN_EMAILS=${ADMIN_EMAILS}
       - DATABASE_URL=mongodb://mongo:27017/ceditor_auth
       - REDIS_URL=redis://redis:6379
       - KAFKA_BROKER=kafka:9092
-      - USER_SERVICE_URL=http://user-service:3002
-      - CODE_SERVICE_URL=http://code-service:3003
     depends_on:
       mongo:
         condition: service_healthy
@@ -191,33 +186,6 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
-      <<: *app-healthcheck
-
-  user-service:
-    build:
-      context: .
-      dockerfile: user-service/Dockerfile
-    container_name: user-service
-    restart: on-failure
-    ports:
-      - "3002:3002"
-    env_file: ./user-service/.env
-    environment:
-      - METRICS_TOKEN=local-dev-metrics-token
-      - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
-      - ADMIN_EMAILS=${ADMIN_EMAILS}
-      - DATABASE_URL=mongodb://mongo:27017/ceditor_user
-      - REDIS_URL=redis://redis:6379
-      - KAFKA_BROKER=kafka:9092
-    depends_on:
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka-init:
-        condition: service_completed_successfully
-    healthcheck:
-      test: [ "CMD", "node", "-e", "require('http').get('http://localhost:3002/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))" ]
       <<: *app-healthcheck
 
   code-service:

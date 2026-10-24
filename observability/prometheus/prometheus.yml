@@ -1,4 +1,4 @@
-# Local development only: scrapes the four services inside docker compose.
+# Local development only: scrapes the three services inside docker compose.
 global:
   scrape_interval: 5s
   evaluation_interval: 5s
@@ -10,4 +10,4 @@ scrape_configs:
       type: Bearer
       credentials: local-dev-metrics-token
     static_configs:
-      - targets: ['api-gateway:3000', 'auth-service:3001', 'user-service:3002', 'code-service:3003']
+      - targets: ['api-gateway:3000', 'identity-service:3001', 'code-service:3003']

@@ -8,8 +8,7 @@ WORKDIR /app
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/common/package.json packages/common/
 COPY api-gateway/package.json api-gateway/
-COPY auth-service/package.json auth-service/
-COPY user-service/package.json user-service/
+COPY identity-service/package.json identity-service/
 COPY code-service/package.json code-service/
 
 # Full install of this service + common, then compile both

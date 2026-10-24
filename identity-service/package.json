@@ -1,7 +1,7 @@
 {
-  "name": "auth-service",
+  "name": "identity-service",
   "version": "1.0.0",
-  "description": "Authentication microservice for ceditor",
+  "description": "Identity: sign-up, sign-in and sessions (Better Auth), user profiles and admin moderation",
   "main": "src/app.ts",
   "scripts": {
     "start": "ts-node src/app.ts",
