@@ -20,3 +20,11 @@ out/
 .nuxt/
 .jspm-cache/
 bower_components/
+# Kafka client certificates
+certs/
+
+# Raw load-test output (summaries in loadtest/results/*.md are committed)
+loadtest/results/*/
+
+# TypeScript incremental build info
+*.tsbuildinfo
