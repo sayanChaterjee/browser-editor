@@ -14,7 +14,6 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         const secureCookie = req.cookies?.['__Secure-better-auth.session_token'];
 
         const sessionToken = standardCookie || secureCookie;
-        const cookieName = standardCookie ? 'better-auth.session_token' : '__Secure-better-auth.session_token';
 
         if (!sessionToken) {
             logger.warn(`No session token found for ${req.path}. Cookies present:`, Object.keys(req.cookies || {}));
@@ -26,13 +25,21 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
         // Verify session by calling better-auth's session endpoint
         try {
-            // CRITICAL: Forward the cookie exactly as it was received (prefix matters for Better Auth)
+            // Forward all cookies as received: besides the session token, Better Auth's signed
+            // session_data cookie lets it validate the session without a database lookup.
             const sessionResponse = await axios.get(`${config.AUTH_SERVICE_URL}/api/auth/get-session`, {
                 headers: {
-                    'cookie': `${cookieName}=${sessionToken}`,
+                    'cookie': req.headers.cookie,
                 },
                 timeout: 3000,
             });
+
+            // Pass refreshed cookies back to the browser (renewed session_data cache and the
+            // extended session expiry); otherwise the cache goes cold after 5 minutes.
+            const refreshedCookies = sessionResponse.headers['set-cookie'];
+            if (refreshedCookies) {
+                res.append('Set-Cookie', refreshedCookies);
+            }
 
             const session = sessionResponse.data;
 

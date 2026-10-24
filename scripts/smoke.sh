@@ -53,4 +53,17 @@ jq -e --arg id "$PROJECT_ID" 'map(._id) | index($id) != null' <<<"$BODY" >/dev/n
 request "open project" GET "/api/v1/code/$PROJECT_ID"
 [[ "$(jq -r '.html' <<<"$BODY")" == "<h1>smoke</h1>" ]] || fail "project content matches" "$BODY"
 
+# Regression: edits saved after the project was cached must be visible immediately,
+# before the flusher writes them to MongoDB.
+request "save new edit" POST /api/v1/code/save \
+  "{\"name\":\"$PROJECT\",\"html\":\"<h1>edited</h1>\",\"css\":\"\",\"js\":\"\"}"
+[[ "$(jq -r '._id' <<<"$BODY")" == "$PROJECT_ID" ]] || fail "second save reuses project id" "$BODY"
+
+request "open project after edit" GET "/api/v1/code/$PROJECT_ID"
+[[ "$(jq -r '.html' <<<"$BODY")" == "<h1>edited</h1>" ]] || fail "open returns latest edit" "$BODY"
+
+request "list after edit" GET /api/v1/code
+jq -e --arg id "$PROJECT_ID" '.[] | select(._id == $id) | .html == "<h1>edited</h1>"' <<<"$BODY" >/dev/null \
+  || fail "list returns latest edit" "$BODY"
+
 echo "All smoke checks passed ($EMAIL)"

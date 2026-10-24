@@ -43,6 +43,9 @@ services:
         sync: false # Set this to your Vercel frontend URL
       - key: LOG_LEVEL
         value: info
+      # Proxies in front of the gateway: Vercel's /api proxy + Render's load balancer
+      - key: TRUST_PROXY_HOPS
+        value: 2
 
   # 2. AUTH SERVICE (Public - Web Type for Free Tier)
   - type: web

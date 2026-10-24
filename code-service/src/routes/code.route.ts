@@ -17,6 +17,40 @@ const projectSchema = z.object({
   timeTaken: z.number().optional(),
 });
 
+const BUFFER_FIELDS = ['html', 'css', 'js', 'updatedAt'] as const;
+const PROJECT_ID_TTL = 3600;
+
+// MongoDB (and the project caches built from it) lags behind the Redis write-behind
+// buffer until the flusher runs, so reads overlay the buffered fragments on top.
+async function withLatestEdits(projects: any[]): Promise<any[]> {
+  if (projects.length === 0) return projects;
+
+  const pipeline = redis.pipeline();
+  projects.forEach((p) => pipeline.hgetall(`project:buffer:${p._id}`));
+  const results = (await pipeline.exec()) || [];
+
+  return projects.map((project, i) => {
+    const [err, buffer] = results[i] as [Error | null, Record<string, string>];
+    if (err || !buffer || buffer.userId !== project.userId) return project;
+
+    const merged = { ...project };
+    for (const field of BUFFER_FIELDS) {
+      if (buffer[field] !== undefined) merged[field] = buffer[field];
+    }
+    return merged;
+  });
+}
+
+// Resolves a project's id from its name without a MongoDB read on the hot save path.
+async function findProjectId(userId: string, name: string): Promise<string | undefined> {
+  const idsKey = `user:project-ids:${userId}`;
+  const cachedId = await redis.hget(idsKey, name);
+  if (cachedId) return cachedId;
+
+  const project = await Project.findOne({ userId, name }, { _id: 1 }).lean();
+  return project?._id.toString();
+}
+
 // GET / - Get all user's projects
 codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
@@ -29,20 +63,20 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
       const parsed = JSON.parse(cachedProjects);
       if (Array.isArray(parsed)) {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        return res.json(parsed);
+        return res.json(await withLatestEdits(parsed));
       }
       logger.warn('[GET /api/v1/code] Cached projects is not an array, discarding...');
       await redis.del(cacheKey);
     }
 
     logger.info(`[GET /api/v1/code] Fetching projects from MongoDB for userId: ${userId}`);
-    const projects = await Project.find({ userId }).sort({ updatedAt: -1 });
+    const projects = (await Project.find({ userId }).sort({ updatedAt: -1 })).map((p) => p.toJSON());
 
     // Store in cache for 5 minutes (list is more dynamic)
     await redis.set(cacheKey, JSON.stringify(projects), 'EX', 300);
 
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.json(projects);
+    res.json(await withLatestEdits(projects));
   } catch (error) {
     logger.error('[GET /api/v1/code] Error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -85,7 +119,8 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
       const parsed = JSON.parse(cachedProject);
       // STRICT OWNERSHIP CHECK: Ensure cached project belongs to the current user
       if (parsed.userId === req.userId) {
-        return res.json(parsed);
+        const [latest] = await withLatestEdits([parsed]);
+        return res.json(latest);
       }
       logger.warn(`[GET /api/v1/code/:projectId] Cache hit for ${projectId} but userId mismatch. Purging stale cache.`);
       await redis.del(cacheKey);
@@ -98,9 +133,11 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
     }
 
     // Cache result
-    await redis.set(cacheKey, JSON.stringify(project), 'EX', 3600);
+    const projectJson = project.toJSON();
+    await redis.set(cacheKey, JSON.stringify(projectJson), 'EX', 3600);
 
-    res.json(project);
+    const [latest] = await withLatestEdits([projectJson]);
+    res.json(latest);
   } catch (error) {
     logger.error(`[GET /api/v1/code/:projectId] Error for projectId ${req.params.projectId}:`, error);
     res.status(500).json({ message: 'Server error' });
@@ -115,9 +152,12 @@ codeRouter.post('/save', verifyToken, conflictLock, async (req: Request, res: Re
     const { name, html, css, js, timeLeft } = projectSchema.parse(req.body);
     const userId = req.userId!;
 
-    // 1. Identify or Create Project ID
-    let project = await Project.findOne({ userId, name });
-    let projectId = project?._id.toString();
+    if (!name) {
+      return res.status(400).json({ message: 'Project name is required' });
+    }
+
+    // 1. Identify or Create Project ID (Redis first, MongoDB only on a miss)
+    let projectId = await findProjectId(userId, name);
 
     // 2. Write-Behind Cache Update: Store fragments in a Redis Hash
     const fragments = {
@@ -128,8 +168,8 @@ codeRouter.post('/save', verifyToken, conflictLock, async (req: Request, res: Re
     };
 
     // If project doesn't exist yet, we must create it in DB once to get an ID
-    if (!project) {
-      project = await Project.create({
+    if (!projectId) {
+      const project = await Project.create({
         userId,
         name,
         ...fragments,
@@ -139,25 +179,22 @@ codeRouter.post('/save', verifyToken, conflictLock, async (req: Request, res: Re
     }
 
     const bufferKey = `project:buffer:${projectId}`;
-    const dirtyKey = `dirty_projects`;
-
-    // Atomic update in Redis Hash
-    await redis.hset(bufferKey, { ...fragments, userId });
-    // Set expiry for the buffer (e.g., 1 hour)
-    await redis.expire(bufferKey, 3600);
-
-    // Mark as dirty for the flusher worker
-    await redis.sadd(dirtyKey, projectId as string);
-
-    // 3. Version Control: Maintain last 5 Snapshots in Redis
     const snapshotKey = `project:${projectId}:snapshots`;
+    const idsKey = `user:project-ids:${userId}`;
     const snapshot = JSON.stringify({ ...fragments, timestamp: fragments.updatedAt });
-    await redis.lpush(snapshotKey, snapshot);
-    await redis.ltrim(snapshotKey, 0, 4); // Keep only 5
 
-    // 4. Invalidate List Cache
-    const listCacheKey = `user:projects:${userId}`;
-    await redis.del(listCacheKey);
+    // All cache writes in one atomic round trip
+    await redis
+      .multi()
+      .hset(bufferKey, { ...fragments, userId })
+      .expire(bufferKey, 3600)
+      .sadd('dirty_projects', projectId) // picked up by the flusher worker
+      .lpush(snapshotKey, snapshot) // 3. Version Control: keep the last 5 snapshots
+      .ltrim(snapshotKey, 0, 4)
+      .hset(idsKey, name, projectId)
+      .expire(idsKey, PROJECT_ID_TTL)
+      .del(`user:projects:${userId}`) // 4. Invalidate List Cache
+      .exec();
 
     res.json({ ...fragments, userId, name, _id: projectId, status: 'saved_to_cache' });
   } catch (error) {
@@ -316,6 +353,8 @@ codeRouter.post('/warning/:projectId', verifyToken, async (req: Request, res: Re
       return res.status(404).json({ message: 'Project not found' });
     }
 
+    await redis.del(`project:${projectId}`);
+
     logger.info(`Warning count incremented for project ${projectId}: ${project.warningCount}`);
     res.json({ warningCount: project.warningCount });
   } catch (error) {
@@ -373,7 +412,8 @@ codeRouter.delete('/:projectId', verifyToken, async (req: Request, res: Response
     const listCacheKey = `user:projects:${req.userId}`;
     await Promise.all([
       redis.del(projectCacheKey),
-      redis.del(listCacheKey)
+      redis.del(listCacheKey),
+      redis.hdel(`user:project-ids:${req.userId}`, project.name)
     ]);
 
     res.json({ message: 'Project deleted successfully' });

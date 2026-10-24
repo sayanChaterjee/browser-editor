@@ -2,6 +2,7 @@ import { Server } from 'http';
 import mongoose from 'mongoose';
 import redis from '../config/redis';
 import logger from '../config/logger';
+import { disconnectSecurityConsumer } from '../events/consumers/security.consumer';
 
 export const setupGracefulShutdown = (server: Server) => {
     const shutdown = async (signal: string) => {
@@ -20,11 +21,14 @@ export const setupGracefulShutdown = (server: Server) => {
                 });
             });
 
-            // 2. Disconnect from Redis
+            // 2. Leave the Kafka consumer group cleanly
+            await disconnectSecurityConsumer();
+
+            // 3. Disconnect from Redis
             await redis.quit();
             logger.info('Redis disconnected');
 
-            // 3. Disconnect from MongoDB
+            // 4. Disconnect from MongoDB
             await mongoose.connection.close();
             logger.info('MongoDB connection closed');
 

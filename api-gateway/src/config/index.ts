@@ -9,6 +9,10 @@ interface Config {
   CODE_SERVICE_URL: string;
   ALLOWED_ORIGINS: string;
   INTERNAL_GATEWAY_SECRET: string;
+  TRUST_PROXY_HOPS: number;
+  RATE_LIMIT_IP_PER_MINUTE: number;
+  RATE_LIMIT_AUTH_PER_15_MINUTES: number;
+  RATE_LIMIT_USER_PER_MINUTE: number;
 }
 
 import { normalizeServiceUrl } from '../utils/urlHelper';
@@ -24,4 +28,10 @@ export const config: Config = {
   USER_SERVICE_URL: normalizeServiceUrl(process.env.USER_SERVICE_URL || 'http://localhost:3002'),
   CODE_SERVICE_URL: normalizeServiceUrl(process.env.CODE_SERVICE_URL || 'http://localhost:3003'),
   INTERNAL_GATEWAY_SECRET: process.env.INTERNAL_GATEWAY_SECRET || '',
+  // Number of reverse proxies in front of the gateway whose X-Forwarded-For can be trusted.
+  // 0 = direct exposure (header ignored); production behind Vercel + Render's load balancer = 2.
+  TRUST_PROXY_HOPS: Number(process.env.TRUST_PROXY_HOPS || '0'),
+  RATE_LIMIT_IP_PER_MINUTE: Number(process.env.RATE_LIMIT_IP_PER_MINUTE || '600'),
+  RATE_LIMIT_AUTH_PER_15_MINUTES: Number(process.env.RATE_LIMIT_AUTH_PER_15_MINUTES || '20'),
+  RATE_LIMIT_USER_PER_MINUTE: Number(process.env.RATE_LIMIT_USER_PER_MINUTE || '120'),
 };

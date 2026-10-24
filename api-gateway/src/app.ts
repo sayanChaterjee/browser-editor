@@ -7,7 +7,8 @@ import helmet from "helmet";
 import axios from "axios";
 import cookieParser from "cookie-parser";
 import { config } from "./config/index";
-import { limiter } from "./middlewares/rateLimiter.middleware";
+import redis from "./config/redis";
+import { ipLimiter, authLimiter, userLimiter } from "./middlewares/rateLimiter.middleware";
 import { proxyServices } from "./config/services";
 import { setupGracefulShutdown } from "./utils/shutdown";
 import { correlationMiddleware } from "./middlewares/correlation.middleware";
@@ -23,9 +24,9 @@ setupAxiosInterceptors();
 
 const app = express();
 
-// Trust proxy - CRITICAL for cookies and OAuth to work behind Cloudflare + Render
-// Use 'true' to trust all proxies in the chain (Cloudflare -> Render)
-app.set("trust proxy", true);
+// Trust proxy - only as many hops as actually sit in front of the gateway, so clients
+// can't spoof X-Forwarded-For to dodge IP rate limits (see TRUST_PROXY_HOPS)
+app.set("trust proxy", config.TRUST_PROXY_HOPS);
 
 app.use(corsMiddleware);
 
@@ -53,13 +54,26 @@ app.use(helmet({
 // 4. Correlation - creates AsyncLocalStorage context for the entire request lifecycle
 app.use(correlationMiddleware);
 
-// 5. Rate limiter
-app.use(limiter);
-
-// Health check (no auth required)
+// Health checks sit before the rate limiters so probes never consume limits or get a 429.
+// Liveness:
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).send("OK");
 });
+
+// Readiness: the gateway can route without Redis (rate limiting fails open), so Redis
+// is reported but doesn't make it unready.
+app.get("/ready", (req: Request, res: Response) => {
+  res.status(200).json({
+    status: "ready",
+    service: config.SERVICE_NAME,
+    checks: { redis: redis.status === "ready" ? "up" : "down" },
+  });
+});
+
+// 5. Rate limiters: per-IP flood backstop, strict per-IP limit on credential endpoints
+// (the per-user API limit is applied after authentication below)
+app.use(ipLimiter);
+app.use(authLimiter);
 
 // apply middleware to log all incoming requests with correlation ID
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -88,7 +102,7 @@ app.get('/', (req: Request, res: Response) => {
 
 
 // Apply auth middleware to protected routes (matches /api/v1 and all subpaths)
-app.use('/api/v1', authMiddleware);
+app.use('/api/v1', authMiddleware, userLimiter);
 
 
 /**

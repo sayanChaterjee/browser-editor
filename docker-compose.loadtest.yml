@@ -9,6 +9,11 @@ x-limits: &limits
 services:
   api-gateway:
     <<: *limits
+    environment:
+      # k6 simulates distinct users via X-Forwarded-For; trust one hop so the gateway sees them.
+      - TRUST_PROXY_HOPS=1
+      # Test setup signs up hundreds of users; keep the limiter out of the measurement.
+      - RATE_LIMIT_AUTH_PER_15_MINUTES=100000
   auth-service:
     <<: *limits
   user-service:

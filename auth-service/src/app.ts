@@ -59,7 +59,8 @@ app.use(errorHandler);
 (async () => {
   try {
     await connectDB();
-    await connectKafka();
+    // Kafka connects in the background (with retries) so it can't block or crash the API
+    void connectKafka();
     await init();
 
     // Initialize auth after DB connection
@@ -79,5 +80,6 @@ app.use(errorHandler);
     setupGracefulShutdown(server);
   } catch (err) {
     logger.error('error during application initialization', err);
+    process.exit(1);
   }
 })();
