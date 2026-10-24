@@ -20,9 +20,13 @@ services:
       - mongo_data:/data/db
     healthcheck:
       test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
-      interval: 5s
+      # Each check starts a mongosh process (~150-200 MB for a moment): poll quickly only
+      # while starting, then every 30s
+      interval: 30s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 60s
+      start_interval: 2s
 
   redis:
     # Plain Redis, like production (Upstash); the code uses no Redis Stack modules.
@@ -56,6 +60,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # The image default reserves a 1 GB heap; a few dev topics need far less
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
     healthcheck:
       test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1" ]
       interval: 10s
@@ -76,6 +82,34 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+
+  # Metrics: docker compose --profile observability up -d
+  # Prometheus http://localhost:9090, Grafana http://localhost:3010 (dashboard "CEditor services")
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: prometheus
+    profiles: [ observability ]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: grafana
+    profiles: [ observability ]
+    ports:
+      - "3010:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/ceditor.json
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
 
   # Optional UIs: docker compose --profile tools up -d
   redis-insight:
@@ -108,6 +142,7 @@ services:
       - "3000:3000"
     env_file: ./api-gateway/.env
     environment:
+      - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
       - REDIS_URL=redis://redis:6379
       - AUTH_SERVICE_URL=http://auth-service:3001
@@ -136,6 +171,7 @@ services:
       - "3001:3001"
     env_file: ./auth-service/.env
     environment:
+      - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -167,6 +203,7 @@ services:
       - "3002:3002"
     env_file: ./user-service/.env
     environment:
+      - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
       - DATABASE_URL=mongodb://mongo:27017/ceditor_user
@@ -193,6 +230,7 @@ services:
       - "3003:3003"
     env_file: ./code-service/.env
     environment:
+      - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
       - DATABASE_URL=mongodb://mongo:27017/ceditor_code

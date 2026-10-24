@@ -33,4 +33,7 @@ loadtest/run.sh contest-soak v0 USERS=100 DURATION=5m
 - `mongo-ops.txt`: MongoDB insert/update/query counters before and after (write-behind effectiveness)
 
 Restart the app containers before a baseline run so every run starts from a fresh process.
+
+Add `--profile observability` when starting the stack to watch a run live in Grafana
+(http://localhost:3010, dashboard "CEditor services").
 Write up comparisons in `results/<label>.md`.

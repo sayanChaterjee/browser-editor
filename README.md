@@ -391,6 +391,18 @@ Production uses MongoDB Atlas, Upstash Redis and Aiven Kafka, configured in the 
 dashboards (see `render.yaml`). Kafka client certificates (`ca.pem`, `service.cert`, `service.key`)
 are Render secret files, read from `/etc/secrets`.
 
+### Metrics
+Every service exposes Prometheus metrics at `/metrics` (HTTP latency per route, Node.js runtime,
+dependency status, rate-limit rejections, session-check time, write-behind backlog, flusher,
+cache hit ratio, Kafka messages). The endpoint needs `Authorization: Bearer $METRICS_TOKEN`
+and is disabled (404) when `METRICS_TOKEN` is unset, as in production.
+
+```bash
+docker compose --profile observability up -d
+```
+- **Grafana:** http://localhost:3010, dashboard "CEditor services" (no login locally)
+- **Prometheus:** http://localhost:9090
+
 ### Load testing
 See [loadtest/README.md](loadtest/README.md).
 
