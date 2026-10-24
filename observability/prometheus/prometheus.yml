@@ -1,0 +1,13 @@
+# Local development only: scrapes the four services inside docker compose.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: ceditor
+    # Matches METRICS_TOKEN set for the services in docker-compose.yml (local-only value)
+    authorization:
+      type: Bearer
+      credentials: local-dev-metrics-token
+    static_configs:
+      - targets: ['api-gateway:3000', 'auth-service:3001', 'user-service:3002', 'code-service:3003']

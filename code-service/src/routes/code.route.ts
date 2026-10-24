@@ -4,6 +4,7 @@ import Project from '../models/project.model';
 import { z } from 'zod';
 import redis from '../config/redis';
 import logger from '../config/logger';
+import { cacheLookups } from '../config/metrics';
 
 const codeRouter = Router();
 
@@ -62,6 +63,7 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
       logger.info('[GET /api/v1/code] Returning projects from cache');
       const parsed = JSON.parse(cachedProjects);
       if (Array.isArray(parsed)) {
+        cacheLookups.inc({ cache: 'list', result: 'hit' });
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         return res.json(await withLatestEdits(parsed));
       }
@@ -69,6 +71,7 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
       await redis.del(cacheKey);
     }
 
+    cacheLookups.inc({ cache: 'list', result: 'miss' });
     logger.info(`[GET /api/v1/code] Fetching projects from MongoDB for userId: ${userId}`);
     const projects = (await Project.find({ userId }).sort({ updatedAt: -1 })).map((p) => p.toJSON());
 
@@ -119,6 +122,7 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
       const parsed = JSON.parse(cachedProject);
       // STRICT OWNERSHIP CHECK: Ensure cached project belongs to the current user
       if (parsed.userId === req.userId) {
+        cacheLookups.inc({ cache: 'project', result: 'hit' });
         const [latest] = await withLatestEdits([parsed]);
         return res.json(latest);
       }
@@ -126,6 +130,7 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
       await redis.del(cacheKey);
     }
 
+    cacheLookups.inc({ cache: 'project', result: 'miss' });
     const project = await Project.findById(projectId);
 
     if (!project || project.userId !== req.userId) {

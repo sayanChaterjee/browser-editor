@@ -5,7 +5,9 @@
   "description": "Infrastructure shared by the backend services: config, logging, correlation, Redis, Kafka, health, shutdown",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "tsc -p tsconfig.json && node --test dist-test/"
@@ -13,6 +15,7 @@
   "dependencies": {
     "ioredis": "^5.9.1",
     "kafkajs": "^2.2.4",
+    "prom-client": "^15.1.3",
     "winston": "^3.17.0",
     "zod": "^3.24.2"
   },

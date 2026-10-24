@@ -3,6 +3,8 @@ import { loadConfig, z, envRequired, envNumber, envList } from '@ceditor/common'
 const schema = z.object({
   PORT: envNumber(3003),
   LOG_LEVEL: z.string().default('info'),
+  // Bearer token for /metrics (Prometheus); unset = endpoint disabled
+  METRICS_TOKEN: z.string().default(''),
   DATABASE_URL: envRequired('MongoDB connection string'),
   REDIS_URL: z.string().default('redis://localhost:6379'),
   KAFKA_BROKER: z.string().default('localhost:9092'),
