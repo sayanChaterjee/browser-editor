@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL;
+// Server-only secret shared with the API gateway: it proves the x-client-ip header below
+// comes from this proxy, so the gateway can rate-limit by the real client IP.
+const BFF_SHARED_SECRET = process.env.BFF_SHARED_SECRET;
+const PROXY_HEADERS = ['x-bff-secret', 'x-client-ip'];
+
+// Vercel sets x-real-ip to the connecting client's address (clients can't override it);
+// locally, fall back to the first X-Forwarded-For entry.
+function getClientIp(request: NextRequest): string | undefined {
+    return request.headers.get('x-real-ip')
+        || request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+        || undefined;
+}
 
 /**
  * API Route Proxy - Catch-all handler for /api/*
@@ -66,11 +78,17 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
         // 1. Build headers to forward to backend
         const headers = new Headers();
         request.headers.forEach((value, key) => {
-            // Forward everything except host and connection
-            if (!['host', 'connection'].includes(key.toLowerCase())) {
+            // Forward everything except host, connection, and client-supplied proxy headers
+            if (!['host', 'connection', ...PROXY_HEADERS].includes(key.toLowerCase())) {
                 headers.set(key, value);
             }
         });
+
+        const clientIp = getClientIp(request);
+        if (BFF_SHARED_SECRET && clientIp) {
+            headers.set('x-bff-secret', BFF_SHARED_SECRET);
+            headers.set('x-client-ip', clientIp);
+        }
 
         // 2. Get request body for non-GET requests
         let body: string | undefined;
