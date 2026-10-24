@@ -1,0 +1,22 @@
+{
+  "name": "@ceditor/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Event contracts shared by producers and consumers: topics, the event envelope and versioned zod schemas",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "tsc -p tsconfig.json && node --test dist-test/"
+  },
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3"
+  }
+}

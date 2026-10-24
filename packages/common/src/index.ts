@@ -9,3 +9,4 @@ export * from './redis';
 export * from './retry';
 export * from './shutdown';
 export * from './sessionCache';
+export * from './events';
