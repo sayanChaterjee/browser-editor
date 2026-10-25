@@ -15,7 +15,6 @@ const projectSchema = z.object({
   css: z.string().optional(),
   js: z.string().optional(),
   timeLeft: z.number().optional(),
-  timeTaken: z.number().optional(),
 });
 
 const BUFFER_FIELDS = ['html', 'css', 'js', 'updatedAt'] as const;
@@ -82,30 +81,6 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
     res.json(await withLatestEdits(projects));
   } catch (error) {
     logger.error('[GET /api/v1/code] Error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// GET /submissions - Get all user's previous submissions
-codeRouter.get('/submissions', verifyToken, async (req: Request, res: Response): Promise<any> => {
-  try {
-    const userId = req.userId!;
-    const submissions = await Submission.find({ userId }).sort({ createdAt: -1 });
-    res.json(submissions);
-  } catch (error) {
-    logger.error('[GET /api/v1/code/submissions] Error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// GET /submissions/:projectId - Get submissions for a specific project
-codeRouter.get('/submissions/:projectId', verifyToken, async (req: Request, res: Response): Promise<any> => {
-  try {
-    const { projectId } = req.params;
-    const submissions = await Submission.find({ projectId, userId: req.userId }).sort({ createdAt: -1 });
-    res.json(submissions);
-  } catch (error) {
-    logger.error('[GET /api/v1/code/submissions/:projectId] Error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -211,7 +186,6 @@ codeRouter.post('/save', verifyToken, conflictLock, async (req: Request, res: Re
   }
 });
 
-import Submission from '../models/submission.model';
 
 // Existing routes...
 
@@ -342,66 +316,6 @@ codeRouter.get('/preview/:projectId', verifyToken, async (req: Request, res: Res
   }
 });
 
-// POST /warning/:projectId - Increment a warning counter
-codeRouter.post('/warning/:projectId', verifyToken, async (req: Request, res: Response): Promise<any> => {
-  try {
-    const { projectId } = req.params;
-    const userId = req.userId!;
-
-    const project = await Project.findOneAndUpdate(
-      { _id: projectId, userId },
-      { $inc: { warningCount: 1 } },
-      { new: true }
-    );
-
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-
-    await redis.del(`project:${projectId}`);
-
-    logger.info(`Warning count incremented for project ${projectId}: ${project.warningCount}`);
-    res.json({ warningCount: project.warningCount });
-  } catch (error) {
-    logger.error('Error incrementing project warning count:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// POST /submit - Submit a snapshot of the current code
-codeRouter.post('/submit', verifyToken, async (req: Request, res: Response): Promise<any> => {
-  try {
-    const { html, css, js, timeLeft, timeTaken } = projectSchema.parse(req.body);
-    const { projectId } = req.body;
-    const userId = req.userId!;
-
-    if (!projectId) {
-      return res.status(400).json({ message: 'projectId is required' });
-    }
-
-    const project = await Project.findOne({ _id: projectId, userId });
-
-    const submission = await Submission.create({
-      userId,
-      projectId,
-      html,
-      css,
-      js,
-      timeLeft,
-      timeTaken: timeTaken || 0,
-      warningCount: project ? project.warningCount : 0
-    });
-
-    res.status(201).json(submission);
-  } catch (error) {
-    logger.error('[POST /api/v1/code/submit] Error:', error);
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: error.errors });
-    }
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 // DELETE /:projectId - Delete a project
 codeRouter.delete('/:projectId', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
@@ -445,24 +359,6 @@ codeRouter.get('/admin/projects/:userId', verifyToken, async (req: Request, res:
     res.json(projects);
   } catch (error) {
     logger.error(`[GET /api/v1/code/admin/projects/${req.params.userId}] Error:`, error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// GET /admin/submissions/:userId - Get all submissions for any user (for admin dashboard)
-codeRouter.get('/admin/submissions/:userId', verifyToken, async (req: Request, res: Response): Promise<any> => {
-  try {
-    const userEmail = ((req as any).userEmail || '').toLowerCase();
-    if (!config.ADMIN_EMAILS.includes(userEmail)) {
-      logger.warn(`Unauthorized access attempt to admin submissions by ${userEmail}`);
-      return res.status(403).json({ message: 'Forbidden: Admin access required' });
-    }
-
-    const { userId } = req.params;
-    const submissions = await Submission.find({ userId }).sort({ createdAt: -1 });
-    res.json(submissions);
-  } catch (error) {
-    logger.error(`[GET /api/v1/code/admin/submissions/${req.params.userId}] Error:`, error);
     res.status(500).json({ message: 'Server error' });
   }
 });

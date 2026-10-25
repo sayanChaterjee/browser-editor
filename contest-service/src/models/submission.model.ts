@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface ISubmission extends Document {
   userId: string;
   projectId: string;
+  // Contest that was active when it was submitted, if any
+  contestId: string | null;
   html: string;
   css: string;
   js: string;
@@ -18,6 +20,7 @@ export interface ISubmission extends Document {
 const SubmissionSchema: Schema = new Schema({
   userId: { type: String, required: true },
   projectId: { type: String, required: true },
+  contestId: { type: String, default: null },
   html: { type: String, default: '' },
   css: { type: String, default: '' },
   js: { type: String, default: '' },

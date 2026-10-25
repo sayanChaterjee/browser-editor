@@ -15,6 +15,7 @@ const schema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
   IDENTITY_SERVICE_URL: serviceUrl('http://localhost:3001'),
   CODE_SERVICE_URL: serviceUrl('http://localhost:3003'),
+  CONTEST_SERVICE_URL: serviceUrl('http://localhost:3004'),
   INTERNAL_GATEWAY_SECRET: envRequired('shared with the backend services'),
   // Number of reverse proxies in front of the gateway whose X-Forwarded-For can be trusted
   // (0 = header ignored). Only affects req.ip; rate limiting uses clientIpMiddleware.

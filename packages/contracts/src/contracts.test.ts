@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createEvent, InvalidEventError, parseEvent } from './envelope';
 import { UserEvent, UserRegisteredV1 } from './userEvents';
+import { ContestEvent } from './contestEvents';
 
 const meta = { source: 'identity-service', correlationId: 'req-1' };
 
@@ -54,4 +55,31 @@ test('an event of one type does not parse as another', () => {
     meta,
   );
   assert.throws(() => parseEvent(UserRegisteredV1, JSON.stringify(banned)), InvalidEventError);
+});
+
+test('contest events validate their payloads', () => {
+  const strike = createEvent(
+    'strike.recorded.v1',
+    { userId: 'u1', projectId: 'p1', strikeCount: 2, recordedAt: new Date().toISOString() },
+    { source: 'contest-service' },
+  );
+  assert.deepEqual(parseEvent(ContestEvent, JSON.stringify(strike)), strike);
+
+  const negative = { ...strike, data: { ...strike.data, strikeCount: -1 } };
+  assert.throws(() => parseEvent(ContestEvent, JSON.stringify(negative)), /strikeCount/);
+
+  const submission = createEvent(
+    'submission.created.v1',
+    {
+      submissionId: 's1',
+      userId: 'u1',
+      projectId: 'p1',
+      contestId: null,
+      timeTakenSeconds: 600,
+      strikeCount: 0,
+      submittedAt: new Date().toISOString(),
+    },
+    { source: 'contest-service' },
+  );
+  assert.deepEqual(parseEvent(ContestEvent, JSON.stringify(submission)), submission);
 });

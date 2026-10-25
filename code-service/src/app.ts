@@ -16,8 +16,7 @@ import logger from './config/logger';
 import redis from './config/redis';
 import { metrics } from './config/metrics';
 import { codeRouter } from './routes/code.route';
-import { contestRouter } from './routes/contest.route';
-import { startUserEventsConsumer, isKafkaConnected, stopUserEventsConsumer } from './events/userEvents.consumer';
+import { startEventsConsumer, isKafkaConnected, stopEventsConsumer } from './events/consumer';
 import { startFlusherWorker } from './scripts/flusher.worker';
 import { startCodeJanitor } from './scripts/janitor.worker';
 
@@ -46,7 +45,6 @@ app.use(metrics.metricsRoute);
 
 const requireGateway = internalSecurity(config.INTERNAL_GATEWAY_SECRET, logger);
 app.use('/', requireGateway, codeRouter);
-app.use('/contest', requireGateway, contestRouter);
 
 const startServer = async () => {
   try {
@@ -63,14 +61,14 @@ const startServer = async () => {
     setupGracefulShutdown(server, logger, {
       cleanup: [
         // Leave the Kafka consumer group cleanly
-        { name: 'Kafka', run: stopUserEventsConsumer },
+        { name: 'Kafka', run: stopEventsConsumer },
         { name: 'Redis', run: () => redis.quit() },
         { name: 'MongoDB', run: () => mongoose.connection.close() },
       ],
     });
 
     // Kafka connects in the background (with retries) so it can't block or crash the API
-    startUserEventsConsumer();
+    startEventsConsumer();
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);
