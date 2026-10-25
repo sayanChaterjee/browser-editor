@@ -3,7 +3,7 @@
 # Usage: scripts/smoke.sh [gateway_url] [origin]
 # Signs up a fresh user, then exercises the starter project (user.registered.v1 event),
 # profile -> save -> list -> open, sign-out and, when SMOKE_ADMIN_EMAIL is in the stack's
-# ADMIN_EMAILS, a contest (strike -> submit, through the paths the frontend calls) and
+# ADMIN_EMAILS, a contest (strike -> submit) and
 # ban -> unban (including the submission disqualification events).
 set -euo pipefail
 
@@ -124,13 +124,13 @@ if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
   request "active contest" GET /api/v1/contest/active
   [[ "$(jq -r '._id' <<<"$BODY")" == "$CONTEST_ID" ]] || fail "active contest is ours" "$BODY"
 
-  request "strike (old /warning path)" POST "/api/v1/code/warning/$PROJECT_ID"
+  request "strike" POST "/api/v1/contest/strikes/$PROJECT_ID"
   [[ "$(jq -r '.warningCount' <<<"$BODY")" == 1 ]] || fail "strike count is 1" "$BODY"
   # strike.recorded.v1 -> code-service copies the count onto the project
   eventually "project shows the strike (event)" "$JAR" "/api/v1/code/$PROJECT_ID" '.warningCount == 1'
 
   request "profile before ban (session cached)" GET /api/v1/user/profile
-  request "submit project" POST /api/v1/code/submit \
+  request "submit project" POST /api/v1/contest/submissions \
     "{\"projectId\":\"$PROJECT_ID\",\"html\":\"<h1>final</h1>\",\"css\":\"\",\"js\":\"\",\"timeTaken\":60}"
   jq -e --arg c "$CONTEST_ID" '.warningCount == 1 and .contestId == $c' <<<"$BODY" >/dev/null \
     || fail "submission records strikes and contest" "$BODY"
@@ -138,12 +138,12 @@ if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
   expect_status "banned user's next request rejected" 401 "$JAR" GET /api/v1/user/profile
   expect_status "banned user cannot sign in" 403 "$JAR" POST /api/auth/sign-in/email \
     "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
-  eventually "submission disqualified (event)" "$ADMIN_JAR" "/api/v1/code/admin/submissions/$USER_ID" \
+  eventually "submission disqualified (event)" "$ADMIN_JAR" "/api/v1/contest/admin/submissions/$USER_ID" \
     'length > 0 and all(.disqualified == true)'
   expect_status "admin unbans user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/unban"
   request "sign in after unban" POST /api/auth/sign-in/email "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
   request "profile after unban" GET /api/v1/user/profile
-  eventually "submission reinstated (event)" "$ADMIN_JAR" "/api/v1/code/admin/submissions/$USER_ID" \
+  eventually "submission reinstated (event)" "$ADMIN_JAR" "/api/v1/contest/admin/submissions/$USER_ID" \
     'length > 0 and all(.disqualified == false)'
   expect_status "admin deletes contest" 200 "$ADMIN_JAR" DELETE "/api/v1/contest/$CONTEST_ID"
 else

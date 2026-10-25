@@ -1,40 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CEditor frontend
 
-## Getting Started
+The Next.js app for CEditor: an HTML/CSS/JS editor with a live preview, timed contests and an
+admin console. Deployed on Vercel. The backend (gateway and services) is described in the
+[root README](../README.md).
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router), React 19, Monaco editor, Tailwind CSS 4, Better Auth client.
+
+## How it talks to the backend
+
+The browser only ever calls its own origin (`/api/...`). `app/api/[...proxy]/route.ts`
+forwards each call to the API gateway (`NEXT_PUBLIC_API_URL`):
+
+- **Session cookies stay first-party,** set on the frontend's own domain, so there are no
+  cross-site cookie problems.
+- **The proxy sends `BFF_SHARED_SECRET` with the client's real IP.** The gateway trusts that IP
+  for rate limiting only when the secret matches.
+- **Client-sent proxy headers are stripped,** so nobody can spoof an IP through the proxy.
+
+| Area | Calls |
+|---|---|
+| Sign-in, sign-up, session | `/api/auth/*` (Better Auth, via `lib/auth-client.ts`) |
+| Profile | `/api/v1/user/profile` |
+| Projects, saves, sync | `/api/v1/code/*` |
+| Contests, submissions, strikes | `/api/v1/contest/*` |
+| Admin | `/api/v1/user/all`, `/api/v1/user/admin/:id/ban`, `/api/v1/code/admin/projects/:id`, `/api/v1/contest/admin/submissions/:id`, `/api/v1/contest/*` |
+
+## Pages
+
+| Route | What |
+|---|---|
+| `/` | Landing page |
+| `/login`, `/register` | Email/password and Google sign-in |
+| `/editor` | The editor: Monaco panels, live preview, console, autosave, contests |
+| `/profile` | The user's projects |
+| `/admin` | Users (ban/unban), their projects and submissions, contest management |
+
+`middleware.ts` sends signed-out users to `/login` and signed-in users away from it.
+
+## Editor behaviour worth knowing
+
+- **Saving:** edits autosave through `/api/v1/code/sync` and are also kept in IndexedDB
+  (`lib/indexedDB.ts`), so a newer local copy wins on reload.
+- **Preview:** each project runs in a sandboxed iframe (`components/editor/Preview.tsx`). The
+  user's script runs after the markup, and console output is forwarded to the editor's console
+  panel.
+- **First load:** the editor shows a loading screen until projects arrive. A brand-new account's
+  "Welcome" project is created asynchronously by the backend, so for accounts under 5 minutes
+  old an empty project list is re-checked for up to a minute before the user is asked to create
+  a project. That covers a backend service waking up on Render's free tier.
+- **Contests** (`hooks/useContestSecurity.ts`): fullscreen is required. Leaving the tab or
+  window records a strike with contest-service (`/api/v1/contest/strikes/:projectId`), and the
+  4th strike signs the user out. Submitting, including the automatic submit when the window
+  closes (`sendBeacon`), goes to `/api/v1/contest/submissions`.
+
+## Running locally
+
+Start the backend first (see the root README: `docker compose up -d --build --wait`). Then:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local   # NEXT_PUBLIC_API_URL=http://localhost:3000, BFF_SHARED_SECRET
+npm install
+npm run dev                  # http://localhost:3005
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`BFF_SHARED_SECRET` must match the gateway's `BFF_SHARED_SECRET`. Without it the app still works
+locally, but rate limits use the proxy's IP.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Checks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint
+npx tsc --noEmit -p .
+npm run build
+```
 
-## Learn More
+CI runs all three on every pull request.
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment (Vercel)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Deploy on Render
-
-
+Set `NEXT_PUBLIC_API_URL` to the gateway's public URL, and `BFF_SHARED_SECRET` to the same value
+as the gateway's. For Google sign-in, the redirect URI is
+`https://<your-vercel-domain>/api/auth/callback/google`.

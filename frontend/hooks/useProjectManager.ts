@@ -15,18 +15,24 @@ interface Project {
     timeLeft?: number;
 }
 
-// A new user's starter project is created asynchronously after sign-up (code-service
-// handles the user.registered.v1 event), so the first list request can beat it. An empty
-// list is retried for a few seconds before the user is asked to create a project.
-const EMPTY_LIST_RETRY_DELAYS_MS = [1000, 1500, 2000, 2000];
+// A new user's starter project is created asynchronously after sign-up (code-service handles
+// the user.registered.v1 event), and on Render's free tier a sleeping code-service can take up
+// to a minute to wake up and process it. So for a brand-new account an empty project list is
+// re-checked for up to a minute before the user is asked to create a project; older accounts
+// with no projects get the dialog straight away.
+const NEW_ACCOUNT_MS = 5 * 60 * 1000;
+const STARTER_PROJECT_WAIT_MS = 60_000;
+const STARTER_PROJECT_POLL_MS = 2_000;
 
-async function fetchProjectList(): Promise<Response> {
+async function fetchProjectList(waitForStarterProject: boolean, onWaiting: () => void): Promise<Response> {
     let res = await fetch(`/api/v1/code`, { credentials: 'include' });
-    for (const delay of EMPTY_LIST_RETRY_DELAYS_MS) {
-        if (!res.ok) break;
+    // Counted from the first answer: on a cold start that request alone can take most of a minute
+    const deadline = Date.now() + STARTER_PROJECT_WAIT_MS;
+    while (waitForStarterProject && res.ok && Date.now() < deadline) {
         const data = await res.clone().json().catch(() => null);
         if (!Array.isArray(data) || data.length > 0) break;
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        onWaiting();
+        await new Promise((resolve) => setTimeout(resolve, STARTER_PROJECT_POLL_MS));
         res = await fetch(`/api/v1/code`, { credentials: 'include' });
     }
     return res;
@@ -69,6 +75,7 @@ export function useProjectManager({
     const [isCreatingProject, setIsCreatingProject] = useState(false);
     const [isModalCancelable, setIsModalCancelable] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadingMessage, setLoadingMessage] = useState("Loading your workspace...");
     const [activeContest, setActiveContest] = useState<{ _id: string, title: string, imageUrl: string, startTime: string, endTime: string, html?: string, css?: string, js?: string } | null>(null);
 
     const [lastSyncedHtml, setLastSyncedHtml] = useState("");
@@ -83,7 +90,7 @@ export function useProjectManager({
 
     useEffect(() => {
         const initData = async () => {
-            let profile: { id?: string; name: string; email: string } | null = null;
+            let profile: { id?: string; name: string; email: string; createdAt?: string } | null = null;
 
             // 0. Fetch Active Contest
             try {
@@ -127,7 +134,9 @@ export function useProjectManager({
 
             // 2. Fetch Projects
             try {
-                const res = await fetchProjectList();
+                const isNewAccount = !!profile?.createdAt
+                    && Date.now() - new Date(profile.createdAt).getTime() < NEW_ACCOUNT_MS;
+                const res = await fetchProjectList(isNewAccount, () => setLoadingMessage("Setting up your workspace..."));
                 if (res.ok) {
                     const data = await res.json();
                     if (Array.isArray(data) && data.length > 0) {
@@ -383,6 +392,7 @@ export function useProjectManager({
         handleCreateProject,
         saveCode,
         isLoading,
+        loadingMessage,
         activeContest,
     };
 }

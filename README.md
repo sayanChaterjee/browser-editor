@@ -183,10 +183,13 @@ copy overrides it and the gateway's requests get 403s.
   synchronously. See ADR 0003.
 - **Without Redis, the gateway has no session cache.** Every request then goes to
   identity-service, which at free-tier capacity returns some 503s (see the failure test).
-- **Gateway path aliases.** The frontend still calls three contest paths under `/api/v1/code`;
-  the gateway maps them to contest-service until the frontend moves to `/api/v1/contest/*`.
+- **Gateway path aliases (temporary).** The frontend now calls contest-service's own paths
+  (`/api/v1/contest/*`). The gateway still maps the three old paths under `/api/v1/code`
+  (submit, warning, admin submissions) for browser tabs running the previous frontend. They are
+  removed in a follow-up once this frontend is live.
 - **Cold starts.** Render's free tier sleeps idle services, and Kafka consumers sleep with them,
-  so events can be delayed until the service wakes.
+  so the first request can take up to a minute and events wait until the service wakes. The
+  editor shows a loading screen, and waits up to a minute for a new user's starter project.
 - **Admins are configured by email** (`ADMIN_EMAILS` in each service), not by roles.
 
 ## Repository layout
@@ -198,7 +201,7 @@ code-service/       projects, write-behind saves, flusher, event handlers
 contest-service/    contests, submissions, strikes; migration script in src/scripts
 packages/common     shared infrastructure (see above)
 packages/contracts  event schemas and topics
-frontend/           Next.js app (Vercel)
+frontend/           Next.js app (Vercel); see frontend/README.md
 loadtest/           k6 scenarios, failure test, results per version
 observability/      Prometheus and Grafana (local)
 docs/adr/           architecture decision records

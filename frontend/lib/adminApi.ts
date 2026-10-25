@@ -75,7 +75,7 @@ export async function fetchUserProjectsAdmin(userId: string): Promise<Project[]>
 }
 
 export async function fetchUserSubmissionsAdmin(userId: string): Promise<Submission[]> {
-    const res = await fetch(`${BASE}/api/v1/code/admin/submissions/${userId}`, { credentials: 'include' });
+    const res = await fetch(`${BASE}/api/v1/contest/admin/submissions/${userId}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`Failed to fetch submissions: ${res.status}`);
     return res.json();
 }

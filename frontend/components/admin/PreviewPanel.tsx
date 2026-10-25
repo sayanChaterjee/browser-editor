@@ -77,6 +77,7 @@ try {
         doc += userJsBlock;
       }
     } else {
+      // User JS goes after the markup, so scripts can find the elements they use
       doc = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -84,10 +85,10 @@ try {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>${systemStyles}</style>
   ${systemScriptHead}
-  ${userJsBlock}
 </head>
 <body>
   ${html}
+  ${userJsBlock}
 </body>
 </html>`;
     }

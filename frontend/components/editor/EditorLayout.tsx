@@ -89,6 +89,7 @@ export default function EditorLayout() {
     handleCreateProject,
     saveCode,
     isLoading,
+    loadingMessage,
     activeContest,
   } = useProjectManager({
     onLogout: logoutUser,
@@ -152,7 +153,7 @@ export default function EditorLayout() {
 
       const timeTaken = Math.max(0, startDurationRef.current - timeLeftRef.current);
 
-      const res = await fetch(`/api/v1/code/submit`, {
+      const res = await fetch(`/api/v1/contest/submissions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -210,7 +211,7 @@ export default function EditorLayout() {
         timeLeft: timeLeftRef.current,
         timeTaken,
       });
-      navigator.sendBeacon('/api/v1/code/submit', new Blob([payload], { type: 'application/json' }));
+      navigator.sendBeacon('/api/v1/contest/submissions', new Blob([payload], { type: 'application/json' }));
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -296,6 +297,20 @@ export default function EditorLayout() {
         onConfirm={handleSubmitConfirm}
         onCancel={handleSubmitCancel}
       />
+
+      {isLoading && (
+        // Covers the empty editor until projects load: on Render's free tier the first
+        // request after idle can take up to a minute while services wake up
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0a0e1a]/95">
+          <div className="flex flex-col items-center gap-4 text-center px-6">
+            <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
+            <span className="text-sm font-medium text-gray-300">{loadingMessage}</span>
+            <span className="text-xs text-gray-500 max-w-xs">
+              The first load after a quiet spell can take up to a minute while the servers wake up.
+            </span>
+          </div>
+        </div>
+      )}
 
       <SecurityWarningModal 
         isVisible={showWarningModal}
