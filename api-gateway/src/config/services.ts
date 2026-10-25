@@ -25,30 +25,6 @@ class ServiceProxy {
       name: 'identity-service-users',
       timeout: 60000,
     },
-    // Contest paths the frontend still calls under /api/v1/code (from before contests had their
-    // own service). Registered before /api/v1/code so they win; remove once the frontend calls
-    // /api/v1/contest/submissions, /strikes/:projectId and /admin/submissions/:userId directly.
-    {
-      path: '/api/v1/code/submit',
-      url: config.CONTEST_SERVICE_URL,
-      pathRewrite: { '^/': '/contest/submissions' },
-      name: 'contest-service-submit',
-      timeout: 60000,
-    },
-    {
-      path: '/api/v1/code/warning',
-      url: config.CONTEST_SERVICE_URL,
-      pathRewrite: { '^/': '/contest/strikes/' },
-      name: 'contest-service-strikes',
-      timeout: 60000,
-    },
-    {
-      path: '/api/v1/code/admin/submissions',
-      url: config.CONTEST_SERVICE_URL,
-      pathRewrite: { '^/': '/contest/admin/submissions/' },
-      name: 'contest-service-admin',
-      timeout: 60000,
-    },
     {
       path: '/api/v1/code',
       url: config.CODE_SERVICE_URL || 'http://localhost:3003',
