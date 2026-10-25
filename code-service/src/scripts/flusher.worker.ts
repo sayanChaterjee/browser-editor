@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import Project from '../models/project.model';
 import redis from '../config/redis';
 import logger from '../config/logger';
+import { contentUpdate, olderContentThan } from '../services/writeThrough';
 import { flusherDuration, flusherProjectsFlushed, flusherRuns } from '../config/metrics';
 
 const DIRTY_KEY = 'dirty_projects';
@@ -30,31 +31,29 @@ export async function flushDirtyProjects(): Promise<number> {
         const bufferKey = `project:buffer:${projectId}`;
         const cachedFragments = await redis.hgetall(bufferKey);
 
-        if (Object.keys(cachedFragments).length > 0) {
-            // Sync only the fragments and updatedAt
+        if (Object.keys(cachedFragments).length > 0 && cachedFragments.updatedAt !== undefined) {
             const { html, css, js, updatedAt } = cachedFragments;
 
-            await Project.findByIdAndUpdate(projectId, {
-                $set: {
-                    ...(html !== undefined && { html }),
-                    ...(css !== undefined && { css }),
-                    ...(js !== undefined && { js }),
-                    ...(updatedAt !== undefined && { updatedAt: new Date(updatedAt) })
-                }
-            });
+            // Only over older content: MongoDB may already hold a newer version, saved
+            // straight to it while Redis was down
+            const result = await Project.updateOne(
+                { _id: projectId, ...olderContentThan(new Date(updatedAt)) },
+                { $set: contentUpdate({ html, css, js, updatedAt }) },
+                { timestamps: false },
+            );
 
-            flusherProjectsFlushed.inc();
-            flushed++;
-            logger.debug(`Flusher: Synced fragments for project ${projectId} to MongoDB.`);
-
-            if (updatedAt !== undefined) {
-                await redis.eval(MARK_FLUSHED, 2, DIRTY_KEY, bufferKey, projectId, updatedAt);
-                continue;
+            if (result.modifiedCount > 0) {
+                flusherProjectsFlushed.inc();
+                flushed++;
+                logger.debug(`Flusher: Synced fragments for project ${projectId} to MongoDB.`);
             }
+
+            await redis.eval(MARK_FLUSHED, 2, DIRTY_KEY, bufferKey, projectId, updatedAt);
+            continue;
         }
 
-        // Buffer expired (nothing left to write) or carries no version: clear the mark so
-        // the project doesn't stay dirty forever
+        // Buffer expired (nothing left to write): clear the mark so the project doesn't stay
+        // dirty forever
         await redis.srem(DIRTY_KEY, projectId);
     }
 

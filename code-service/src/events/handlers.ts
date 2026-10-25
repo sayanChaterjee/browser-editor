@@ -2,6 +2,7 @@ import { isValidObjectId } from 'mongoose';
 import { AnyEvent, StrikeRecordedV1, UserRegisteredV1 } from '@ceditor/contracts';
 import Project from '../models/project.model';
 import redis from '../config/redis';
+import logger from '../config/logger';
 
 // Each handler is safe to run twice: the consumer skips events it has recorded, but a
 // crash between handling and recording redelivers the event.
@@ -31,6 +32,12 @@ button {
 });`,
 };
 
+// Cache invalidation is best effort: a Redis outage must not fail (and dead-letter) an event.
+// While Redis is down nothing is served from it, and its caches expire on their own.
+async function dropCached(key: string) {
+  await redis.del(key).catch(() => logger.warn(`Could not drop cached ${key}: Redis unavailable`));
+}
+
 // New users start with a ready-made project instead of an empty editor
 async function onUserRegistered({ data }: UserRegisteredV1) {
   try {
@@ -40,7 +47,7 @@ async function onUserRegistered({ data }: UserRegisteredV1) {
     if ((err as { code?: number }).code !== 11000) throw err;
   }
   // The list may have been cached (empty) before this event arrived
-  await redis.del(`user:projects:${data.userId}`);
+  await dropCached(`user:projects:${data.userId}`);
 }
 
 // Keeps project.warningCount (shown on the admin dashboard) in step with contest-service,
@@ -51,7 +58,7 @@ async function onStrikeRecorded({ data }: StrikeRecordedV1) {
     { _id: data.projectId, userId: data.userId },
     { $max: { warningCount: data.strikeCount } },
   );
-  if (result.modifiedCount > 0) await redis.del(`project:${data.projectId}`);
+  if (result.modifiedCount > 0) await dropCached(`project:${data.projectId}`);
 }
 
 /** Events from identity.user-events and contest.events; types this service doesn't use are skipped. */

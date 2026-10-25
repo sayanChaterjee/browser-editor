@@ -66,16 +66,16 @@ test('a save that lands while the flusher is writing is not lost', { skip }, asy
   await api('POST', '/save', { name: 'wb', html: 'v3' });
 
   // Simulate a save arriving between the flusher's read of the buffer and its cleanup
-  const original = Project.findByIdAndUpdate.bind(Project);
-  (Project as any).findByIdAndUpdate = async (...args: Parameters<typeof original>) => {
-    await redis.hset(`project:buffer:${projectId}`, { html: 'v4', updatedAt: new Date(Date.now() + 1000).toISOString() });
+  const original = Project.updateOne.bind(Project);
+  (Project as any).updateOne = async (...args: Parameters<typeof original>) => {
+    await redis.hset(`project:buffer:${projectId}`, { html: 'v4', updatedAt: new Date(Date.now() + 20).toISOString() });
     await redis.sadd('dirty_projects', projectId);
     return original(...args);
   };
   try {
     await flushDirtyProjects();
   } finally {
-    (Project as any).findByIdAndUpdate = original;
+    (Project as any).updateOne = original;
   }
 
   assert.equal((await Project.findById(projectId))!.html, 'v3', 'the flush wrote what it read');
@@ -83,4 +83,57 @@ test('a save that lands while the flusher is writing is not lost', { skip }, asy
 
   await flushDirtyProjects();
   assert.equal((await Project.findById(projectId))!.html, 'v4', 'and the next cycle writes it');
+});
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test('while Redis is down, saves and reads go to MongoDB', { skip }, async () => {
+  await pause(50); // later than the previous test's edit
+  redis.disconnect();
+  try {
+    const saved = await api('POST', '/save', { name: 'wb', html: 'v5' });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.body.status, 'saved_to_db');
+    assert.equal((await Project.findById(projectId))!.html, 'v5');
+
+    await pause(5);
+    const synced = await api('PATCH', `/sync/${projectId}`, { html: 'v6' });
+    assert.equal(synced.status, 200);
+    assert.equal(synced.body.status, 'synced_to_db');
+    assert.equal((await Project.findById(projectId))!.html, 'v6');
+
+    assert.equal((await api('GET', `/${projectId}`)).body.html, 'v6');
+    const list = (await api('GET', '/')).body;
+    assert.equal(list.find((p: { _id: string }) => p._id === projectId).html, 'v6');
+
+    const created = await api('POST', '/save', { name: 'made-offline', html: 'new' });
+    assert.equal(created.body.status, 'saved_to_db');
+    assert.equal((await Project.findById(created.body._id))!.html, 'new');
+  } finally {
+    await redis.connect();
+  }
+});
+
+test('after the outage, older Redis copies never replace what was saved to MongoDB', { skip }, async () => {
+  await pause(100); // let the reconnect handler drop the stale copies
+
+  // The pre-outage buffer (v4) and cached project were dropped
+  assert.equal(await redis.exists(`project:buffer:${projectId}`), 0);
+  assert.equal((await api('GET', `/${projectId}`)).body.html, 'v6');
+
+  // Even if a stale buffer survives (e.g. the process restarted during the outage), the
+  // flusher won't write it over newer content and reads won't overlay it
+  await redis.hset(`project:buffer:${projectId}`, { html: 'stale', userId: USER, updatedAt: new Date(Date.now() - 60_000).toISOString() });
+  await redis.sadd('dirty_projects', projectId);
+  await redis.del(`project:${projectId}`);
+
+  assert.equal((await api('GET', `/${projectId}`)).body.html, 'v6');
+  assert.equal(await flushDirtyProjects(), 0);
+  assert.equal((await Project.findById(projectId))!.html, 'v6');
+  assert.equal(await redis.sismember('dirty_projects', projectId), 0);
+
+  // And normal write-behind saves resume
+  await api('POST', '/save', { name: 'wb', html: 'v7' });
+  assert.equal(await flushDirtyProjects(), 1);
+  assert.equal((await Project.findById(projectId))!.html, 'v7');
 });

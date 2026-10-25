@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import redis from '../config/redis';
+import redis, { redisUp } from '../config/redis';
 import logger from '../config/logger';
 
 /**
@@ -11,6 +11,9 @@ export const conflictLock = async (req: Request, res: Response, next: NextFuncti
 
     // Create a unique key for the project lock
     const lockKey = projectId ? `lock:project:${projectId}` : `lock:user:${userId}:name:${name}`;
+
+    // Without Redis there is no lock to take; saves go straight to MongoDB meanwhile
+    if (!redisUp()) return next();
 
     try {
         // Attempt to acquire lock for 15 seconds
@@ -24,8 +27,10 @@ export const conflictLock = async (req: Request, res: Response, next: NextFuncti
         }
 
         // Attach release function to response to ensure lock is cleared
-        const releaseLock = async () => {
-            await redis.del(lockKey);
+        // Never throws: a rejected release would be an unhandled rejection (process exit).
+        // If Redis is gone the lock simply expires after 15 seconds.
+        const releaseLock = () => {
+            redis.del(lockKey).catch(() => {});
         };
 
         res.on('finish', releaseLock);

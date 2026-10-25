@@ -30,11 +30,11 @@ app.use(metrics.httpMetrics);
 app.use(express.json());
 app.use(correlationMiddleware);
 
-// /health (liveness) and /ready: MongoDB and Redis are required; Kafka is reported but
-// optional (the consumer retries in the background)
+// /health (liveness) and /ready: MongoDB is required. Redis and Kafka are reported but
+// optional: without Redis, reads and saves go to MongoDB directly; Kafka retries in the background
 const dependencies = {
   mongo: { isUp: () => mongoose.connection.readyState === 1, required: true },
-  redis: { isUp: () => isRedisReady(redis), required: true },
+  redis: { isUp: () => isRedisReady(redis), required: false },
   kafka: { isUp: isKafkaConnected, required: false },
 };
 app.use(healthRoutes(config.SERVICE_NAME, dependencies));

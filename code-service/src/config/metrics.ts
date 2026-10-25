@@ -48,3 +48,10 @@ export const eventsConsumed = new prom.Counter({
   labelNames: ['topic', 'type', 'result'] as const,
   registers: [metrics.registry],
 });
+
+export const redisFallbacks = new prom.Counter({
+  name: 'redis_fallbacks_total',
+  help: 'Operations served from MongoDB because Redis was unavailable, by operation (read, save)',
+  labelNames: ['operation'] as const,
+  registers,
+});
