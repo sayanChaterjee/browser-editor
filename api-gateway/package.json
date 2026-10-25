@@ -7,6 +7,7 @@
     "start": "ts-node src/app.ts",
     "dev": "ts-node-dev src/app.ts",
     "build": "tsc",
+    "test": "tsc -p tsconfig.test.json && node --test --test-concurrency=1 $(find dist-test -name '*.test.js')",
     "lint": "eslint --fix",
     "format": "prettier --write 'src/**/*.ts'"
   },
