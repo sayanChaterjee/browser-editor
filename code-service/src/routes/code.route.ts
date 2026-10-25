@@ -2,9 +2,10 @@ import { Router, Request, Response } from 'express';
 import { verifyToken } from '../middlewares/auth.middleware';
 import Project from '../models/project.model';
 import { z } from 'zod';
-import redis from '../config/redis';
+import redis, { redisUp } from '../config/redis';
 import logger from '../config/logger';
-import { cacheLookups } from '../config/metrics';
+import { cacheLookups, redisFallbacks } from '../config/metrics';
+import { contentUpdate, writeThrough } from '../services/writeThrough';
 
 const codeRouter = Router();
 
@@ -20,6 +21,17 @@ const projectSchema = z.object({
 const BUFFER_FIELDS = ['html', 'css', 'js', 'updatedAt'] as const;
 const PROJECT_ID_TTL = 3600;
 
+// Redis is a cache for reads: when it's down, or a call fails, reads use MongoDB alone.
+async function fromRedis<T>(op: () => Promise<T>): Promise<T | null> {
+  if (!redisUp()) return null;
+  try {
+    return await op();
+  } catch (err) {
+    logger.warn(`Redis call failed, using MongoDB: ${(err as Error).message}`);
+    return null;
+  }
+}
+
 // MongoDB (and the project caches built from it) lags behind the Redis write-behind
 // buffer until the flusher runs, so reads overlay the buffered fragments on top.
 async function withLatestEdits(projects: any[]): Promise<any[]> {
@@ -27,11 +39,14 @@ async function withLatestEdits(projects: any[]): Promise<any[]> {
 
   const pipeline = redis.pipeline();
   projects.forEach((p) => pipeline.hgetall(`project:buffer:${p._id}`));
-  const results = (await pipeline.exec()) || [];
+  const results = await fromRedis(() => pipeline.exec());
+  if (!results) return projects;
 
   return projects.map((project, i) => {
     const [err, buffer] = results[i] as [Error | null, Record<string, string>];
     if (err || !buffer || buffer.userId !== project.userId) return project;
+    // A buffer no newer than MongoDB's content predates a save written straight to MongoDB
+    if (project.contentUpdatedAt && new Date(buffer.updatedAt) <= new Date(project.contentUpdatedAt)) return project;
 
     const merged = { ...project };
     for (const field of BUFFER_FIELDS) {
@@ -44,7 +59,7 @@ async function withLatestEdits(projects: any[]): Promise<any[]> {
 // Resolves a project's id from its name without a MongoDB read on the hot save path.
 async function findProjectId(userId: string, name: string): Promise<string | undefined> {
   const idsKey = `user:project-ids:${userId}`;
-  const cachedId = await redis.hget(idsKey, name);
+  const cachedId = await fromRedis(() => redis.hget(idsKey, name));
   if (cachedId) return cachedId;
 
   const project = await Project.findOne({ userId, name }, { _id: 1 }).lean();
@@ -57,7 +72,7 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
     const userId = req.userId!;
     const cacheKey = `user:projects:${userId}`;
 
-    const cachedProjects = await redis.get(cacheKey);
+    const cachedProjects = await fromRedis(() => redis.get(cacheKey));
     if (cachedProjects) {
       logger.info('[GET /api/v1/code] Returning projects from cache');
       const parsed = JSON.parse(cachedProjects);
@@ -67,7 +82,7 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
         return res.json(await withLatestEdits(parsed));
       }
       logger.warn('[GET /api/v1/code] Cached projects is not an array, discarding...');
-      await redis.del(cacheKey);
+      await fromRedis(() => redis.del(cacheKey));
     }
 
     cacheLookups.inc({ cache: 'list', result: 'miss' });
@@ -75,7 +90,9 @@ codeRouter.get('/', verifyToken, async (req: Request, res: Response): Promise<an
     const projects = (await Project.find({ userId }).sort({ updatedAt: -1 })).map((p) => p.toJSON());
 
     // Store in cache for 5 minutes (list is more dynamic)
-    await redis.set(cacheKey, JSON.stringify(projects), 'EX', 300);
+    if (!(await fromRedis(() => redis.set(cacheKey, JSON.stringify(projects), 'EX', 300)))) {
+      redisFallbacks.inc({ operation: 'read' });
+    }
 
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json(await withLatestEdits(projects));
@@ -92,7 +109,7 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
     const cacheKey = `project:${projectId}`;
 
     // Check cache
-    const cachedProject = await redis.get(cacheKey);
+    const cachedProject = await fromRedis(() => redis.get(cacheKey));
     if (cachedProject) {
       const parsed = JSON.parse(cachedProject);
       // STRICT OWNERSHIP CHECK: Ensure cached project belongs to the current user
@@ -102,7 +119,7 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
         return res.json(latest);
       }
       logger.warn(`[GET /api/v1/code/:projectId] Cache hit for ${projectId} but userId mismatch. Purging stale cache.`);
-      await redis.del(cacheKey);
+      await fromRedis(() => redis.del(cacheKey));
     }
 
     cacheLookups.inc({ cache: 'project', result: 'miss' });
@@ -114,7 +131,9 @@ codeRouter.get('/:projectId', verifyToken, async (req: Request, res: Response): 
 
     // Cache result
     const projectJson = project.toJSON();
-    await redis.set(cacheKey, JSON.stringify(projectJson), 'EX', 3600);
+    if (!(await fromRedis(() => redis.set(cacheKey, JSON.stringify(projectJson), 'EX', 3600)))) {
+      redisFallbacks.inc({ operation: 'read' });
+    }
 
     const [latest] = await withLatestEdits([projectJson]);
     res.json(latest);
@@ -148,14 +167,16 @@ codeRouter.post('/save', verifyToken, conflictLock, async (req: Request, res: Re
     };
 
     // If project doesn't exist yet, we must create it in DB once to get an ID
+    let created = false;
     if (!projectId) {
       const project = await Project.create({
         userId,
         name,
-        ...fragments,
+        ...contentUpdate(fragments),
         timeLeft
       });
       projectId = project._id.toString();
+      created = true;
     }
 
     const bufferKey = `project:buffer:${projectId}`;
@@ -164,7 +185,7 @@ codeRouter.post('/save', verifyToken, conflictLock, async (req: Request, res: Re
     const snapshot = JSON.stringify({ ...fragments, timestamp: fragments.updatedAt });
 
     // All cache writes in one atomic round trip
-    await redis
+    const buffered = redisUp() && await redis
       .multi()
       .hset(bufferKey, { ...fragments, userId })
       .expire(bufferKey, 3600)
@@ -174,7 +195,18 @@ codeRouter.post('/save', verifyToken, conflictLock, async (req: Request, res: Re
       .hset(idsKey, name, projectId)
       .expire(idsKey, PROJECT_ID_TTL)
       .del(`user:projects:${userId}`) // 4. Invalidate List Cache
-      .exec();
+      .exec()
+      .then(() => true, (err) => {
+        logger.warn(`[POST /api/v1/code/save] Redis unavailable, saving to MongoDB: ${err.message}`);
+        return false;
+      });
+
+    if (!buffered) {
+      // Write-through while Redis is down (a project created just now already has this content)
+      redisFallbacks.inc({ operation: 'save' });
+      if (!created) await writeThrough(projectId, userId, fragments);
+      return res.json({ ...fragments, userId, name, _id: projectId, status: 'saved_to_db' });
+    }
 
     res.json({ ...fragments, userId, name, _id: projectId, status: 'saved_to_cache' });
   } catch (error) {
@@ -202,10 +234,9 @@ codeRouter.patch('/sync/:projectId', verifyToken, conflictLock, async (req: Requ
     }
 
     const bufferKey = `project:buffer:${projectId}`;
-    const dirtyKey = `dirty_projects`;
 
-    // 1. Ownership Check (Cache First)
-    let currentData = await redis.hgetall(bufferKey);
+    // 1. Current content and ownership: the buffer if there is one, else MongoDB
+    let currentData: Record<string, string> = (await fromRedis(() => redis.hgetall(bufferKey))) ?? {};
 
     if (Object.keys(currentData).length > 0) {
       if (currentData.userId !== req.userId) {
@@ -222,49 +253,54 @@ codeRouter.patch('/sync/:projectId', verifyToken, conflictLock, async (req: Requ
         css: project.css,
         js: project.js,
         userId: project.userId,
-        updatedAt: project.updatedAt.toISOString()
+        updatedAt: (project.contentUpdatedAt ?? project.updatedAt).toISOString()
       };
-      // Backfill cache
-      await redis.hset(bufferKey, currentData);
     }
 
-    // 2. Perform Update
-    let updatedFragments: any = {};
+    // 2. Perform Update: `next` is the full new content, `changed` what the client gets back
+    let next: Record<string, string>;
+    let changed: Record<string, string>;
 
     if (html !== undefined || css !== undefined || js !== undefined) {
       // Partial update via direct fields
-      if (html !== undefined) updatedFragments.html = html;
-      if (css !== undefined) updatedFragments.css = css;
-      if (js !== undefined) updatedFragments.js = js;
-      updatedFragments.updatedAt = new Date().toISOString();
-
-      await redis.hset(bufferKey, updatedFragments);
+      changed = {};
+      if (html !== undefined) changed.html = html;
+      if (css !== undefined) changed.css = css;
+      if (js !== undefined) changed.js = js;
+      changed.updatedAt = new Date().toISOString();
+      next = { ...currentData, ...changed };
     } else if (Array.isArray(patches)) {
       // RFC6902 patches
-      const result = jsonpatch.applyPatch(currentData, patches);
-      updatedFragments = result.newDocument;
-      updatedFragments.updatedAt = new Date().toISOString();
-
-      await redis.hset(bufferKey, updatedFragments);
+      next = jsonpatch.applyPatch(currentData, patches).newDocument;
+      next.updatedAt = new Date().toISOString();
+      changed = next;
     } else {
       return res.status(400).json({ message: 'Invalid sync data' });
     }
 
-    // 3. Mark as dirty
-    await redis.sadd(dirtyKey, projectId as string);
-
-    // 4. Snapshots
+    // 3. Buffer it, mark it dirty and keep a snapshot, in one round trip
     const snapshotKey = `project:${projectId}:snapshots`;
-    const snapshot = JSON.stringify({
-      html: updatedFragments.html,
-      css: updatedFragments.css,
-      js: updatedFragments.js,
-      timestamp: updatedFragments.updatedAt
-    });
-    await redis.lpush(snapshotKey, snapshot);
-    await redis.ltrim(snapshotKey, 0, 4);
+    const snapshot = JSON.stringify({ html: next.html, css: next.css, js: next.js, timestamp: next.updatedAt });
+    const buffered = redisUp() && await redis
+      .multi()
+      .hset(bufferKey, next)
+      .sadd('dirty_projects', String(projectId))
+      .lpush(snapshotKey, snapshot)
+      .ltrim(snapshotKey, 0, 4)
+      .exec()
+      .then(() => true, (err) => {
+        logger.warn(`[PATCH /api/v1/code/sync] Redis unavailable, saving to MongoDB: ${err.message}`);
+        return false;
+      });
 
-    res.json({ ...updatedFragments, status: 'synced_fragment' });
+    if (!buffered) {
+      // Write-through while Redis is down
+      redisFallbacks.inc({ operation: 'save' });
+      await writeThrough(String(projectId), req.userId!, { html: next.html, css: next.css, js: next.js, updatedAt: next.updatedAt });
+      return res.json({ ...changed, status: 'synced_to_db' });
+    }
+
+    res.json({ ...changed, status: 'synced_fragment' });
   } catch (error: any) {
     logger.error('[PATCH /api/v1/code/sync] Error:', error);
     res.status(500).json({ message: 'Incremental sync failed', error: error.message });
@@ -278,7 +314,7 @@ codeRouter.get('/preview/:projectId', verifyToken, async (req: Request, res: Res
   try {
     const { projectId } = req.params;
     const bufferKey = `project:buffer:${projectId}`;
-    let projectContext = await redis.hgetall(bufferKey);
+    let projectContext: Record<string, string> = (await fromRedis(() => redis.hgetall(bufferKey))) ?? {};
 
     if (Object.keys(projectContext).length === 0) {
       const dbProject = await Project.findById(projectId);
@@ -326,14 +362,15 @@ codeRouter.delete('/:projectId', verifyToken, async (req: Request, res: Response
       return res.status(404).json({ message: 'Project not found' });
     }
 
-    // Clear cache
-    const projectCacheKey = `project:${projectId}`;
-    const listCacheKey = `user:projects:${req.userId}`;
-    await Promise.all([
-      redis.del(projectCacheKey),
-      redis.del(listCacheKey),
-      redis.hdel(`user:project-ids:${req.userId}`, project.name)
-    ]);
+    // Clear cache (best effort: while Redis is down there is nothing to clear that it could serve)
+    await fromRedis(() =>
+      redis
+        .multi()
+        .del(`project:${projectId}`, `project:buffer:${projectId}`, `user:projects:${req.userId}`)
+        .srem('dirty_projects', String(projectId))
+        .hdel(`user:project-ids:${req.userId}`, project.name)
+        .exec()
+    );
 
     res.json({ message: 'Project deleted successfully' });
   } catch (error) {
