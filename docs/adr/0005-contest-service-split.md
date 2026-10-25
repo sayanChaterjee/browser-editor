@@ -12,9 +12,10 @@ them from there.
   stored per user and project ("attempts"), so submitting needs nothing from another service.
 - It publishes `strike.recorded.v1`; code-service keeps a copy of the count on the project
   (`$max`, so out-of-order or repeated events are harmless) for the admin view.
-- The frontend was not changed in this step. The gateway maps the old paths
-  (`/api/v1/code/submit`, `/warning/:id`, `/admin/submissions/:id`) to contest-service. These
-  aliases are temporary: removed once the frontend calls `/api/v1/contest/...` directly.
+- The frontend was not changed in this step. The gateway mapped the old paths
+  (`/api/v1/code/submit`, `/warning/:id`, `/admin/submissions/:id`) to contest-service until the
+  frontend called `/api/v1/contest/...` directly, then the aliases were removed (expand, then
+  contract: the old paths kept working for tabs still running the previous frontend).
 
 ## Alternatives
 - **contest-service asks code-service for the strike count at submit time:** one source of

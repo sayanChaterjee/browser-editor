@@ -43,10 +43,9 @@ const routes: [string, string, string, string][] = [
   ['GET', '/api/v1/code/admin/projects/u1', 'code-service', '/admin/projects/u1'],
   ['GET', '/api/v1/contest/active', 'contest-service', '/contest/active'],
   ['PATCH', '/api/v1/contest/c1/status', 'contest-service', '/contest/c1/status'],
-  // Old contest paths the frontend still calls under /api/v1/code
-  ['POST', '/api/v1/code/submit', 'contest-service', '/contest/submissions'],
-  ['POST', '/api/v1/code/warning/p1', 'contest-service', '/contest/strikes/p1'],
-  ['GET', '/api/v1/code/admin/submissions/u1', 'contest-service', '/contest/admin/submissions/u1'],
+  ['POST', '/api/v1/contest/submissions', 'contest-service', '/contest/submissions'],
+  ['POST', '/api/v1/contest/strikes/p1', 'contest-service', '/contest/strikes/p1'],
+  ['GET', '/api/v1/contest/admin/submissions/u1', 'contest-service', '/contest/admin/submissions/u1'],
 ];
 
 for (const [method, path, service, upstreamPath] of routes) {
