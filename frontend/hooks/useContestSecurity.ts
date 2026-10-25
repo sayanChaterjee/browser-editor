@@ -30,7 +30,7 @@ export function useContestSecurity({
     const persistWarning = async () => {
         if (!userId || !projectId) return;
         try {
-            await fetch(`/api/v1/code/warning/${projectId}`, {
+            await fetch(`/api/v1/contest/strikes/${projectId}`, {
                 method: 'POST',
                 credentials: 'include',
             });

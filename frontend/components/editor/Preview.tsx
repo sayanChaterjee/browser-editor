@@ -121,7 +121,8 @@ try {
          doc += userJsBlock;
       }
     } else {
-      // Boilerplate mode for HTML fragments
+      // Boilerplate mode for HTML fragments. User JS goes after the markup (as in the
+      // <body> case above), so scripts can find the elements they use.
       doc = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -129,10 +130,10 @@ try {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>${systemStyles}</style>
   ${systemScriptHead}
-  ${userJsBlock}
 </head>
 <body>
   ${html}
+  ${userJsBlock}
 </body>
 </html>`;
     }
