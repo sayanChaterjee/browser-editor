@@ -39,6 +39,10 @@ services:
         value: https://identity-service-ltmg.onrender.com
       - key: CODE_SERVICE_URL
         value: https://code-service-2aa7.onrender.com
+      # contest-service's public URL: set it in the dashboard once the Blueprint has created
+      # that service, then pin it here (like IDENTITY_SERVICE_URL)
+      - key: CONTEST_SERVICE_URL
+        sync: false
       - key: REDIS_URL
         sync: false
       - key: ALLOWED_ORIGINS
@@ -124,5 +128,37 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
+      - key: LOG_LEVEL
+        value: info
+
+  # 4. CONTEST SERVICE (Public - Web Type for Free Tier): contests, submissions, strikes
+  - type: web
+    name: contest-service
+    runtime: docker
+    # Builds from the repo root: npm workspaces share one lockfile and packages/common
+    dockerContext: .
+    dockerfilePath: ./contest-service/Dockerfile
+    # Only redeploy when this service or shared code changes (replaces rootDir)
+    buildFilter:
+      paths:
+        - contest-service/**
+        - packages/**
+        - package.json
+        - package-lock.json
+        - tsconfig.base.json
+    plan: free
+    envVars:
+      # INTERNAL_GATEWAY_SECRET comes only from this group: a service-level copy would
+      # override it and the gateway's requests would be rejected (403)
+      - fromGroup: internal-security-group
+      - fromGroup: kafka-certificates
+      - key: PORT
+        value: 3004
+      - key: DATABASE_URL
+        sync: false # Atlas .../ceditor_contest
+      - key: KAFKA_BROKER
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false # comma-separated
       - key: LOG_LEVEL
         value: info
