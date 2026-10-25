@@ -360,7 +360,7 @@ nothing touches production. The frontend runs with `npm run dev`.
 ### 1. Configure environment
 ```bash
 cp .env.example .env                       # shared secrets used by docker compose
-for s in api-gateway identity-service code-service; do cp $s/.env.example $s/.env; done
+for s in api-gateway identity-service code-service contest-service; do cp $s/.env.example $s/.env; done
 cp frontend/.env.example frontend/.env.local
 ```
 Generate `BETTER_AUTH_SECRET` and `INTERNAL_GATEWAY_SECRET` with `openssl rand -base64 32`.

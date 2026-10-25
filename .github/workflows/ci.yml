@@ -13,7 +13,7 @@ jobs:
   backend:
     name: Backend (lint, typecheck, test, build)
     runs-on: ubuntu-latest
-    # Real Redis for the session-cache tests (Lua script, TTLs)
+    # Real Redis (session-cache tests: Lua script, TTLs) and MongoDB (contest-service tests)
     services:
       redis:
         image: redis:7.2-alpine
@@ -21,6 +21,12 @@ jobs:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 5
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\").ok'" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,6 +43,7 @@ jobs:
         run: npm test
         env:
           REDIS_TEST_URL: redis://localhost:6379/15
+          MONGO_TEST_URL: mongodb://localhost:27017/contest_test
       - name: Build
         run: npm run build
 
@@ -72,7 +79,7 @@ jobs:
       - name: Create env files from examples
         run: |
           cp .env.example .env
-          for d in api-gateway identity-service code-service; do cp $d/.env.example $d/.env; done
+          for d in api-gateway identity-service code-service contest-service; do cp $d/.env.example $d/.env; done
       - name: Start stack
         run: docker compose up -d --build --wait
       - name: Run smoke test

@@ -18,3 +18,5 @@ services:
     <<: *limits
   code-service:
     <<: *limits
+  contest-service:
+    <<: *limits

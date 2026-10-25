@@ -3,7 +3,8 @@
 # Usage: scripts/smoke.sh [gateway_url] [origin]
 # Signs up a fresh user, then exercises the starter project (user.registered.v1 event),
 # profile -> save -> list -> open, sign-out and, when SMOKE_ADMIN_EMAIL is in the stack's
-# ADMIN_EMAILS, ban -> unban (including the submission disqualification events).
+# ADMIN_EMAILS, a contest (strike -> submit, through the paths the frontend calls) and
+# ban -> unban (including the submission disqualification events).
 set -euo pipefail
 
 GATEWAY="${1:-http://localhost:3000}"
@@ -114,9 +115,25 @@ call "$ADMIN_JAR" POST /api/auth/sign-in/email "$ADMIN_BODY"
 [[ "$STATUS" =~ ^2 ]] || call "$ADMIN_JAR" POST /api/auth/sign-up/email "$ADMIN_BODY"
 call "$ADMIN_JAR" GET /api/v1/user/profile
 if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
+  # Contest (contest-service): the admin opens one, the user gets a strike and submits
+  NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  expect_status "admin creates contest" 201 "$ADMIN_JAR" POST /api/v1/contest \
+    "{\"title\":\"Smoke contest\",\"startTime\":\"$NOW\",\"endTime\":\"$NOW\"}"
+  CONTEST_ID="$(jq -r '._id' <<<"$BODY")"
+  expect_status "admin activates contest" 200 "$ADMIN_JAR" PATCH "/api/v1/contest/$CONTEST_ID/status" '{"status":"active"}'
+  request "active contest" GET /api/v1/contest/active
+  [[ "$(jq -r '._id' <<<"$BODY")" == "$CONTEST_ID" ]] || fail "active contest is ours" "$BODY"
+
+  request "strike (old /warning path)" POST "/api/v1/code/warning/$PROJECT_ID"
+  [[ "$(jq -r '.warningCount' <<<"$BODY")" == 1 ]] || fail "strike count is 1" "$BODY"
+  # strike.recorded.v1 -> code-service copies the count onto the project
+  eventually "project shows the strike (event)" "$JAR" "/api/v1/code/$PROJECT_ID" '.warningCount == 1'
+
   request "profile before ban (session cached)" GET /api/v1/user/profile
   request "submit project" POST /api/v1/code/submit \
     "{\"projectId\":\"$PROJECT_ID\",\"html\":\"<h1>final</h1>\",\"css\":\"\",\"js\":\"\",\"timeTaken\":60}"
+  jq -e --arg c "$CONTEST_ID" '.warningCount == 1 and .contestId == $c' <<<"$BODY" >/dev/null \
+    || fail "submission records strikes and contest" "$BODY"
   expect_status "admin bans user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/ban"
   expect_status "banned user's next request rejected" 401 "$JAR" GET /api/v1/user/profile
   expect_status "banned user cannot sign in" 403 "$JAR" POST /api/auth/sign-in/email \
@@ -128,6 +145,7 @@ if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
   request "profile after unban" GET /api/v1/user/profile
   eventually "submission reinstated (event)" "$ADMIN_JAR" "/api/v1/code/admin/submissions/$USER_ID" \
     'length > 0 and all(.disqualified == false)'
+  expect_status "admin deletes contest" 200 "$ADMIN_JAR" DELETE "/api/v1/contest/$CONTEST_ID"
 else
   printf '  - ban checks skipped: %s is not an admin (add it to ADMIN_EMAILS)\n' "$ADMIN_EMAIL"
 fi

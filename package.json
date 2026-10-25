@@ -6,7 +6,8 @@
     "packages/*",
     "api-gateway",
     "identity-service",
-    "code-service"
+    "code-service",
+    "contest-service"
   ],
   "engines": {
     "node": ">=20"
@@ -19,8 +20,8 @@
   },
   "scripts": {
     "build": "npm run build -w @ceditor/common -w @ceditor/contracts && npm run build --workspaces --if-present",
-    "lint": "eslint packages api-gateway identity-service code-service",
+    "lint": "eslint packages api-gateway identity-service code-service contest-service",
     "test": "npm test --workspaces --if-present",
-    "typecheck": "npm run build -w @ceditor/common -w @ceditor/contracts && tsc --noEmit -p api-gateway && tsc --noEmit -p identity-service && tsc --noEmit -p code-service"
+    "typecheck": "npm run build -w @ceditor/common -w @ceditor/contracts && tsc --noEmit -p api-gateway && tsc --noEmit -p identity-service && tsc --noEmit -p code-service && tsc --noEmit -p contest-service"
   }
 }

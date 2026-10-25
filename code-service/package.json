@@ -1,7 +1,7 @@
 {
   "name": "code-service",
   "version": "1.0.0",
-  "description": "Code microservice for ceditor",
+  "description": "Workspace: projects, the Redis write-behind save path, previews and starter projects",
   "main": "src/app.ts",
   "scripts": {
     "start": "ts-node src/app.ts",

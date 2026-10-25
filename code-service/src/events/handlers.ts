@@ -1,8 +1,7 @@
-import { UserBannedV1, UserEvent, UserRegisteredV1, UserUnbannedV1 } from '@ceditor/contracts';
+import { isValidObjectId } from 'mongoose';
+import { AnyEvent, StrikeRecordedV1, UserRegisteredV1 } from '@ceditor/contracts';
 import Project from '../models/project.model';
-import Submission from '../models/submission.model';
 import redis from '../config/redis';
-import logger from '../config/logger';
 
 // Each handler is safe to run twice: the consumer skips events it has recorded, but a
 // crash between handling and recording redelivers the event.
@@ -44,21 +43,23 @@ async function onUserRegistered({ data }: UserRegisteredV1) {
   await redis.del(`user:projects:${data.userId}`);
 }
 
-async function setDisqualified(userId: string, disqualified: boolean) {
-  const result = await Submission.updateMany({ userId }, { $set: { disqualified } });
-  logger.info(`${disqualified ? 'Disqualified' : 'Reinstated'} ${result.modifiedCount} submission(s) of user ${userId}`);
+// Keeps project.warningCount (shown on the admin dashboard) in step with contest-service,
+// which owns strikes. $max makes it idempotent and immune to out-of-order delivery.
+async function onStrikeRecorded({ data }: StrikeRecordedV1) {
+  if (!isValidObjectId(data.projectId)) return;
+  const result = await Project.updateOne(
+    { _id: data.projectId, userId: data.userId },
+    { $max: { warningCount: data.strikeCount } },
+  );
+  if (result.modifiedCount > 0) await redis.del(`project:${data.projectId}`);
 }
 
-const onUserBanned = ({ data }: UserBannedV1) => setDisqualified(data.userId, true);
-const onUserUnbanned = ({ data }: UserUnbannedV1) => setDisqualified(data.userId, false);
-
-export async function handleUserEvent(event: UserEvent): Promise<void> {
+/** Events from identity.user-events and contest.events; types this service doesn't use are skipped. */
+export async function handleEvent(event: AnyEvent): Promise<void> {
   switch (event.type) {
     case 'user.registered.v1':
       return onUserRegistered(event);
-    case 'user.banned.v1':
-      return onUserBanned(event);
-    case 'user.unbanned.v1':
-      return onUserUnbanned(event);
+    case 'strike.recorded.v1':
+      return onStrikeRecorded(event);
   }
 }

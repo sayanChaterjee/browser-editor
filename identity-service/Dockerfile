@@ -11,6 +11,7 @@ COPY packages/contracts/package.json packages/contracts/
 COPY api-gateway/package.json api-gateway/
 COPY identity-service/package.json identity-service/
 COPY code-service/package.json code-service/
+COPY contest-service/package.json contest-service/
 
 # Full install of this service + shared packages, then compile them
 FROM base AS build

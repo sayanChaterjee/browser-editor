@@ -440,6 +440,21 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "contest-service"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d55181"
+                }
+              }
+            ]
           }
         ]
       },
@@ -540,6 +555,21 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#c98500"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "contest-service"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d55181"
                 }
               }
             ]
@@ -644,6 +674,21 @@
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "#c98500"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "contest-service"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d55181"
                 }
               }
             ]
@@ -1335,6 +1380,21 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "contest-service"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d55181"
+                }
+              }
+            ]
           }
         ]
       },
@@ -1438,6 +1498,21 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "contest-service"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#d55181"
+                }
+              }
+            ]
           }
         ]
       },
@@ -1457,7 +1532,7 @@
       "id": 23,
       "type": "bargauge",
       "title": "Events (selected range)",
-      "description": "Kafka events published by identity-service and consumed by code-service. Red: dropped after retries, malformed, or dead-lettered.",
+      "description": "Kafka events published by identity-service and contest-service, consumed by code-service and contest-service. Red: dropped after retries, malformed, or dead-lettered.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
