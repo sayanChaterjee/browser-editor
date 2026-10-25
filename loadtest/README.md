@@ -37,3 +37,27 @@ Restart the app containers before a baseline run so every run starts from a fres
 Add `--profile observability` when starting the stack to watch a run live in Grafana
 (http://localhost:3010, dashboard "CEditor services").
 Write up comparisons in `results/<label>.md`.
+
+## Failure test
+
+`chaos.sh` runs both scenarios at once while it stops Kafka, Redis, contest-service and
+identity-service in turn (45 s each, 45 s of recovery between). `chaos_report.py` then splits
+the k6 output into those phases, giving requests, failures and p95 per endpoint, plus how long
+errors lasted after each restart. About 12 minutes; start the stack with the load-test overlay
+first. Results: [results/chaos.md](results/chaos.md).
+
+```bash
+loadtest/chaos.sh
+```
+
+## Results
+
+| Run | After | Write-up |
+|---|---|---|
+| v0 | baseline | [v0.md](results/v0.md) |
+| v1 | Session 1: stability fixes | [v1.md](results/v1.md) |
+| v2 | Session 2: shared packages, metrics | [v2.md](results/v2.md) |
+| v3 | Session 3: identity-service, gateway session cache | [v3.md](results/v3.md) |
+| v4 | Session 5: contest-service split | [v4.md](results/v4.md) |
+| v5 | Session 6: tests, Redis-outage fallbacks (final) | [v5.md](results/v5.md) |
+| chaos | Session 6: failure test | [chaos.md](results/chaos.md) |

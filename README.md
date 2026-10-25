@@ -1,770 +1,206 @@
-# CEditor - Browser-Based Code Editor with Microservices Architecture
+# CEditor
 
-> A production-ready code editor with contest security, real-time collaboration, and enterprise-grade microservices architecture.
+A browser-based HTML/CSS/JS editor with timed coding contests, built as a small
+microservice system: an API gateway, three services with their own databases, Kafka events
+between them, and Redis for sessions and write-behind saves.
 
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://www.docker.com/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
-[![Better-Auth](https://img.shields.io/badge/Better--Auth-OAuth-green)](https://better-auth.com/)
+**Live:** https://browser-editor-cyan.vercel.app (Render free tier: the first request after
+idle can take ~30–60 s while services wake up).
 
----
-
-## 📑 Table of Contents
-
-- [Architecture Overview](#-architecture-overview)
-- [Services](#-services)
-- [Tech Stack](#-tech-stack)
-- [Quick Start](#-quick-start)
-- [API Documentation](#-api-documentation)
-- [Design Patterns](#-design-patterns)
-- [Security](#-security)
-- [Deployment](#-deployment)
-
----
-
-## 🏗️ Architecture Overview
-
-### High-Level System Architecture
+## Architecture
 
 ```mermaid
-graph TB
-    subgraph Client["🌐 Browser Layer"]
-        User["User Browser"]
-        Cookies["First-Party Cookies<br/>(Vercel Domain)"]
-    end
-
-    subgraph Vercel["⚡ Frontend & BFF (Vercel)"]
-        FE["Next.js App"]
-        Proxy["BFF Proxy<br/>/api/* & /api/auth/*"]
-    end
-
-    subgraph Render["🚀 Backend Infrastructure (Render)"]
-        AG["API Gateway<br/>• Circuit Breaker<br/>• Auth Offloading"]
-        subgraph Services["Microservices"]
-            Auth["Auth Service"]
-            UserSvc["User Service"]
-            Code["Code Service"]
-        end
-    end
-
-    subgraph Infra["💾 Data Layer"]
-        Mongo[("MongoDB Atlas")]
-        Redis[("Redis Caching")]
-        Kafka[("Kafka Events")]
-    end
-
-    User --> FE
-    FE --"Relative API Calls"--> Proxy
-    Proxy --"Secure Tunnel"--> AG
-    
-    AG --> Auth
-    AG --> UserSvc
-    AG --> Code
-    
-    Auth & UserSvc & Code --> Mongo
-    Auth & Code --> Redis
-    Auth --"Events"--> Kafka
-    UserSvc & Code --"Listen"--> Kafka
-
-    style Vercel fill:#f0f0f0,stroke:#333
-    style Render fill:#e1f5ff,stroke:#007bff
-    style Client fill:#fff3cd,stroke:#856404
+flowchart LR
+    Browser -->|same-origin /api/*| BFF[Next.js on Vercel<br/>/api proxy]
+    BFF -->|shared secret + client IP| GW[api-gateway]
+    GW -->|/api/auth, /api/v1/user| ID[identity-service]
+    GW -->|/api/v1/code| CODE[code-service]
+    GW -->|/api/v1/contest| CON[contest-service]
+    GW <-->|rate limits, session cache| R[(Redis)]
+    CODE <-->|write-behind buffer, caches| R
+    ID --> DB1[(ceditor_auth)]
+    CODE --> DB2[(ceditor_code)]
+    CON --> DB3[(ceditor_contest)]
+    ID -- identity.user-events --> K{{Kafka}}
+    CON -- contest.events --> K
+    K --> CODE
+    K --> CON
 ```
 
-### Service-Level Architecture Breakdown
+| Service | Owns | Database | Publishes | Consumes |
+|---|---|---|---|---|
+| **api-gateway** | Routing, auth check, rate limits, circuit breakers | (Redis only) | | |
+| **identity-service** | Sign-up/sign-in (Better Auth, email + Google), sessions, profiles, bans | `ceditor_auth` | `user.registered.v1`, `user.banned.v1`, `user.unbanned.v1` | |
+| **code-service** | Projects, saves (Redis write-behind), previews, starter projects | `ceditor_code` | | `user.registered.v1`, `strike.recorded.v1` |
+| **contest-service** | Contests, submissions, anti-cheat strikes, disqualification | `ceditor_contest` | `strike.recorded.v1`, `submission.created.v1` | `user.banned.v1`, `user.unbanned.v1` |
 
-```mermaid
-graph LR
-    subgraph AG["API Gateway :3000"]
-        Router["Express Router"]
-        CircuitB["Circuit Breaker<br/>(Opossum)"]
-        RateLimit["Rate Limiter"]
-        AuthMW["Auth Middleware"]
-    end
+Shared code lives in an npm-workspaces monorepo: `packages/common` (config validation,
+logging with correlation IDs, Redis/Kafka clients with background retry, health checks,
+Prometheus metrics, graceful shutdown, session cache, event publishing/consuming) and
+`packages/contracts` (versioned zod schemas for every event).
 
-    subgraph AuthSvc["Auth Service :3001"]
-        BetterAuth["Better-Auth"]
-        GoogleOAuth["Google OAuth"]
-        EmailPwd["Email/Password"]
-        SessionMgr["Session Manager"]
-    end
+### A request, end to end
 
-    subgraph UserSvc["User Service :3002"]
-        ProfileAPI["Profile API"]
-        KafkaConsumer1["Kafka Consumer"]
-        UserDB[("user_db")]
-    end
+1. The browser calls `/api/v1/code/save` on its own origin. The Next.js proxy forwards it to the
+   gateway with a shared secret that vouches for the client IP (used for per-IP rate limits).
+2. The gateway validates the session cookie: from its Redis session cache (~5 ms p95), or on a
+   miss by asking identity-service, which checks MongoDB. It then applies the per-user rate
+   limit and forwards the request with `x-user-*` headers and an internal secret that only the
+   gateway has.
+3. code-service writes the edit to a Redis buffer and returns. A flusher writes buffered
+   projects to MongoDB every minute; reads overlay the buffer, so users always see their
+   latest edit.
 
-    subgraph CodeSvc["Code Service :3003"]
-        ProjectAPI["Project API"]
-        Sanitizer["Code Sanitizer"]
-        RedisBuffer["Redis Buffer"]
-        Flusher["Flusher Worker"]
-        Janitor["Janitor Worker"]
-        CodeDB[("code_db")]
-    end
+### Events
 
-    Router --> CircuitB
-    CircuitB --> AuthMW
-    AuthMW --> RateLimit
-    
-    RateLimit --"/auth/*"--> BetterAuth
-    RateLimit --"/user/*"--> ProfileAPI
-    RateLimit --"/code/*"--> ProjectAPI
-    
-    BetterAuth --> GoogleOAuth
-    BetterAuth --> EmailPwd
-    BetterAuth --> SessionMgr
-    
-    ProfileAPI --> UserDB
-    KafkaConsumer1 --> UserDB
-    
-    ProjectAPI --> Sanitizer
-    Sanitizer --> RedisBuffer
-    RedisBuffer --> Flusher
-    Flusher --> CodeDB
-    Janitor --> CodeDB
-```
+Services publish after their database commit (retried in the background, no outbox).
+Consumers skip already-handled event IDs, so redelivered events are harmless, and send
+malformed or repeatedly failing messages to a shared `dead-letter` topic. Messages are keyed
+by user ID, so each user's events stay in order. Logs carry the originating request's
+correlation ID across services.
 
-### Data Flow: User Registration (Saga Pattern)
+| Event | When | Effect |
+|---|---|---|
+| `user.registered.v1` | Account created | code-service creates a "Welcome" starter project |
+| `user.banned.v1` / `user.unbanned.v1` | Admin bans/unbans | contest-service disqualifies / reinstates the user's submissions |
+| `strike.recorded.v1` | Anti-cheat strike | code-service mirrors the count on the project |
+| `submission.created.v1` | Contest submission | (no consumer yet; for a future grader) |
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant AG as API Gateway
-    participant Auth as Auth Service (Better Auth)
-    participant Saga as Saga Coordinator
-    participant User as User Service
-    participant Code as Code Service
-    participant Kafka
-    participant DB as MongoDB
+## Design decisions
 
-    Client->>+AG: POST /api/auth/sign-up/email
-    AG->>+Auth: Proxy Request
-    Auth->>DB: Create User Account
-    Auth->>Saga: Initialize Registration Saga
-    
-    Saga->>User: Step 1: Create Profile
-    User->>DB: Save Profile
-    User-->>Saga: Profile Created ✓
-    Saga->>Kafka: Publish 'user-registered' Event
-    
-    Saga->>Code: Step 2: Initialize Starter Project
-    Code->>DB: Create Base Project
-    Code-->>Saga: Project Created ✓
-    Saga->>Kafka: Publish 'saga-completed' Event
-    
-    Saga-->>Auth: Saga Success ✓
-    Auth-->>AG: 200 OK + Session Cookie
-    AG-->>-Client: Registration Complete 🎉
-    
-    Note over Saga,Code: On any step failure, Saga<br/>triggers compensation (rollback)
-```
+One-page records in [docs/adr](docs/adr), each with the alternatives and trade-offs:
 
-### Social Auth Flow: Google OAuth (BFF Pattern)
+1. [Monorepo with shared packages](docs/adr/0001-monorepo-shared-packages.md)
+2. [Server-side sessions, gateway cache, explicit revocation](docs/adr/0002-sessions-gateway-cache.md)
+3. [Events published after commit, no outbox](docs/adr/0003-events-publish-after-commit.md)
+4. [One topic per publishing service, shared dead-letter topic](docs/adr/0004-topic-per-service.md)
+5. [Contests split into their own service](docs/adr/0005-contest-service-split.md)
+6. [Write-behind saves](docs/adr/0006-write-behind-saves.md)
+7. [A database per service](docs/adr/0007-database-per-service.md)
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant Vercel as Next.js BFF (Vercel)
-    participant Render as API Gateway (Render)
-    participant Auth as Auth Service
-    participant Google as Google OAuth
+## Results
 
-    User->>Vercel: Click "Continue with Google"
-    Vercel->>Render: Proxy GET /api/auth/login/google
-    Render->>Auth: Forward to Better Auth
-    Auth-->>User: Redirect to Google Consent
-    User->>Google: Authenticate
-    Google-->>Auth: Callback with Code
-    Auth->>Google: Exchange Code for Token
-    Auth-->>Vercel: Redirect with Session Cookie
-    Vercel-->>User: Redirect to /editor (First-Party Cookie Set)
-```
+Every change was load-tested with k6 against the local stack, each app container capped at
+0.5 CPU / 512 MB. Details per run in [loadtest/results](loadtest/results).
 
-### Code Persistence: Multi-Layer Strategy
+| | v0 (start) | v5 (final) |
+|---|---|---|
+| Editor: failed requests | 4.13% | **0%** |
+| Editor: p95 (profile / list / open) | 1.88 s / 1.71 s / 1.87 s | **35 ms / 33 ms / 33 ms** |
+| Editor: throughput | 24 req/s | **44.4 req/s** |
+| Contest autosave: p50 / p95 | 100 ms / 1.78 s | **13 ms / ~195 ms** |
+| MongoDB queries during a 5-min contest | 2,916 | **302** |
+| Gateway | 2 crashes (memory leak) | 0 restarts |
 
-```mermaid
-graph LR
-    subgraph Editor["Monaco Editor"]
-        E["Code Changes"]
-    end
+The biggest steps:
+- **v0 → v1:** fixed the gateway memory leak and stale caches.
+- **v2 → v3:** the gateway session cache cut gateway p95 from 224 ms to 34 ms. Its first
+  version caused a cache stampede, which was then fixed.
 
-    subgraph L1["L1: Client RAM"]
-        Memory["Editor State<br/>Instant"]
-    end
+**Failure test** ([loadtest/results/chaos.md](loadtest/results/chaos.md)): Kafka,
+contest-service, identity-service and Redis taken down one at a time under load.
 
-    subgraph L2["L2: IndexedDB"]
-        IDB["Browser Storage<br/>Every 2s"]
-    end
+| Outage | Effect |
+|---|---|
+| Kafka | No impact on users; events are delivered after it returns |
+| contest-service | Only contest calls fail, quickly; editing and saving are unaffected |
+| identity-service | Signed-in users keep working on cached sessions |
+| Redis | The first run showed code-service hanging. After the fix, reads and saves fall back to MongoDB: 0.3–10% errors instead of 98–100% |
 
-    subgraph L3["L3: Redis"]
-        RedisHash["Fragment Buffer<br/>Debounced 1.5s"]
-    end
+## Running locally
 
-    subgraph L4["L4: MongoDB"]
-        Mongo["Persistent DB<br/>Every 60s"]
-    end
+Everything except the frontend runs in Docker (MongoDB, Redis, Kafka and the four services).
 
-    E --> Memory
-    Memory --"Auto-save"--> IDB
-    Memory --"PATCH /sync"--> RedisHash
-    RedisHash --"Flusher Worker"--> Mongo
-    
-    style L1 fill:#e3f2fd
-    style L2 fill:#f3e5f5
-    style L3 fill:#fff3e0
-    style L4 fill:#e8f5e9
-```
-
----
-
-## 🔧 Services
-
-### 1. **API Gateway** (Port 3000)
-
-**Responsibilities:**
-- Request routing and load balancing
-- Authentication verification
-- Circuit breaker pattern (prevents cascade failures)
-- Rate limiting (100 req/min per IP)
-- CORS handling
-- Request/response logging
-
-**Key Features:**
-- Better-auth session verification
-- x-user-id header injection for downstream services
-- Aggregator pattern for dashboard endpoint
-- Health check aggregation
-
-**Technologies:** Express, Opossum (Circuit Breaker), Express-rate-limit
-
----
-
-### 2. **Auth Service** (Port 3001)
-
-**Responsibilities:**
-- User registration and login
-- Session management (Better-Auth)
-- OAuth integration (Google)
-- Password reset flows
-- Token generation and validation
-
-**Authentication Methods:**
-1. **Email/Password** - Traditional auth with bcrypt
-2. **Google OAuth** - Social login integration
-
-**Key Features:**
-- Better-auth social & email/password providers
-- Distributed registration sagas (Saga Coordinator)
-- MongoDB session & adapter storage
-- HTTP-only secure cookies
-- Automatic session expiry (7 days)
-- Rate limiting on auth endpoints
-- Email verification support (Resend)
-
-**Technologies:** Better-Auth, Mongoose, Resend, Kafka Producer, Saga Coordination Logic
-
----
-
-### 3. **User Service** (Port 3002)
-
-**Responsibilities:**
-- User profile CRUD operations
-- Profile data management
-- Kafka event consumption for user sync
-
-**API Endpoints:**
-- `GET /profile` - Get user profile
-- `POST /profile` - Create profile (saga-triggered)
-- `DELETE /profile/:userId` - Delete profile (compensation)
-
-**Technologies:** Express, Mongoose, Kafka Consumer
-
----
-
-### 4. **Code Service** (Port 3003)
-
-**Responsibilities:**
-- Project CRUD operations
-- Code fragment storage and assembly
-- Redis write-behind caching
-- Snapshot versioning
-- Background workers (Flusher, Janitor)
-
-**API Endpoints:**
-- `GET /` - List all user projects
-- `GET /:projectId` - Get project by ID
-- `POST /save` - Create/update project
-- `PATCH /sync/:projectId` - Incremental sync (RFC6902 patches)
-- `GET /preview/:projectId` - Generate HTML preview
-- `POST /submit` - Contest submission
-- `DELETE /:projectId` - Delete project
-
-**Background Workers:**
-1. **Flusher** - Syncs Redis buffer to MongoDB every 60s
-2. **Janitor** - Cleans up stale/expired projects daily
-
-**Technologies:** Express, Mongoose, Redis (ioredis), Kafka Consumer, fast-json-patch
-
----
-
-## 💻 Tech Stack
-
-### Frontend
-- **Framework:** Next.js 15 (App Router)
-- **Editor:** Monaco Editor
-- **Styling:** Tailwind CSS
-- **State:** React Hooks
-- **Storage:** IndexedDB (idb library)
-- **HTTP Client:** Fetch API
-
-### Backend
-| Layer | Technologies |
-|-------|-------------|
-| **Runtime** | Node.js 20, TypeScript 5 |
-| **Web Framework** | Express 5 |
-| **Authentication** | Better-Auth (OAuth + Email) |
-| **Database** | MongoDB Atlas (Mongoose ODM) |
-| **Caching** | Redis (ioredis) |
-| **Messaging** | Kafka.js |
-| **Logging** | Winston |
-| **Validation** | Zod |
-| **Sanitization** | isomorphic-dompurify |
-
-### Infrastructure
-- **Containerization:** Docker + Docker Compose
-- **Reverse Proxy:** API Gateway (Express)
-- **Message Broker:** Apache Kafka 3.7
-- **Cache Store:** Redis Stack 6.2
-- **Database:** MongoDB Atlas
-
-### DevOps
-- **CI/CD:** Docker multi-stage builds
-- **Logging:** Structured JSON logs (Winston)
-- **Monitoring:** Health check endpoints
-- **Process Management:** Graceful shutdown handlers
-
----
-
-## 🚀 Quick Start
-
-Local development runs entirely in Docker (MongoDB, Redis, Kafka and the 4 backend services);
-nothing touches production. The frontend runs with `npm run dev`.
-
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 20+
-- Google Cloud OAuth client (optional, for Google sign-in)
-
-### 1. Configure environment
 ```bash
-cp .env.example .env                       # shared secrets used by docker compose
+cp .env.example .env    # shared secrets for docker compose
 for s in api-gateway identity-service code-service contest-service; do cp $s/.env.example $s/.env; done
 cp frontend/.env.example frontend/.env.local
-```
-Generate `BETTER_AUTH_SECRET` and `INTERNAL_GATEWAY_SECRET` with `openssl rand -base64 32`.
-Each service's `.env` holds `localhost` values for running it with `npm run dev`;
-`docker-compose.yml` overrides infrastructure addresses with container hostnames.
+# set BETTER_AUTH_SECRET and INTERNAL_GATEWAY_SECRET (openssl rand -base64 32) in .env
 
-For Google sign-in, add `http://localhost:3005/api/auth/callback/google` as an authorized redirect URI.
-
-### 2. Start the backend
-```bash
 docker compose up -d --build --wait
-scripts/smoke.sh          # sign up -> profile -> save -> list -> open
+scripts/smoke.sh        # end-to-end check through the gateway
+
+cd frontend && npm install && npm run dev   # http://localhost:3005
 ```
 
-### 3. Start the frontend
-```bash
-cd frontend && npm install && npm run dev
-```
+- **Admin features:** put your email in `ADMIN_EMAILS` (root `.env`).
+- **Google sign-in:** add `http://localhost:3005/api/auth/callback/google` as a redirect URI.
+- **Optional UIs:** `docker compose --profile tools up -d` starts Redis Insight (:5540) and Kafka UI (:8080).
 
-### 4. Access services
-- **Frontend:** http://localhost:3005
-- **API Gateway:** http://localhost:3000
-- **Redis Insight / Kafka UI** (optional): `docker compose --profile tools up -d`, then http://localhost:5540 and http://localhost:8080
-- **MongoDB:** mongodb://localhost:27017
-
-### Production
-Production uses MongoDB Atlas, Upstash Redis and Aiven Kafka, configured in the Render and Vercel
-dashboards (see `render.yaml`). Kafka client certificates (`ca.pem`, `service.cert`, `service.key`)
-are Render secret files, read from `/etc/secrets`.
-
-### Metrics
-Every service exposes Prometheus metrics at `/metrics` (HTTP latency per route, Node.js runtime,
-dependency status, rate-limit rejections, session-check time, write-behind backlog, flusher,
-cache hit ratio, Kafka messages). The endpoint needs `Authorization: Bearer $METRICS_TOKEN`
-and is disabled (404) when `METRICS_TOKEN` is unset, as in production.
+## Testing
 
 ```bash
-docker compose --profile observability up -d
-```
-- **Grafana:** http://localhost:3010, dashboard "CEditor services" (no login locally)
-- **Prometheus:** http://localhost:9090
-
-### Load testing
-See [loadtest/README.md](loadtest/README.md).
-
----
-
-## 📡 API Documentation
-
-### Base URLs
-- **Vercel (Frontend & BFF):** `https://browser-editor-cyan.vercel.app`
-- **Render (API Gateway):** `https://api-gateway-rq2x.onrender.com`
-
-> [!IMPORTANT]
-> **BFF Pattern**: All client browser requests MUST be made to relative paths (e.g., `/api/v1/...`). They are proxied through Vercel to the Render Gateway. This ensures first-party cookie stability.
-
-### Authentication Endpoints
-
-#### Register with Email
-```http
-POST /api/auth/sign-up/email
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!",
-  "name": "John Doe"
-}
+npm run lint && npm run typecheck
+REDIS_TEST_URL=redis://localhost:6379/15 MONGO_TEST_URL=mongodb://localhost:27017/test npm test
+scripts/smoke.sh
 ```
 
-#### Login with Email
-```http
-POST /api/auth/sign-in/email
-Content-Type: application/json
+- **Unit tests (67):** the shared packages and contracts. Gateway: client-IP trust, the session
+  cache, revocation and fallbacks, routing. code-service: the save path, including the
+  mid-flush race and Redis outages, and event idempotency. contest-service: strikes,
+  submissions and disqualification. They run against real Redis and MongoDB, which CI provides.
+- **Smoke test (30 checks):** sign-up, the starter project event, saving and reading, sign-out,
+  a contest (strike → submit), and ban → disqualification → unban.
+- **CI** (GitHub Actions) runs all of the above on every PR, plus the frontend build.
 
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!"
-}
-```
+## Observability
 
-#### Google OAuth Login
-```http
-GET /api/auth/login/google
-# Redirects to Google OAuth consent screen
-```
+Every service exposes Prometheus metrics at `/metrics`. The endpoint needs
+`Authorization: Bearer $METRICS_TOKEN` and is disabled when that is unset, as in production.
+Metrics include:
+- HTTP latency per route and Node.js runtime metrics
+- dependency status
+- session-check time by source, and the session-cache hit ratio
+- rate-limit rejections
+- write-behind backlog and the flusher
+- events published and consumed by outcome
+- Redis fallbacks
 
-#### Get Current Session
-```http
-GET /api/auth/session
-Cookie: better-auth.session_token=xxx
-```
-
-### User Endpoints
-
-#### Get Profile
-```http
-GET /api/v1/user/profile
-Cookie: better-auth.session_token=xxx
-```
-
-### Code/Project Endpoints
-
-#### List Projects
-```http
-GET /api/v1/code
-Cookie: better-auth.session_token=xxx
-```
-
-#### Create Project
-```http
-POST /api/v1/code/save
-Content-Type: application/json
-Cookie: better-auth.session_token=xxx
-
-{
-  "name": "My Project",
-  "html": "<h1>Hello World</h1>",
-  "css": "body { margin: 0; }",
-  "js": "console.log('Hi');"
-}
-```
-
-#### Get Project
-```http
-GET /api/v1/code/:projectId
-Cookie: better-auth.session_token=xxx
-```
-
-#### Incremental Sync (Delta Updates)
-```http
-PATCH /api/v1/code/sync/:projectId
-Content-Type: application/json
-Cookie: better-auth.session_token=xxx
-
-{
-  "html": "<h1>Updated</h1>",
-  "css": "body { margin: 20px; }"
-}
-```
-
-#### Dashboard (Aggregator)
-```http
-GET /api/v1/dashboard
-Cookie: better-auth.session_token=xxx
-
-# Returns:
-{
-  "user": { /* user profile */ },
-  "projects": [ /* projects array */ ],
-  "timestamp": "2026-01-30T12:00:00Z"
-}
-```
-
----
-
-## 🎨 Design Patterns
-
-### 1. **Saga Pattern** (Distributed Transactions)
-**Location:** `auth-service/src/sagas/`
-
-**Purpose:** Ensure data consistency across microservices during user registration.
-
-**Flow:**
-1. Create user in auth-service
-2. Create profile in user-service
-3. Create default project in code-service
-4. On failure: automatic compensation (rollback)
-
-### 2. **Circuit Breaker Pattern**
-**Location:** `api-gateway/src/config/services.ts`
-
-**Purpose:** Prevent cascade failures when downstream services are unavailable.
-
-**Configuration:**
-- Timeout: 5000ms
-- Error threshold: 50%
-- Reset timeout: 30s
-- Fallback responses provided
-
-### 3. **Aggregator Pattern**
-**Location:** `api-gateway/src/app.ts` (Dashboard endpoint)
-
-**Purpose:** Combine data from multiple services into a single response.
-
-**Example:** Dashboard endpoint fetches user profile + projects in parallel.
-
-### 4. **Write-Behind Caching**
-**Location:** `code-service/src/routes/code.route.ts`
-
-**Purpose:** Reduce database I/O by buffering writes in Redis.
-
-**Flow:**
-1. Client updates → Redis hash
-2. Background worker (every 60s) → MongoDB
-3. Cache invalidation on read
-
----
-
-## 🔐 Security
-
-### Authentication
-- ✅ HTTP-only secure cookies (Better-Auth)
-- ✅ Session expiry (7 days)
-- ✅ Cookie cache (5 minutes)
-- ✅ CSRF protection
-- ✅ Bcrypt password hashing
-
-### API Security
-- ✅ Rate limiting (100 req/min)
-- ✅ Helmet.js security headers
-- ✅ CORS configured
-- ✅ Input validation (Zod)
-- ✅ XSS protection (DOMPurify)
-
-### Infrastructure
-- ✅ Redis authentication
-- ✅ MongoDB Atlas network isolation
-- ✅ No hardcoded credentials
-- ✅ Environment variable isolation
-- ✅ Docker secret management
-
-### Contest Security (Frontend)
-- ✅ Fullscreen lock
-- ✅ Tab switch detection
-- ✅ DevTools detection
-- ✅ Clipboard restrictions
-- ✅ Strike system (3 warnings → disqualification)
-
----
-
-## 📂 Project Structure
-
-```
-browser-editor/
-├── api-gateway/              # API Gateway service
-│   ├── src/
-│   │   ├── app.ts           # Express app with routing
-│   │   ├── config/
-│   │   │   ├── services.ts  # Circuit breaker config
-│   │   │   └── logger.ts    # Winston logger
-│   │   └── middlewares/
-│   │       ├── auth.middleware.ts
-│   │       └── correlation.middleware.ts
-│   └── Dockerfile
-│
-├── identity-service/         # Sign-up/sign-in, sessions, profiles, admin moderation
-│   ├── src/
-│   │   ├── app.ts
-│   │   ├── lib/
-│   │   │   └── auth.ts      # Better-Auth configuration (user fields, ban hook)
-│   │   └── routes/
-│   │       └── user.route.ts # /users: profile, admin list, warnings, ban/unban
-│   └── Dockerfile
-│
-├── code-service/             # Code/project service
-│   ├── src/
-│   │   ├── app.ts
-│   │   ├── models/
-│   │   │   ├── project.model.ts
-│   │   │   └── submission.model.ts
-│   │   ├── routes/
-│   │   │   └── code.route.ts
-│   │   ├── scripts/
-│   │   │   ├── flusher.worker.ts  # Redis→MongoDB sync
-│   │   │   └── janitor.worker.ts  # Cleanup worker
-│   │   └── middlewares/
-│   │       ├── sanitizer.middleware.ts
-│   │       └── lock.middleware.ts
-│   └── Dockerfile
-│
-├── frontend/                 # Next.js frontend
-│   ├── app/
-│   │   ├── (auth)/          # Auth pages
-│   │   ├── editor/          # Code editor
-│   │   └── profile/         # User profile
-│   ├── components/
-│   ├── hooks/
-│   │   └── useProjectManager.ts
-│   └── lib/
-│       └── auth-client.ts   # Better-Auth client
-│
-├── docker-compose.yml        # Service orchestration
-├── .env.example              # Environment template
-└── README.md
-```
-
----
-
-### BFF Split Deployment (Vercel + Render)
-
-Our architecture is optimized for a split deployment:
-1. **Frontend (Vercel)**: Static hosting + Next.js API Routes acting as a BFF Proxy.
-2. **Backend (Render)**: API Gateway + Microservices.
-
-> [!TIP]
-> **Cookie Persistence**: To ensure cookies work across the split, `BETTER_AUTH_URL` on the Render backend should be set to the Vercel domain.
-
-### Cloud Deployment Checklist
-
-- [ ] Set up MongoDB Atlas production cluster
-- [ ] Configure Redis with persistence
-- [ ] Set up Kafka cluster (AWS MSK / Confluent Cloud)
-- [ ] Enable HTTPS/TLS
-- [ ] Configure proper CORS origins
-- [ ] Set up monitoring (Prometheus/Grafana)
-- [ ] Configure log aggregation
-- [ ] Set up backup strategy
-- [ ] Enable auto-scaling for code-service
-- [ ] Configure CDN for frontend assets
-
----
-
-## 🧪 Testing
-
-### API Endpoint Testing
 ```bash
-# Run automated test script
-bash test-api-endpoints.sh
+docker compose --profile observability up -d   # Grafana :3010 (dashboard "CEditor services"), Prometheus :9090
 ```
 
-### Manual Testing
-```bash
-# Health check
-curl http://localhost:3000/health
+Load and failure tests: [loadtest/README.md](loadtest/README.md), `loadtest/chaos.sh`.
 
-# Register user
-curl -X POST http://localhost:3000/api/auth/sign-up/email \\
-  -H "Content-Type: application/json" \\
-  -H "Origin: http://localhost:3000" \\
-  -d '{"email":"test@example.com","password":"Test1234!","name":"Test User"}'
+## Deployment
 
-# List projects
-curl http://localhost:3000/api/v1/code \\
-  -b cookies.txt
+| Part | Where |
+|---|---|
+| Frontend + `/api` proxy | Vercel |
+| Gateway and services | Render (Docker, Blueprint in `render.yaml`) |
+| MongoDB | Atlas (one cluster, a database per service) |
+| Redis | Upstash |
+| Kafka | Aiven, client-certificate TLS (certificates are Render secret files) |
+
+Secrets are set in the Render and Vercel dashboards, never in the repo.
+`INTERNAL_GATEWAY_SECRET` comes only from the shared Render environment group: a service-level
+copy overrides it and the gateway's requests get 403s.
+
+## Known limitations
+
+- **No transactional outbox.** An event can be lost if a service dies between its database
+  commit and the publish. The publisher logs and counts this; bans are still enforced
+  synchronously. See ADR 0003.
+- **Without Redis, the gateway has no session cache.** Every request then goes to
+  identity-service, which at free-tier capacity returns some 503s (see the failure test).
+- **Gateway path aliases.** The frontend still calls three contest paths under `/api/v1/code`;
+  the gateway maps them to contest-service until the frontend moves to `/api/v1/contest/*`.
+- **Cold starts.** Render's free tier sleeps idle services, and Kafka consumers sleep with them,
+  so events can be delayed until the service wakes.
+- **Admins are configured by email** (`ADMIN_EMAILS` in each service), not by roles.
+
+## Repository layout
+
 ```
-
----
-
-## 📊 Monitoring
-
-### Health Checks
-- API Gateway: `GET /health`
-- Auth Service: `GET /health`
-- User Service: `GET /health`
-- Code Service: `GET /health`
-
-### Metrics to Monitor
-- Request rate (API Gateway)
-- Error rate per service
-- Response time (P50, P95, P99)
-- Redis cache hit ratio
-- Kafka consumer lag
-- MongoDB connection pool usage
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
----
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
----
-
-## 🆘 Troubleshooting
-
-### Service won't start
-```bash
-# Check logs
-docker-compose logs -f <service-name>
-
-# Restart specific service
-docker-compose restart <service-name>
+api-gateway/        routing, session check, rate limits, circuit breakers
+identity-service/   Better Auth, profiles, bans; migration scripts in src/scripts
+code-service/       projects, write-behind saves, flusher, event handlers
+contest-service/    contests, submissions, strikes; migration script in src/scripts
+packages/common     shared infrastructure (see above)
+packages/contracts  event schemas and topics
+frontend/           Next.js app (Vercel)
+loadtest/           k6 scenarios, failure test, results per version
+observability/      Prometheus and Grafana (local)
+docs/adr/           architecture decision records
+scripts/smoke.sh    end-to-end smoke test
 ```
-
-### Kafka connection errors
-Kafka takes ~20-30 seconds to initialize on cold start. This is normal behavior.
-
-### better-auth CORS errors
-Ensure `Origin` header is set in requests. Browser automatically sends this; curl requires manual `-H "Origin: http://localhost:3000"`.
-
-### Google OAuth Redirect Failures
-1. Ensure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct in `.env`.
-2. Verify that `http://localhost:3000/api/auth/callback/google` is added as an Authorized Redirect URI in the Google Cloud Console.
-3. Check `BETTER_AUTH_URL` in the `identity-service` environment; it should be the public frontend URL (`http://localhost:3005`).
-
-### Frontend shows "Service Degraded"
-Circuit breaker has tripped. Check if backend services are running: `docker ps`
-
----
-
-## 📧 Contact
-
-For support or questions, please open an issue on GitHub.
-
----
-
-**Built with ❤️ using TypeScript, Next.js, and Docker**
