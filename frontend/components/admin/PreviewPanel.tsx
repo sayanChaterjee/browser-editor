@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
+import { buildPreviewDocument } from '@/lib/previewDocument';
 
 interface PreviewPanelProps {
   html: string;
@@ -14,86 +15,16 @@ export default function PreviewPanel({ html, css, js, projectName }: PreviewPane
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const buildSrcDoc = () => {
-    const systemStyles = `
-      body { 
-        margin: 0; 
-        padding: 16px; 
-        font-family: sans-serif; 
-        background-color: white;
-        color: black;
-      }
-      ${css}
-    `;
-
-    // System scripts injected into head for maximum isolation
+    // Preview-only behaviour: no context menu; errors (incl. syntax errors) logged
     const systemScriptHead = `
 <script>
 (function() {
-  function setup() {
-    document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
-      console.error("Preview Error:", msg, error);
-      return false;
-    };
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setup);
-  } else {
-    setup();
-  }
+  window.onerror = function(msg) { console.error(msg); return false; };
+  document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
 })();
 </script>`;
 
-    // User JS wrapped in a script block
-    const userJsBlock = js.trim()
-      ? `
-<script>
-try {
-  ${js}
-} catch(err) {
-  console.error("Execution Error:", err);
-}
-</script>`
-      : "";
-
-    const hasBody = html.toLowerCase().includes('<body');
-    const hasHead = html.toLowerCase().includes('<head');
-
-    let doc = '';
-    if (hasBody) {
-      doc = html;
-      const headContent = `<style>${systemStyles}</style>${systemScriptHead}`;
-
-      if (hasHead) {
-        doc = doc.replace(/<\/head>/i, `${headContent}</head>`);
-      } else if (doc.toLowerCase().includes('<html')) {
-        doc = doc.replace(/<html[^>]*>/i, `$&<head>${headContent}</head>`);
-      } else {
-        doc = `<head>${headContent}</head>` + doc;
-      }
-
-      if (doc.toLowerCase().includes('</body>')) {
-        doc = doc.replace(/<\/body>/i, `${userJsBlock}</body>`);
-      } else {
-        doc += userJsBlock;
-      }
-    } else {
-      // User JS goes after the markup, so scripts can find the elements they use
-      doc = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>${systemStyles}</style>
-  ${systemScriptHead}
-</head>
-<body>
-  ${html}
-  ${userJsBlock}
-</body>
-</html>`;
-    }
-    return doc;
+    return buildPreviewDocument({ html, css, js, systemScript: systemScriptHead });
   };
 
   const srcDoc = buildSrcDoc();

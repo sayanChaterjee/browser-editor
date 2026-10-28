@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import PanelHeader, { PanelIconButton } from "./PanelHeader";
+import { buildPreviewDocument } from "@/lib/previewDocument";
 
 interface QuestionPanelProps {
   imageUrl?: string;
@@ -13,18 +14,7 @@ export default function QuestionPanel({ imageUrl, html, css, js }: QuestionPanel
   const hasCodePreview = html || css || js;
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const srcDoc = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <style>${css || ""}</style>
-      </head>
-      <body>
-        ${html || ""}
-        <script>${js || ""}</script>
-      </body>
-    </html>
-  `;
+  const srcDoc = buildPreviewDocument({ html: html || "", css: css || "", js: js || "" });
 
   return (
     <div className="flex h-full w-full min-w-[320px] flex-1 flex-col overflow-hidden border-l border-border bg-background">
