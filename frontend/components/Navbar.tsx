@@ -2,16 +2,53 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/lib/auth-client";
+import { Logo } from "@/components/ui/logo";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const initials = (name?: string | null) =>
+  (name || "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const pathname = usePathname();
+  const active = pathname === href;
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "rounded-md px-3 py-1.5 text-sm transition-colors",
+        active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default function Navbar() {
-  const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading, isAuthenticated } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const [showProfileCard, setShowProfileCard] = useState(false);
+  // Close the account menu on any click outside it
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [menuOpen]);
 
   const handleLogout = async () => {
     await signOut();
@@ -19,70 +56,64 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="h-[56px] bg-[#1e1e1e] flex items-center justify-between px-6 border-b border-[#333] sticky top-0 z-[1000]">
-      <div className="flex items-center">
-        <span className="text-[14px] font-bold text-[#00ffcc]">CodeEditor</span>
-      </div>
+    <nav className="sticky top-0 z-[1000] h-14 border-b border-border bg-background/80 backdrop-blur-md">
+      <div className="flex h-full items-center justify-between px-4 md:px-6">
+        <div className="flex items-center gap-4">
+          <Logo />
+          <div className="ml-2 hidden items-center sm:flex">
+            <NavLink href="/editor">Editor</NavLink>
+            {isAuthenticated && <NavLink href="/profile">Projects</NavLink>}
+          </div>
+        </div>
 
-      <div className="flex items-center">
-        <Link 
-          href="/editor" 
-          className={`ml-4 text-[13px] no-underline transition-colors ${pathname === "/editor" ? "text-[#00ffcc]" : "text-[#ccc] hover:text-white"}`}
-        >
-          Editor
-        </Link>
-
-        {isLoading ? (
-          <span className="ml-4 text-[13px] text-[#9ca3af]">Loading...</span>
-        ) : !isAuthenticated ? (
-          <>
-            <Link 
-              href="/login" 
-              className={`ml-4 text-[13px] no-underline transition-colors ${pathname === "/login" ? "text-[#00ffcc]" : "text-[#ccc] hover:text-white"}`}
-            >
-              Login
-            </Link>
-            <Link 
-              href="/register" 
-              className={`ml-4 text-[13px] no-underline transition-colors ${pathname === "/register" ? "text-[#00ffcc]" : "text-[#ccc] hover:text-white"}`}
-            >
-              Register
-            </Link>
-          </>
-        ) : (
-          <>
-            <div 
-              className="relative ml-4 inline-block"
-              onMouseEnter={() => setShowProfileCard(true)}
-              onMouseLeave={() => setShowProfileCard(false)}
-            >
-              <Link 
-                href="/profile" 
-                className={`flex items-center justify-center p-1 rounded-full transition-colors ${pathname === "/profile" ? "text-[#00ffcc] bg-white/10" : "text-[#ccc] hover:bg-white/10"}`}
-              >
-                <span className="text-[1.4rem] transition-transform hover:scale-110 inline-block">👨🏻‍💻</span>
+        <div className="flex items-center gap-2">
+          {isLoading ? (
+            <span className="size-8 animate-pulse rounded-full bg-secondary" />
+          ) : !isAuthenticated ? (
+            <>
+              <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                Log in
               </Link>
-              
-              {showProfileCard && user && (
-                <div className="absolute top-full right-0 mt-[10px] bg-[#111827] border border-[#1f2937] rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] p-4 min-w-[240px] z-[1000] animate-[fadeIn_0.2s_ease-out] before:content-[''] before:absolute before:-top-2 before:right-5 before:w-0 before:h-0 before:border-x-8 before:border-x-transparent before:border-b-8 before:border-b-[#1f2937]">
-                  <div className="text-center mb-4 pb-4 border-b border-[#1f2937]">
-                    <span className="text-3xl block mx-auto">👨🏻‍💻</span>
+              <Link href="/register" className={buttonVariants({ variant: "primary", size: "sm" })}>
+                Sign up
+              </Link>
+            </>
+          ) : (
+            <div ref={menuRef} className="relative">
+              <button
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-label="Account menu"
+                className="flex size-8 items-center justify-center rounded-full border border-border-strong bg-secondary text-xs font-medium text-foreground transition-colors hover:border-foreground/40"
+              >
+                {initials(user?.name)}
+              </button>
+
+              {menuOpen && user && (
+                <div className="animate-fadeIn absolute right-0 top-full mt-2 w-64 rounded-lg border border-border bg-popover p-1 shadow-2xl shadow-black/60">
+                  <div className="px-3 py-2.5">
+                    <p className="truncate text-sm font-medium text-foreground">{user.name}</p>
+                    <p className="truncate text-[13px] text-muted-foreground">{user.email}</p>
                   </div>
-                  <div className="flex flex-col gap-2.5">
-                    <p className="font-semibold text-[15px] text-[#f3f4f6] m-0">{user.name}</p>
-                    <p className="text-[13px] text-[#9ca3af] m-0 break-all">{user.email}</p>
-                  </div>
+                  <div className="my-1 h-px bg-border" />
+                  <Link
+                    href="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <User className="size-4" /> Projects
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    onClick={handleLogout}
+                    className="h-auto w-full justify-start px-3 py-2 font-normal"
+                  >
+                    <LogOut /> Log out
+                  </Button>
                 </div>
               )}
             </div>
-            <button 
-              className="ml-4 px-4 py-1.5 bg-[#00ffcc] text-black border-none rounded font-bold text-[13px] cursor-pointer font-mono transition-colors hover:bg-[#00e6b8]" 
-              onClick={handleLogout}
-            >
-              Logout
-            </button>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </nav>
   );

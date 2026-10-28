@@ -5,6 +5,11 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ToastNotification, { useToast } from "@/components/ui/ToastNotification";
+import { FileCode2, FolderCode, Plus, Search, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { cn, timeAgo } from "@/lib/utils";
 
 interface Project {
   _id: string;
@@ -24,6 +29,7 @@ export default function ProfilePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [fetchingProjects, setFetchingProjects] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const { toasts, showToast, dismissToast } = useToast();
 
   // Redirect if not authenticated
@@ -85,10 +91,12 @@ export default function ProfilePage() {
     }
   };
 
+  const visibleProjects = projects.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()));
+
   if (isLoading || fetchingProjects) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-56px)] text-white text-xl">
-        Loading Profile...
+      <div className="flex min-h-[calc(100vh-56px)] items-center justify-center">
+        <Spinner className="size-5" />
       </div>
     );
   }
@@ -98,13 +106,13 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="py-10 px-5 max-w-[1000px] mx-auto min-h-[calc(100vh-56px)]">
+    <div className="mx-auto min-h-[calc(100vh-56px)] max-w-6xl px-6 py-10">
       <ToastNotification toasts={toasts} onDismiss={dismissToast} />
-      
+
       <ConfirmModal
         isVisible={!!deleteTarget}
-        title="Delete Project"
-        message="Are you sure you want to delete this project? This action cannot be undone."
+        title="Delete project"
+        message="This permanently deletes the project and its code. This can't be undone."
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
@@ -112,91 +120,101 @@ export default function ProfilePage() {
         onCancel={() => setDeleteTarget(null)}
       />
 
-      <div className="bg-gradient-to-br from-[#1e293b] to-[#0f172a] p-10 rounded-[24px] border border-[#334155] mb-10 text-center shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
-        <div className="w-[100px] h-[100px] bg-gradient-to-br from-[#38bdf8] to-[#2563eb] rounded-full flex items-center justify-center text-[42px] font-bold text-white mx-auto mb-5 shadow-[0_0_25px_rgba(56,189,248,0.4)]">
-          {user.name?.[0]?.toUpperCase() || 'U'}
+      <header className="flex flex-wrap items-center justify-between gap-6 border-b border-border pb-8">
+        <div className="flex items-center gap-4">
+          <div className="flex size-12 items-center justify-center rounded-full border border-border-strong bg-secondary text-lg font-medium text-foreground">
+            {user.name?.[0]?.toUpperCase() || "U"}
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{user.name}</h1>
+            <p className="text-sm text-muted-foreground">
+              {user.email}
+              {user.createdAt && <> · Joined {new Date(user.createdAt).toLocaleDateString(undefined, { month: "short", year: "numeric" })}</>}
+            </p>
+          </div>
         </div>
-        <h1 className="text-[28px] font-extrabold text-[#f8fafc] mb-2 tracking-tight">{user.name}</h1>
-        <p className="text-[#94a3b8] text-[15px] mb-6">{user.email}</p>
-        
-        <div className="flex justify-center gap-10 mt-2.5">
-            <div className="text-center">
-                <p className="text-[#38bdf8] font-extrabold text-[22px] mb-1">{projects.length}</p>
-                <p className="text-[#64748b] text-[11px] font-semibold uppercase tracking-widest">Sessions</p>
-            </div>
-            <div className="h-10 w-[1px] bg-[#334155]"></div>
-            <div className="text-center">
-                <p className="text-[#10b981] font-extrabold text-[22px] mb-1">Active</p>
-                <p className="text-[#64748b] text-[11px] font-semibold uppercase tracking-widest">Member Since {user.createdAt ? new Date(user.createdAt).getFullYear() : '2026'}</p>
-            </div>
+        <Button variant="primary" onClick={() => router.push("/editor")}>
+          <Plus /> New project
+        </Button>
+      </header>
+
+      <div className="mt-8 flex items-center justify-between gap-4">
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-subtle-foreground" />
+          <Input
+            placeholder="Search projects..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pl-9"
+          />
         </div>
+        <span className="shrink-0 text-sm text-muted-foreground">
+          {projects.length} project{projects.length === 1 ? "" : "s"}
+        </span>
       </div>
 
-      <div className="space-y-6">
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-[#f1f5f9] flex items-center gap-3">
-               <span className="text-[#38bdf8]">📂</span> My Projects
-            </h2>
-            <span className="text-[#64748b] text-[13px]">{projects.length} Total Projects</span>
+      {projects.length === 0 ? (
+        <div className="mt-6 flex flex-col items-center rounded-xl border border-dashed border-border-strong px-6 py-20 text-center">
+          <FolderCode className="size-8 text-subtle-foreground" />
+          <p className="mt-4 font-medium text-foreground">No projects yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">Create one in the editor; it shows up here.</p>
+          <Button variant="primary" className="mt-6" onClick={() => router.push("/editor")}>
+            <Plus /> New project
+          </Button>
         </div>
-
-        {projects.length === 0 ? (
-          <div className="bg-[#1e293b] py-[60px] px-5 rounded-[20px] border border-dashed border-[#334155] text-center">
-            <div className="text-[40px] mb-[15px] opacity-50">🏗️</div>
-            <p className="text-[#94a3b8] text-base">No projects found yet.</p>
-            <button 
-                onClick={() => router.push('/editor')}
-                className="mt-5 bg-[#38bdf8] text-[#0f172a] border-none px-6 py-2.5 rounded-lg font-bold cursor-pointer transition-opacity hover:opacity-90 active:scale-95"
+      ) : visibleProjects.length === 0 ? (
+        <p className="mt-16 text-center text-sm text-muted-foreground">No projects match &ldquo;{query}&rdquo;.</p>
+      ) : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {visibleProjects.map((proj) => (
+            <div
+              key={proj._id}
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(`/editor?projectId=${proj._id}`)}
+              onKeyDown={(e) => e.key === "Enter" && router.push(`/editor?projectId=${proj._id}`)}
+              className="group flex cursor-pointer flex-col rounded-xl border border-border bg-card p-5 transition-colors hover:border-border-strong hover:bg-muted"
             >
-                Create New Project
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {projects.map((proj) => (
-              <div 
-                key={proj._id} 
-                className="group bg-[#1e293b] px-6 py-5 rounded-2xl border border-[#334155] flex justify-between items-center transition-all relative overflow-hidden hover:border-[#38bdf8]/50"
-              >
-                <div className="absolute top-0 left-0 w-1 h-full bg-[#38bdf8]"></div>
-                <div className="flex-1 min-w-0 pr-4">
-                  <h3 className="text-lg font-bold text-[#f8fafc] mb-1 truncate">
-                    {proj.name}
-                  </h3>
-                  <p className="text-[12px] text-[#64748b] mb-3">
-                    Last updated: {new Date(proj.updatedAt).toLocaleString()}
-                  </p>
-                  <div className="flex gap-2">
-                    <span className="text-[11px] bg-[#0f172a] text-[#38bdf8] px-2.5 py-1 rounded-md font-semibold border border-[#1e293b]">
-                        HTML
-                    </span>
-                    <span className="text-[11px] bg-[#0f172a] text-[#10b981] px-2.5 py-1 rounded-md font-semibold border border-[#1e293b]">
-                        CSS
-                    </span>
-                    <span className="text-[11px] bg-[#0f172a] text-[#fbbf24] px-2.5 py-1 rounded-md font-semibold border border-[#1e293b]">
-                        JS
-                    </span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+                    <FileCode2 className="size-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-medium text-foreground">{proj.name}</h3>
+                    <p className="text-[13px] text-muted-foreground">Updated {timeAgo(proj.updatedAt)}</p>
                   </div>
                 </div>
-                <div className="flex gap-3 shrink-0">
-                    <button 
-                        onClick={() => router.push(`/editor?projectId=${proj._id}`)}
-                        className="bg-[#38bdf8] text-[#0f172a] border-none px-5 py-2.5 rounded-xl text-[13px] font-bold cursor-pointer transition-all hover:opacity-90 active:scale-95"
-                    >
-                      Open in Editor
-                    </button>
-                    <button 
-                        onClick={() => setDeleteTarget(proj._id)}
-                        className="bg-red-500/10 text-red-500 border border-red-500/20 px-[15px] py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer transition-all hover:bg-red-500/20 active:scale-95"
-                    >
-                      Delete
-                    </button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete ${proj.name}`}
+                  className="opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteTarget(proj._id);
+                  }}
+                >
+                  <Trash2 />
+                </Button>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <div className="mt-5 flex gap-1.5 font-mono">
+                {(["html", "css", "js"] as const).map((file) => (
+                  <span
+                    key={file}
+                    className={cn(
+                      "rounded border border-border px-1.5 py-0.5 text-[11px]",
+                      proj[file]?.trim() ? "text-muted-foreground" : "text-subtle-foreground/60",
+                    )}
+                  >
+                    {file}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

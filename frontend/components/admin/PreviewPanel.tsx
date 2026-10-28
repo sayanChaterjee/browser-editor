@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 
 interface PreviewPanelProps {
   html: string;
@@ -98,25 +99,14 @@ try {
   const srcDoc = buildSrcDoc();
 
   return (
-    <div className={`flex flex-col h-full ${isFullscreen ? 'fixed inset-0 z-[99999] bg-[#0a0e1a]' : ''}`}>
-      {/* Preview Header */}
-      <div className="h-10 px-4 flex items-center justify-between bg-[#0a0e1a] border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500/80"></div>
-            <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></div>
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></div>
-          </div>
-          <span className="text-xs text-gray-400 font-medium">
-            {projectName || 'Preview'}
-          </span>
-        </div>
-
+    <div className={`flex h-full flex-col ${isFullscreen ? 'fixed inset-0 z-[99999] bg-background' : ''}`}>
+      <div className="flex h-9 shrink-0 items-center justify-between border-b border-border bg-background px-3">
+        <span className="truncate text-[12px] font-medium text-muted-foreground">{projectName || 'Preview'}</span>
         <button
-          className="text-gray-400 hover:text-white transition-colors text-sm px-2 py-1 rounded hover:bg-gray-800"
+          className="flex items-center gap-1.5 rounded px-2 py-1 text-[12px] text-subtle-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={() => setIsFullscreen((v) => !v)}
         >
-          {isFullscreen ? '✕ Exit' : '⛶ Expand'}
+          {isFullscreen ? <><Minimize2 className="size-3.5" /> Exit</> : <><Maximize2 className="size-3.5" /> Expand</>}
         </button>
       </div>
 

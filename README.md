@@ -7,6 +7,10 @@ between them, and Redis for sessions and write-behind saves.
 **Live:** https://browser-editor-cyan.vercel.app (Render free tier: the first request after
 idle can take ~30–60 s while services wake up).
 
+| Editor | Landing | Admin |
+|---|---|---|
+| ![Editor](docs/screenshots/editor.png) | ![Landing](docs/screenshots/landing.png) | ![Admin console](docs/screenshots/admin.png) |
+
 ## Architecture
 
 ```mermaid

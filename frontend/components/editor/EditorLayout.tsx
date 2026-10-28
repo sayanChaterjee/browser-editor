@@ -18,6 +18,7 @@ import FileTabs from "./FileTabs";
 import { clearLocalProjects } from "../../lib/indexedDB";
 import ToastNotification, { useToast } from "../ui/ToastNotification";
 import ConfirmModal from "../ui/ConfirmModal";
+import { Spinner } from "../ui/spinner";
 
 // Hooks
 import { useProjectManager } from "../../hooks/useProjectManager";
@@ -289,11 +290,11 @@ export default function EditorLayout() {
 
       <ConfirmModal
         isVisible={showSubmitConfirm}
-        title="Submit & Exit"
-        message="Are you sure you want to submit? This will save your progress and exit the contest."
+        title="Submit and exit?"
+        message="Your code is saved and submitted, and the contest ends for you. You can't change it afterwards."
         confirmText="Submit"
         cancelText="Cancel"
-        variant="danger"
+        variant="default"
         onConfirm={handleSubmitConfirm}
         onCancel={handleSubmitCancel}
       />
@@ -301,11 +302,11 @@ export default function EditorLayout() {
       {isLoading && (
         // Covers the empty editor until projects load: on Render's free tier the first
         // request after idle can take up to a minute while services wake up
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0a0e1a]/95">
-          <div className="flex flex-col items-center gap-4 text-center px-6">
-            <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
-            <span className="text-sm font-medium text-gray-300">{loadingMessage}</span>
-            <span className="text-xs text-gray-500 max-w-xs">
+        <div className="fixed inset-0 top-14 z-40 flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-3 px-6 text-center">
+            <Spinner className="size-5" />
+            <span className="text-sm font-medium text-foreground">{loadingMessage}</span>
+            <span className="max-w-xs text-[13px] text-muted-foreground">
               The first load after a quiet spell can take up to a minute while the servers wake up.
             </span>
           </div>
@@ -342,13 +343,13 @@ export default function EditorLayout() {
         activeContest={activeContest}
       />
 
-      <div className={`flex h-[calc(100vh-100px)] min-w-0 ${showWarningModal ? "blur-sm pointer-events-none" : ""}`}>
+      <div className={`flex h-[calc(100vh-104px)] min-w-0 ${showWarningModal ? "pointer-events-none blur-sm" : ""}`}>
         <FileExplorer activeFile={activeFile} setActiveFile={setActiveFile} />
 
         <PanelGroup orientation="horizontal" className="flex-1 w-full min-w-0">
-          <Panel defaultSize={50} minSize={20} className="flex flex-col min-w-0 overflow-hidden bg-[#0f172a]">
+          <Panel defaultSize={50} minSize={20} className="flex min-w-0 flex-col overflow-hidden bg-editor">
             <PanelGroup orientation="vertical">
-              <Panel defaultSize={70} minSize={30} className="flex flex-col border-b border-[#333]">
+              <Panel defaultSize={70} minSize={30} className="flex flex-col">
                 <FileTabs activeFile={activeFile} />
                 <div className="flex-1 overflow-hidden">
                   <CodeEditor
@@ -364,9 +365,7 @@ export default function EditorLayout() {
                 </div>
               </Panel>
               
-              <PanelResizeHandle className="h-1 bg-[#1e293b] hover:bg-cyan-500 transition-colors w-full cursor-row-resize flex justify-center items-center z-10">
-                <div className="h-0.5 w-8 bg-slate-500 rounded-full" />
-              </PanelResizeHandle>
+              <PanelResizeHandle className="z-10 h-px w-full cursor-row-resize bg-border transition-colors hover:bg-ring data-[resize-handle-state=drag]:bg-ring" />
               
               <Panel defaultSize={30} minSize={10} className="flex flex-col">
                 <Terminal logs={logs} />
@@ -374,11 +373,9 @@ export default function EditorLayout() {
             </PanelGroup>
           </Panel>
 
-          <PanelResizeHandle className="w-1.5 bg-[#1e293b] hover:bg-cyan-500 transition-colors h-full cursor-col-resize flex flex-col items-center justify-center z-10">
-            <div className="w-0.5 h-8 bg-slate-500 rounded-full" />
-          </PanelResizeHandle>
+          <PanelResizeHandle className="z-10 h-full w-px cursor-col-resize bg-border transition-colors hover:bg-ring data-[resize-handle-state=drag]:bg-ring" />
 
-          <Panel defaultSize={50} minSize={20} className="flex flex-col bg-[#0f172a] border-l border-[#333] overflow-hidden">
+          <Panel defaultSize={50} minSize={20} className="flex flex-col overflow-hidden bg-background">
             <EditorToolbar 
               showQuestion={showQuestion}
               setShowQuestion={setShowQuestion}

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Terminal as XTerm } from "xterm";
 import type { FitAddon } from "xterm-addon-fit";
+import PanelHeader from "./PanelHeader";
 
 
 interface TerminalProps {
@@ -29,10 +30,13 @@ export default function Terminal({ logs }: TerminalProps) {
 
       term = new XTermClass({
         theme: {
-          background: "#020617",
-          foreground: "#f8fafc",
+          background: "#0a0a0a",
+          foreground: "#ededed",
+          cursor: "#0a0a0a",
+          selectionBackground: "#0070f340",
         },
-        fontFamily: 'Consolas, "Courier New", monospace',
+        fontFamily: 'Menlo, "SF Mono", Consolas, "Liberation Mono", monospace',
+        lineHeight: 1.4,
         fontSize: 13,
         disableStdin: true,
         cursorBlink: false,
@@ -47,7 +51,7 @@ export default function Terminal({ logs }: TerminalProps) {
       xtermRef.current = term;
       fitAddonRef.current = fitAddon;
 
-      term.writeln("\x1b[32m> Console Ready\x1b[0m");
+      term.writeln("\x1b[90mConsole output from the preview appears here.\x1b[0m");
       setIsTerminalReady(true);
 
       const handleResize = () => {
@@ -71,7 +75,7 @@ export default function Terminal({ logs }: TerminalProps) {
 
     if (logs.length === 0) {
       term.clear();
-      term.writeln("\x1b[32m> Console Ready\x1b[0m");
+      term.writeln("\x1b[90mConsole output from the preview appears here.\x1b[0m");
       lastLogIndexRef.current = 0;
       return;
     }
@@ -109,7 +113,7 @@ export default function Terminal({ logs }: TerminalProps) {
   }, [logs, isTerminalReady]);
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#020617] border-t border-[#333]">
+    <div className="flex h-full w-full flex-col border-t border-border bg-editor">
       <style>{`
         .xterm-viewport::-webkit-scrollbar {
           display: none;
@@ -119,10 +123,8 @@ export default function Terminal({ logs }: TerminalProps) {
           scrollbar-width: none;
         }
       `}</style>
-      <div className="h-9 px-3 shrink-0 flex items-center justify-between text-[#e5e7eb] text-[12px] font-medium border-b border-[#1e293b]">
-        <span>Console</span>
-      </div>
-      <div className="flex-1 overflow-hidden p-2" ref={terminalRef} />
+      <PanelHeader title="Console" />
+      <div className="flex-1 overflow-hidden px-3 py-2" ref={terminalRef} />
     </div>
   );
 }

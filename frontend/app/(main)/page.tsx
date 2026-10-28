@@ -1,41 +1,124 @@
 import Link from "next/link";
-import { GridBackgroundDemo } from "@/components/home/GridBackground";
-import { FloatingDockDemo } from "@/components/home/FloatingDock";
-import { CodeBlockDemo } from "@/components/home/CodeBlock";
+import { ArrowRight, Eye, HardDriveDownload, Timer } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+
+const FEATURES = [
+  {
+    icon: Eye,
+    title: "Live preview",
+    body: "HTML, CSS and JavaScript side by side, with the result and its console output updating as you type.",
+  },
+  {
+    icon: HardDriveDownload,
+    title: "Saved as you go",
+    body: "Every change is kept in your browser and synced to the cloud in the background, so a reload never loses work.",
+  },
+  {
+    icon: Timer,
+    title: "Timed contests",
+    body: "Join a live challenge, build against the clock and submit. Fullscreen mode keeps it fair.",
+  },
+];
+
+// A static picture of the editor for the hero
+function EditorPreview() {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-black">
+      <div className="flex h-10 items-center gap-2 border-b border-border px-4">
+        <span className="size-2.5 rounded-full bg-border-strong" />
+        <span className="size-2.5 rounded-full bg-border-strong" />
+        <span className="size-2.5 rounded-full bg-border-strong" />
+        <div className="ml-4 flex gap-1 font-mono text-xs">
+          <span className="rounded bg-secondary px-2 py-1 text-foreground">index.html</span>
+          <span className="px-2 py-1 text-subtle-foreground">styles.css</span>
+          <span className="px-2 py-1 text-subtle-foreground">script.js</span>
+        </div>
+      </div>
+      <div className="grid md:grid-cols-2">
+        <pre className="overflow-hidden border-b border-border p-5 font-mono text-[13px] leading-6 text-muted-foreground md:border-b-0 md:border-r">
+          <code>
+            <span className="text-subtle-foreground">{"<"}</span>
+            <span className="text-link">main</span>
+            <span className="text-subtle-foreground">{">"}</span>
+            {"\n  "}
+            <span className="text-subtle-foreground">{"<"}</span>
+            <span className="text-link">h1</span>
+            <span className="text-subtle-foreground">{">"}</span>
+            <span className="text-foreground">Hello, world</span>
+            <span className="text-subtle-foreground">{"</"}</span>
+            <span className="text-link">h1</span>
+            <span className="text-subtle-foreground">{">"}</span>
+            {"\n  "}
+            <span className="text-subtle-foreground">{"<"}</span>
+            <span className="text-link">button</span> <span className="text-warning">id</span>
+            <span className="text-subtle-foreground">=</span>
+            <span className="text-success">{'"go"'}</span>
+            <span className="text-subtle-foreground">{">"}</span>
+            <span className="text-foreground">Run</span>
+            <span className="text-subtle-foreground">{"</"}</span>
+            <span className="text-link">button</span>
+            <span className="text-subtle-foreground">{">"}</span>
+            {"\n"}
+            <span className="text-subtle-foreground">{"</"}</span>
+            <span className="text-link">main</span>
+            <span className="text-subtle-foreground">{">"}</span>
+          </code>
+        </pre>
+        <div className="flex flex-col items-start justify-center gap-3 bg-white p-8 text-black">
+          <span className="text-2xl font-semibold tracking-tight">Hello, world</span>
+          <span className="rounded-md border border-black/20 px-3 py-1 text-sm">Run</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
-    <GridBackgroundDemo>
-      <FloatingDockDemo />
-      <div className="absolute inset-x-0 inset-y-[-20%] flex justify-center items-center opacity-40 blur-[0.5px] pointer-events-none select-none z-0 overflow-hidden">
-        <div className="w-full max-w-4xl h-full md:block hidden -rotate-6 flex flex-col justify-center">
-          <CodeBlockDemo />
-        </div>
-      </div>
+    <main className="relative overflow-hidden">
+      <div className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]" />
 
-      <div className="relative z-10 flex flex-col items-center justify-center text-center px-4 pt-7">
-                   <img src="/logo.svg" alt="logo" className="w-28 md:w-36 mb-4"/>
-        <h1 className="mb-6 text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-500 py-4">
-          Code The Canvas
+      <section className="relative mx-auto flex max-w-5xl flex-col items-center px-6 pt-24 pb-16 text-center md:pt-32">
+        <span className="mb-6 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+          HTML · CSS · JavaScript, in the browser
+        </span>
+        <h1 className="max-w-3xl text-5xl font-semibold tracking-tighter text-foreground md:text-7xl">
+          Write, preview and ship your ideas.
         </h1>
-        <p className="text-lg md:text-xl text-neutral-400 font-bold max-w-2xl mb-10">
-          Create, edit, and preview your code in real-time with our modern, secure, and intuitive browser-based environment.
+        <p className="mt-6 max-w-xl text-lg text-muted-foreground">
+          A fast code editor with a live preview, automatic saving and timed coding contests.
+          Nothing to install.
         </p>
-        <div className="flex flex-wrap justify-center gap-5">
-          <Link 
-            href="/editor" 
-            className="px-8 py-3 bg-[#22c53d] text-black rounded-full font-bold text-base transition-all hover:bg-[#39FF14] hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(0,255,204,0.3)]"
-          >
-            Start Coding
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <Link href="/editor" className={buttonVariants({ variant: "primary", size: "lg" })}>
+            Start coding <ArrowRight />
           </Link>
-          <Link 
-            href="/register" 
-            className="px-8 py-3 border-2 border-[#22c525] text-[#22c525] rounded-full font-bold text-base transition-all hover:bg-[#39FF14] hover:text-black hover:scale-105 active:scale-95"
-          >
-            Join Now
+          <Link href="/register" className={buttonVariants({ variant: "secondary", size: "lg" })}>
+            Create an account
           </Link>
         </div>
-      </div>
-    </GridBackgroundDemo>
+      </section>
+
+      <section className="relative mx-auto max-w-5xl px-6 pb-24">
+        <EditorPreview />
+      </section>
+
+      <section className="relative mx-auto grid max-w-5xl gap-px overflow-hidden border-y border-border bg-border md:grid-cols-3 md:rounded-xl md:border">
+        {FEATURES.map(({ icon: Icon, title, body }) => (
+          <div key={title} className="bg-background p-8">
+            <Icon className="size-5 text-foreground" />
+            <h3 className="mt-4 text-[15px] font-medium text-foreground">{title}</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+          </div>
+        ))}
+      </section>
+
+      <footer className="relative mx-auto flex max-w-5xl items-center justify-between px-6 py-10 text-[13px] text-subtle-foreground">
+        <span>CEditor</span>
+        <a href="https://github.com/sayanChaterjee/browser-editor" className="hover:text-foreground">
+          GitHub
+        </a>
+      </footer>
+    </main>
   );
 }

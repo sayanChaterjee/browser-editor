@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle2, Info, X, XCircle, type LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -15,38 +17,11 @@ interface ToastNotificationProps {
   onDismiss: (id: number) => void;
 }
 
-const TOAST_ICONS: Record<ToastType, string> = {
-  success: "✓",
-  error: "✕",
-  warning: "⚠",
-  info: "ℹ",
-};
-
-const TOAST_COLORS: Record<ToastType, { bg: string; border: string; text: string; icon: string }> = {
-  success: {
-    bg: "bg-[#0a2e1a]",
-    border: "border-[#10b981]",
-    text: "text-[#6ee7b7]",
-    icon: "bg-[#10b981] text-white",
-  },
-  error: {
-    bg: "bg-[#2e0a0a]",
-    border: "border-[#ef4444]",
-    text: "text-[#fca5a5]",
-    icon: "bg-[#ef4444] text-white",
-  },
-  warning: {
-    bg: "bg-[#2e2a0a]",
-    border: "border-[#f59e0b]",
-    text: "text-[#fde68a]",
-    icon: "bg-[#f59e0b] text-black",
-  },
-  info: {
-    bg: "bg-[#0a1e2e]",
-    border: "border-[#38bdf8]",
-    text: "text-[#7dd3fc]",
-    icon: "bg-[#38bdf8] text-black",
-  },
+const TOAST_ICONS: Record<ToastType, { icon: LucideIcon; color: string }> = {
+  success: { icon: CheckCircle2, color: "text-success" },
+  error: { icon: XCircle, color: "text-destructive" },
+  warning: { icon: AlertTriangle, color: "text-warning" },
+  info: { icon: Info, color: "text-link" },
 };
 
 function SingleToast({ toast, onDismiss }: { toast: ToastData; onDismiss: (id: number) => void }) {
@@ -55,32 +30,32 @@ function SingleToast({ toast, onDismiss }: { toast: ToastData; onDismiss: (id: n
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsExiting(true);
-      setTimeout(() => onDismiss(toast.id), 300);
+      setTimeout(() => onDismiss(toast.id), 200);
     }, 3500);
     return () => clearTimeout(timer);
   }, [toast.id, onDismiss]);
 
-  const colors = TOAST_COLORS[toast.type];
+  const { icon: Icon, color } = TOAST_ICONS[toast.type];
 
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${colors.bg} ${colors.border} shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-sm min-w-[280px] max-w-[420px] transition-all duration-300 ${
-        isExiting ? "opacity-0 translate-x-[100%]" : "opacity-100 translate-x-0"
-      }`}
-      style={{ animation: isExiting ? "none" : "slideInRight 0.3s ease-out" }}
+      role="status"
+      className={cn(
+        "flex w-[360px] max-w-[calc(100vw-2rem)] items-start gap-3 rounded-lg border border-border-strong bg-popover px-4 py-3 shadow-2xl shadow-black transition-all duration-200",
+        isExiting ? "translate-y-2 opacity-0" : "animate-fadeIn opacity-100",
+      )}
     >
-      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${colors.icon}`}>
-        {TOAST_ICONS[toast.type]}
-      </span>
-      <p className={`text-sm font-medium flex-1 ${colors.text}`}>{toast.message}</p>
+      <Icon className={cn("mt-0.5 size-4 shrink-0", color)} />
+      <p className="flex-1 text-sm text-foreground">{toast.message}</p>
       <button
+        aria-label="Dismiss"
         onClick={() => {
           setIsExiting(true);
-          setTimeout(() => onDismiss(toast.id), 300);
+          setTimeout(() => onDismiss(toast.id), 200);
         }}
-        className="text-white/40 hover:text-white/80 transition-colors text-lg leading-none shrink-0"
+        className="shrink-0 text-subtle-foreground transition-colors hover:text-foreground"
       >
-        ×
+        <X className="size-4" />
       </button>
     </div>
   );
@@ -90,19 +65,11 @@ export default function ToastNotification({ toasts, onDismiss }: ToastNotificati
   if (toasts.length === 0) return null;
 
   return (
-    <>
-      <style>{`
-        @keyframes slideInRight {
-          from { opacity: 0; transform: translateX(100%); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
-      <div className="fixed top-4 right-4 z-[99999] flex flex-col gap-2">
-        {toasts.map((toast) => (
-          <SingleToast key={toast.id} toast={toast} onDismiss={onDismiss} />
-        ))}
-      </div>
-    </>
+    <div className="fixed bottom-4 right-4 z-[99999] flex flex-col gap-2">
+      {toasts.map((toast) => (
+        <SingleToast key={toast.id} toast={toast} onDismiss={onDismiss} />
+      ))}
+    </div>
   );
 }
 

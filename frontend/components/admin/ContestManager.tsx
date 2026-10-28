@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Contest, fetchAllContests, createContest, updateContest, updateContestStatus, deleteContest } from '@/lib/adminApi';
 import PreviewPanel from '@/components/admin/PreviewPanel';
+import { ImageIcon, Pencil, Play, Square, Trash2, Trophy } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input, Label } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function ContestManager() {
   const [contests, setContests] = useState<Contest[]>([]);
@@ -148,196 +153,150 @@ export default function ContestManager() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-400">
-        <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
+      <div className="flex flex-1 items-center justify-center">
+        <Spinner className="size-5" />
       </div>
     );
   }
 
+  const textarea =
+    'h-32 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-subtle-foreground transition-colors hover:border-border-strong focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/30';
+
   return (
-    <div className="flex-1 flex flex-col p-8 overflow-y-auto w-full">
-      <div className="flex justify-between items-center mb-8">
-         <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Contest Management</h2>
-            <p className="text-sm text-gray-500">Create and oversee global css battles</p>
-         </div>
-      </div>
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm">
-          {error}
+    <div className="flex w-full flex-1 flex-col overflow-y-auto">
+      <header className="flex h-16 shrink-0 items-center border-b border-border px-6">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">Contests</h2>
+          <p className="text-[13px] text-muted-foreground">Create contests, start and end them, and edit their targets.</p>
         </div>
-      )}
+      </header>
 
-      <div className="bg-[#0c1222] border border-gray-800 rounded-xl p-6 mb-8 shadow-xl flex flex-col xl:flex-row gap-6">
-        <div className="flex-1">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-6 pb-4 border-b border-gray-800">
-            {editMode ? 'Edit Contest' : 'New Contest Schema'}
-          </h3>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-               <div>
-                  <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Contest Title</label>
-                  <input 
-                    type="text" 
-                    value={title} 
-                    onChange={(e) => setTitle(e.target.value)} 
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                    placeholder="e.g. Weekly Battle #42"
-                  />
-               </div>
-               <div>
-                  <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Image URL (Optional)</label>
-                  <input 
-                    type="url" 
-                    value={imageUrl} 
-                    onChange={(e) => setImageUrl(e.target.value)} 
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                    placeholder="https://res.cloudinary.com/..."
-                  />
-               </div>
-               <div>
-                  <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Start Time</label>
-                  <input 
-                    type="datetime-local" 
-                    value={startTime} 
-                    onChange={(e) => setStartTime(e.target.value)} 
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors [color-scheme:dark]"
-                  />
-               </div>
-               <div>
-                  <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">End Time</label>
-                  <input 
-                    type="datetime-local" 
-                    value={endTime} 
-                    onChange={(e) => setEndTime(e.target.value)} 
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors [color-scheme:dark]"
-                  />
-               </div>
+      <div className="space-y-8 p-6">
+        {error && (
+          <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-[13px] text-destructive">
+            {error}
+          </div>
+        )}
+
+        <section className="grid gap-px overflow-hidden rounded-xl border border-border bg-border xl:grid-cols-2">
+          <div className="bg-card p-6">
+            <h3 className="text-sm font-medium text-foreground">{editMode ? 'Edit contest' : 'New contest'}</h3>
+            <form onSubmit={handleCreate} className="mt-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="contest-title">Title</Label>
+                  <Input id="contest-title" className="mt-1.5" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Weekly battle #42" />
+                </div>
+                <div>
+                  <Label htmlFor="contest-start">Starts</Label>
+                  <Input id="contest-start" type="datetime-local" className="mt-1.5" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="contest-end">Ends</Label>
+                  <Input id="contest-end" type="datetime-local" className="mt-1.5" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="contest-image">Target image URL (optional)</Label>
+                  <Input id="contest-image" type="url" className="mt-1.5" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[13px] font-medium text-muted-foreground">Or target code</p>
+                <div className="mt-1.5 grid grid-cols-3 gap-2">
+                  <textarea aria-label="Target HTML" value={html} onChange={(e) => setHtml(e.target.value)} className={textarea} placeholder="<div>...</div>" />
+                  <textarea aria-label="Target CSS" value={css} onChange={(e) => setCss(e.target.value)} className={textarea} placeholder="div { ... }" />
+                  <textarea aria-label="Target JavaScript" value={js} onChange={(e) => setJs(e.target.value)} className={textarea} placeholder="console.log(...)" />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                {editMode && (
+                  <Button type="button" variant="secondary" onClick={resetForm}>
+                    Cancel
+                  </Button>
+                )}
+                <Button type="submit" variant="primary" disabled={submitLoading}>
+                  {submitLoading ? 'Saving...' : editMode ? 'Save changes' : 'Create contest'}
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          <div className="flex min-h-[400px] flex-col bg-background">
+            <div className="flex h-9 items-center border-b border-border px-3 text-[11px] font-medium uppercase tracking-wider text-subtle-foreground">
+              Target preview
             </div>
-            
-            <div className="border-t border-gray-800 pt-4 mt-4">
-               <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2 text-center">OR PROVIDE TARGET CODE</label>
-               <div className="grid grid-cols-3 gap-2">
-                 <div>
-                    <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">HTML</label>
-                    <textarea 
-                      value={html} 
-                      onChange={(e) => setHtml(e.target.value)} 
-                      className="w-full h-32 bg-gray-900 border border-gray-700 rounded flex-1 px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                      placeholder="<div>...</div>"
-                    />
-                 </div>
-                 <div>
-                    <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">CSS</label>
-                    <textarea 
-                      value={css} 
-                      onChange={(e) => setCss(e.target.value)} 
-                      className="w-full h-32 bg-gray-900 border border-gray-700 rounded flex-1 px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                      placeholder="div { ... }"
-                    />
-                 </div>
-                 <div>
-                    <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">JS</label>
-                    <textarea 
-                      value={js} 
-                      onChange={(e) => setJs(e.target.value)} 
-                      className="w-full h-32 bg-gray-900 border border-gray-700 rounded flex-1 px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500 transition-colors"
-                      placeholder="console.log(...)"
-                    />
-                 </div>
-               </div>
-            </div>
-            
-            <div className="pt-4 flex justify-end flex-row gap-3">
-              {editMode && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-6 py-2.5 rounded-lg text-sm font-bold transition-colors"
-                >
-                  Cancel
-                </button>
+            <div className="flex-1">
+              {(html || css || js) ? (
+                <PreviewPanel html={html} css={css} js={js} projectName="Live preview" />
+              ) : imageUrl ? (
+                <img src={imageUrl} alt="Target" className="h-full w-full object-contain" />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center text-center">
+                  <ImageIcon className="size-5 text-subtle-foreground" />
+                  <p className="mt-2 text-[13px] text-muted-foreground">Add an image URL or target code to preview it</p>
+                </div>
               )}
-              <button 
-                 type="submit" 
-                 disabled={submitLoading}
-                 className="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
-              >
-                {submitLoading ? 'Saving...' : (editMode ? 'Save Changes' : 'Initialize Contest')}
-              </button>
             </div>
-          </form>
-        </div>
-        
-        {/* Preview Side */}
-        <div className="flex-1 border border-gray-800 rounded-xl overflow-hidden min-h-[400px] xl:min-h-full bg-black relative flex flex-col">
-          <div className="absolute inset-x-0 top-0 h-8 bg-gray-900 border-b border-gray-800 flex items-center px-4 text-[10px] text-gray-500 font-bold uppercase tracking-widest z-10">
-             Target Preview
           </div>
-          <div className="pt-8 flex-1 h-full w-full">
-            {(html || css || js) ? (
-              <PreviewPanel html={html} css={css} js={js} projectName="Live Preview" />
-            ) : imageUrl ? (
-              <img src={imageUrl} alt="Preview" className="w-full h-full object-contain bg-gray-900" />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-gray-600">
-                 <div className="w-16 h-16 rounded-full border border-dashed border-gray-700 flex items-center justify-center mb-4">
-                    <span className="text-2xl opacity-20">🖼️</span>
-                 </div>
-                 <p className="text-xs">Preview will appear here</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Contest List */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Active & Historical Contests</h3>
-        {contests.length === 0 ? (
-           <div className="text-center p-8 bg-gray-900/50 rounded-xl border border-gray-800 text-sm text-gray-500">
-             No contest records found in database.
-           </div>
-        ) : (
-          contests.map((c) => (
-            <div key={c._id} className="bg-[#0c1222] border border-gray-800 rounded-xl p-5 flex items-center justify-between group hover:border-gray-700 transition-colors">
-              <div className="flex items-center gap-6">
-                 <div className="w-16 h-16 rounded bg-gray-900 overflow-hidden border border-gray-800 shrink-0">
-                    <img src={c.imageUrl} alt="preview" className="w-full h-full object-cover" />
-                 </div>
-                 <div>
-                    <h4 className="text-base font-bold text-white mb-1 group-hover:text-cyan-400 transition-colors">{c.title}</h4>
-                    <div className="flex gap-4 text-xs font-mono text-gray-500">
-                       <span>START: {new Date(c.startTime).toLocaleString()}</span>
-                       <span>END: {new Date(c.endTime).toLocaleString()}</span>
+        <section>
+          <h3 className="mb-3 text-sm font-medium text-foreground">All contests</h3>
+          {contests.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border-strong p-8 text-center text-sm text-muted-foreground">
+              No contests yet.
+            </p>
+          ) : (
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+              {contests.map((c) => (
+                <div key={c._id} className="flex items-center justify-between gap-4 bg-card px-4 py-3 transition-colors hover:bg-muted">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-background">
+                      {c.imageUrl ? (
+                        <img src={c.imageUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <Trophy className="size-4 text-subtle-foreground" />
+                      )}
                     </div>
-                 </div>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                 <span className={`px-3 py-1 text-[10px] font-bold uppercase rounded-full border ${
-                    c.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
-                    c.status === 'ended' ? 'bg-gray-800 text-gray-400 border-gray-700' :
-                    'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                 }`}>
-                    {c.status}
-                 </span>
-                 
-                 <div className="flex gap-2 ml-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="truncate text-sm font-medium text-foreground">{c.title}</h4>
+                        <Badge tone={c.status === 'active' ? 'success' : c.status === 'pending' ? 'warning' : 'neutral'}>
+                          {c.status === 'active' && <span className="size-1.5 rounded-full bg-success" />}
+                          {c.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
+                        {new Date(c.startTime).toLocaleString()} → {new Date(c.endTime).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1">
                     {c.status === 'pending' && (
-                       <button onClick={() => handleStatusChange(c._id, 'active')} className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-lg text-xs font-bold transition-colors">Start Contest</button>
+                      <Button size="sm" variant="primary" onClick={() => handleStatusChange(c._id, 'active')}>
+                        <Play /> Start
+                      </Button>
                     )}
                     {c.status === 'active' && (
-                       <button onClick={() => handleStatusChange(c._id, 'ended')} className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 px-4 py-2 rounded-lg text-xs font-bold transition-colors">End Contest</button>
+                      <Button size="sm" variant="secondary" onClick={() => handleStatusChange(c._id, 'ended')}>
+                        <Square /> End
+                      </Button>
                     )}
-                    <button onClick={() => handleEditClick(c)} className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-4 py-2 rounded-lg text-xs font-bold transition-colors">Edit Contest</button>
-                    <button onClick={() => handleDelete(c._id)} className="bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-lg text-xs font-bold transition-colors">Delete Contest</button>
-                 </div>
-              </div>
+                    <Button size="icon" variant="ghost" aria-label={`Edit ${c.title}`} title="Edit" onClick={() => handleEditClick(c)}>
+                      <Pencil />
+                    </Button>
+                    <Button size="icon" variant="ghost" aria-label={`Delete ${c.title}`} title="Delete" className="hover:text-destructive" onClick={() => handleDelete(c._id)}>
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))
-        )}
+          )}
+        </section>
       </div>
     </div>
   );

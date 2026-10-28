@@ -16,8 +16,8 @@ import DeviceRestriction from "@/components/DeviceRestriction";
 import GlobalSecurity from "@/components/GlobalSecurity";
 
 export const metadata: Metadata = {
-  title: "CodeEditor",
-  description: "Modern browser-based IDE",
+  title: "CEditor",
+  description: "Write HTML, CSS and JavaScript with a live preview, in your browser.",
 };
 
 export default function RootLayout({
@@ -27,12 +27,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning={true}>
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/devicon.min.css"
-        />
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

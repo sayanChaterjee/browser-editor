@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useSession } from "../../../lib/auth-client";
+import { AuthCard, FieldError, FormMessage, GoogleButton, OrDivider } from "@/components/auth/AuthCard";
+import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -94,38 +99,53 @@ export default function LoginPage() {
   const isFormValid =
     !validateUsername(username) && !validatePassword(password);
 
+  const signInWithGoogle = async () => {
+    try {
+      const { signIn } = await import("../../../lib/auth-client");
+      await signIn.social({
+        provider: "google",
+        callbackURL: window.location.origin + "/editor",
+      });
+    } catch (error) {
+      console.error("Google login failed:", error);
+    }
+  };
+
   if (isPending) {
     return (
-      <div className="h-[calc(100vh-50px)] flex items-center justify-center">
-        <div className="text-white">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner className="size-5" />
       </div>
     );
   }
 
   return (
-    <div className="h-[calc(100vh-50px)] flex items-center justify-center">
-      <div className="w-[360px] bg-[#1b1b1b] rounded-[10px] p-[30px] border border-[#333] shadow-[0_0_30px_rgba(0,0,0,0.8)] text-center">
-        <div className="w-[70px] h-[70px] bg-[#333] rounded-full -mt-[60px] mx-auto mb-[10px] flex items-center justify-center text-[30px]">
-          <span>👤</span>
-        </div>
-        <h2 className="mb-5 tracking-[2px] font-bold text-white">MEMBER LOGIN</h2>
-
-        {formMessage && (
-          <div className={`mb-4 px-3 py-2.5 rounded-lg text-sm font-medium text-left ${
-            formMessage.type === "error" 
-              ? "bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#fca5a5]" 
-              : "bg-[#10b981]/10 border border-[#10b981]/30 text-[#6ee7b7]"
-          }`}>
-            {formMessage.text}
-          </div>
-        )}
-
-        <div className="flex items-center bg-[#2a2a2a] rounded-[5px] mb-[15px] padding-[10px] p-2.5">
-          <span className="mr-2">👤</span>
-          <input
-            type="text"
-            placeholder="Username"
-            className="bg-transparent border-none outline-none text-white w-full text-[14px]"
+    <AuthCard
+      title="Log in to CEditor"
+      subtitle="Welcome back. Pick up where you left off."
+      footer={
+        <>
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="font-medium text-foreground hover:underline">
+            Sign up
+          </Link>
+        </>
+      }
+    >
+      <FormMessage message={formMessage} />
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleLogin();
+        }}
+      >
+        <div>
+          <Label htmlFor="username">Username</Label>
+          <Input
+            id="username"
+            autoComplete="username"
+            className="mt-1.5"
             value={username}
             onChange={(e) => {
               setUsername(e.target.value);
@@ -133,15 +153,15 @@ export default function LoginPage() {
               setFormMessage(null);
             }}
           />
+          <FieldError>{errors.username}</FieldError>
         </div>
-        {errors.username && <p className="text-red-500 text-[12px] mb-2 -mt-2 text-left">{errors.username}</p>}
-
-        <div className="flex items-center bg-[#2a2a2a] rounded-[5px] mb-[15px] padding-[10px] p-2.5">
-          <span className="mr-2">🔒</span>
-          <input
+        <div>
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
             type="password"
-            placeholder="Password"
-            className="bg-transparent border-none outline-none text-white w-full text-[14px]"
+            autoComplete="current-password"
+            className="mt-1.5"
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
@@ -149,45 +169,14 @@ export default function LoginPage() {
               setFormMessage(null);
             }}
           />
+          <FieldError>{errors.password}</FieldError>
         </div>
-        {errors.password && <p className="text-red-500 text-[12px] mb-2 -mt-2 text-left">{errors.password}</p>}
-
-        <button
-          className="w-full p-[10px] bg-[#00ffcc] text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer mt-[10px] transition-colors hover:bg-[#00e6b8] disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={handleLogin}
-          disabled={!isFormValid || isLoading}
-        >
-          {isLoading ? "Logging in..." : "Login"}
-        </button>
-
-        <div className="flex items-center my-5">
-           <div className="flex-1 border-t border-[#333]"></div>
-           <span className="px-3 text-[#aaa] text-[12px]">OR</span>
-           <div className="flex-1 border-t border-[#333]"></div>
-        </div>
-
-        <button
-          className="w-full p-[10px] bg-white text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer flex items-center justify-center gap-2 hover:bg-[#f0f0f0] transition-colors"
-          onClick={async () => {
-            try {
-              const { signIn } = await import("../../../lib/auth-client");
-              await signIn.social({
-                provider: "google",
-                callbackURL: window.location.origin + "/editor",
-              });
-            } catch (error) {
-              console.error("Google login failed:", error);
-            }
-          }}
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-[18px] h-[18px]" />
-          Continue with Google
-        </button>
-
-        <div className="mt-5 text-[12px] text-[#aaa]">
-          Don&apos;t have an account? <a href="/register" className="text-white font-bold no-underline ml-1 hover:underline">REGISTER HERE</a>
-        </div>
-      </div>
-    </div>
+        <Button type="submit" variant="primary" className="h-10 w-full" disabled={!isFormValid || isLoading}>
+          {isLoading ? <Spinner className="border-primary-foreground/30 border-t-primary-foreground" /> : "Log in"}
+        </Button>
+      </form>
+      <OrDivider />
+      <GoogleButton onClick={signInWithGoogle} />
+    </AuthCard>
   );
 }

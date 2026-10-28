@@ -1,6 +1,9 @@
 "use client";
 
 import React from "react";
+import { Folder, Plus, ShieldAlert, Timer, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ContestBarProps {
   timeLeft: number;
@@ -42,48 +45,63 @@ export default function ContestBar({
     return () => clearInterval(interval);
   }, [activeContest?.endTime]);
 
+  const lowTime = contestStarted && timeLeft < 300;
+  const contestLabel = contestStarted
+    ? "Contest in progress"
+    : !activeContest
+    ? "No live contest"
+    : isEnded
+    ? "Contest ended"
+    : "Start contest";
+
   return (
-    <div className="bg-[#0f172a] border-b border-[#1e293b] h-[50px] px-5 flex items-center justify-between">
-      <div className="flex items-center gap-5">
-        <span className={`font-semibold text-[1.1rem] font-mono ${timeLeft < 300 ? "text-[#f87171]" : "text-[#38bdf8]"}`}>
-          ⏱ {formatTime(timeLeft)}
-        </span>
-        <div className="h-5 w-[1px] bg-[#334155]" />
-        <span className="text-[#94a3b8] text-[0.9rem]">
-          Strikes: <span className={strikeCount > 0 ? "text-[#f87171]" : "text-[#10b981]"}>{strikeCount} / {MAX_WARNINGS}</span>
-        </span>
-        {projectName && (
-          <>
-            <div className="h-5 w-[1px] bg-[#334155]" />
-            <span className="text-[#38bdf8] text-[0.95rem] font-semibold">
-              📂 {projectName}
-            </span>
-          </>
+    <div className="flex h-12 items-center justify-between border-b border-border bg-background px-4">
+      <div className="flex min-w-0 items-center gap-3 text-sm">
+        <Folder className="size-4 shrink-0 text-subtle-foreground" />
+        <span className="truncate font-medium text-foreground">{projectName || "Untitled"}</span>
+        {activeContest && (
+          <span className="hidden items-center gap-1.5 truncate text-muted-foreground md:flex">
+            <span className="text-subtle-foreground">/</span>
+            <Trophy className="size-3.5" />
+            {activeContest.title}
+          </span>
         )}
       </div>
 
-      <div className="flex items-center gap-2.5">
-        <button
-          onClick={onNewProject}
-          className="bg-gradient-to-br from-[#10b981] to-[#059669] text-white px-4 py-2 rounded-md border-none text-[14px] font-semibold cursor-pointer shadow-[0_4px_12px_rgba(16,185,129,0.3)] transition-all hover:opacity-90 active:scale-95"
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-mono text-[13px] tabular-nums",
+            lowTime ? "border-destructive/40 text-destructive" : contestStarted ? "border-border-strong text-foreground" : "border-border text-subtle-foreground",
+          )}
+          title="Time left"
         >
-          + New Project
-        </button>
-        <button
+          <Timer className="size-3.5" />
+          {formatTime(timeLeft)}
+        </span>
+        <span
+          className={cn(
+            "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[13px] tabular-nums",
+            strikeCount > 0 ? "border-warning/40 text-warning" : "border-border text-muted-foreground",
+          )}
+          title="Anti-cheat strikes"
+        >
+          <ShieldAlert className="size-3.5" />
+          {strikeCount}/{MAX_WARNINGS}
+        </span>
+        <div className="mx-1 h-5 w-px bg-border" />
+        <Button size="sm" variant="secondary" onClick={onNewProject}>
+          <Plus /> New project
+        </Button>
+        <Button
+          size="sm"
+          variant={contestStarted || !activeContest || isEnded ? "secondary" : "primary"}
           onClick={onStartContest}
           disabled={contestStarted || !activeContest || isEnded}
-          className={`px-5 py-2 rounded-md border-none text-[14px] font-semibold transition-all ${
-            contestStarted 
-              ? "bg-[#1e293b] text-white cursor-not-allowed shadow-none" 
-              : !activeContest
-              ? "bg-[#334155] text-[#94a3b8] cursor-not-allowed shadow-none"
-              : isEnded
-              ? "bg-[#334155] text-[#f87171] cursor-not-allowed shadow-none"
-              : "bg-gradient-to-br from-[#0ea5e9] to-[#2563eb] text-white cursor-pointer shadow-[0_4px_12px_rgba(37,99,235,0.3)] hover:opacity-90 active:scale-95"
-          }`}
         >
-          {contestStarted ? "Contest Active" : !activeContest ? "No live contest" : isEnded ? "Contest Ended" : "Start Contest"}
-        </button>
+          {contestStarted && <span className="size-1.5 animate-pulse rounded-full bg-success" />}
+          {contestLabel}
+        </Button>
       </div>
     </div>
   );

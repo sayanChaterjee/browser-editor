@@ -14,6 +14,12 @@ import UserList from '@/components/admin/UserList';
 import PreviewPanel from '@/components/admin/PreviewPanel';
 import ContestManager from '@/components/admin/ContestManager';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft, Ban, Clock, Lock, MousePointerClick, ShieldCheck, Users, X, XCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/ui/logo';
+import { Spinner } from '@/components/ui/spinner';
+import { cn, timeAgo } from '@/lib/utils';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -115,66 +121,60 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#0a0e1a] text-gray-400">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
-          <span className="text-sm font-medium animate-pulse">Initializing Admin Dashboard...</span>
-        </div>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Spinner className="size-5" />
       </div>
     );
   }
 
   if (isAuthorized === false) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#0a0e1a] text-gray-400 p-8 text-center">
-        <div className="max-w-md flex flex-col items-center gap-6">
-          <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 text-4xl shadow-lg shadow-red-900/10">
-            🔒
+      <div className="flex h-screen items-center justify-center bg-background p-8 text-center">
+        <div className="flex max-w-sm flex-col items-center">
+          <div className="flex size-10 items-center justify-center rounded-full border border-border bg-card">
+            <Lock className="size-4 text-muted-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Access Restricted</h1>
-          <p className="text-gray-500 text-sm leading-relaxed">
-            This terminal is reserved for administrative personnel. Your account does not have the necessary clearance to view user data.
-          </p>
-          <button 
-            onClick={() => router.push('/editor')}
-            className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium border border-gray-700"
-          >
-            Return to Editor
-          </button>
+          <h1 className="mt-4 text-lg font-semibold tracking-tight text-foreground">Admins only</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Your account doesn&apos;t have access to the admin console.</p>
+          <Button variant="secondary" className="mt-6" onClick={() => router.push('/editor')}>
+            <ArrowLeft /> Back to the editor
+          </Button>
         </div>
       </div>
     );
   }
 
+  const strikes = selectedActivity?.warningCount || 0;
+
   return (
-    <div className="flex h-screen bg-[#0a0e1a] text-gray-200 overflow-hidden font-sans">
-      {/* Left Sidebar: User List */}
-      <aside className="w-80 border-r border-gray-800 bg-[#0c1222] flex flex-col shadow-2xl z-10">
-        <div className="p-6 border-b border-gray-800 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg shadow-cyan-900/20">
-            A
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+      {/* Sidebar: users and contests */}
+      <aside className="z-10 flex w-80 shrink-0 flex-col border-r border-border bg-background">
+        <div className="flex h-14 items-center justify-between border-b border-border px-4">
+          <div className="flex items-center gap-2">
+            <Logo href="/editor" />
+            <Badge>Admin</Badge>
           </div>
-          <div>
-            <h1 className="text-sm font-bold tracking-tight text-white uppercase">Admin Console</h1>
-            <p className="text-[10px] text-gray-500 font-medium">Internal Security Protocol</p>
-          </div>
+          <Button variant="ghost" size="icon" aria-label="Back to the editor" title="Back to the editor" onClick={() => router.push('/editor')}>
+            <ArrowLeft />
+          </Button>
         </div>
-        
-        <div className="flex border-b border-gray-800 text-xs font-bold uppercase tracking-widest text-gray-500">
-          <button 
-            onClick={() => setActiveTab('users')}
-            className={`flex-1 py-3 transition-colors ${activeTab === 'users' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-gray-900/30' : 'hover:bg-gray-800/50 hover:text-gray-300'}`}
-          >
-            Users
-          </button>
-          <button 
-            onClick={() => setActiveTab('contests')}
-            className={`flex-1 py-3 transition-colors ${activeTab === 'contests' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-gray-900/30' : 'hover:bg-gray-800/50 hover:text-gray-300'}`}
-          >
-            Contests
-          </button>
+
+        <div className="flex gap-1 border-b border-border px-3">
+          {(['users', 'contests'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                '-mb-px border-b px-2.5 py-2.5 text-sm capitalize transition-colors',
+                activeTab === tab ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
-        
+
         <div className="flex-1 overflow-hidden">
           {activeTab === 'users' ? (
             <UserList 
@@ -185,144 +185,116 @@ export default function AdminDashboard() {
               onSearchChange={setSearchQuery}
             />
           ) : (
-            <div className="p-6 text-center text-sm text-gray-500 italic">
-               Contest configuration selected.
-            </div>
+            <p className="p-6 text-center text-sm text-muted-foreground">Manage contests on the right.</p>
           )}
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#0a0e1a]">
+      {/* Main area */}
+      <main className="flex min-w-0 flex-1 flex-col bg-background">
         {activeTab === 'contests' ? (
           <ContestManager />
         ) : selectedUser ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Header / Info Bar */}
-            <header className="h-16 px-8 border-b border-gray-800 flex items-center justify-between bg-[#0c1222]/50 backdrop-blur-md">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-cyan-900/40 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold">
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <header className="flex h-16 shrink-0 items-center justify-between gap-6 border-b border-border px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border-strong bg-secondary text-sm font-medium">
                   {selectedUser.name[0]?.toUpperCase()}
                 </div>
-                <div>
-                  <h2 className="text-base font-semibold text-white tracking-tight">{selectedUser.name}</h2>
-                  <p className="text-[11px] text-gray-500 font-mono italic">{selectedUser.email}</p>
+                <div className="min-w-0">
+                  <h2 className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
+                    {selectedUser.name}
+                    {selectedUser.banned && <Badge tone="danger">Banned</Badge>}
+                  </h2>
+                  <p className="truncate font-mono text-[12px] text-muted-foreground">{selectedUser.email}</p>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-6">
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Warnings</span>
-                  <span className={`text-sm font-bold ${
-                    !selectedActivity ? 'text-gray-500' :
-                    (selectedActivity.warningCount || 0) >= 3 ? 'text-red-400' : 
-                    (selectedActivity.warningCount || 0) > 0 ? 'text-amber-400' : 'text-emerald-400'
-                  }`}>
-                    {selectedActivity ? `${selectedActivity.warningCount || 0} / 4` : '-'}
-                  </span>
+
+              <div className="flex shrink-0 items-center gap-6">
+                <div className="text-right">
+                  <p className="text-[11px] uppercase tracking-wider text-subtle-foreground">Strikes</p>
+                  <p className={cn(
+                    'text-sm font-medium tabular-nums',
+                    !selectedActivity ? 'text-subtle-foreground' : strikes >= 3 ? 'text-destructive' : strikes > 0 ? 'text-warning' : 'text-foreground',
+                  )}>
+                    {selectedActivity ? `${strikes} / 4` : '-'}
+                  </p>
                 </div>
-                <div className="h-8 w-[1px] bg-gray-800"></div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Joined</span>
-                  <span className="text-sm font-semibold text-gray-300">
-                    {new Date(selectedUser.createdAt).toLocaleDateString()}
-                  </span>
+                <div className="text-right">
+                  <p className="text-[11px] uppercase tracking-wider text-subtle-foreground">Joined</p>
+                  <p className="text-sm font-medium text-foreground">{new Date(selectedUser.createdAt).toLocaleDateString()}</p>
                 </div>
-                <div className="h-8 w-[1px] bg-gray-800"></div>
                 <div className="flex flex-col items-end">
-                  <button
+                  <Button
+                    size="sm"
+                    variant={selectedUser.banned ? 'secondary' : 'danger-outline'}
                     onClick={toggleBan}
                     disabled={moderating}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border transition-colors disabled:opacity-50 ${
-                      selectedUser.banned
-                        ? 'border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10'
-                        : 'border-red-500/40 text-red-400 hover:bg-red-500/10'
-                    }`}
                   >
-                    {moderating ? '...' : selectedUser.banned ? 'Unban' : 'Ban'}
-                  </button>
+                    {moderating ? <Spinner /> : selectedUser.banned ? <><ShieldCheck /> Unban</> : <><Ban /> Ban</>}
+                  </Button>
                   {moderationError && (
-                    <span className="text-[10px] text-red-400 mt-1 max-w-[180px] text-right">{moderationError}</span>
+                    <span className="mt-1 max-w-[200px] text-right text-[11px] text-destructive">{moderationError}</span>
                   )}
                 </div>
               </div>
             </header>
 
-            {/* Split View: List and Preview */}
-            <div className="flex-1 flex min-h-0 overflow-hidden">
-              {/* Activity List (Projects & Submissions) */}
-              <div className="w-72 border-r border-gray-800 bg-[#0c1222]/30 flex flex-col overflow-hidden">
-                <div className="p-4 border-b border-gray-800 bg-gray-900/20">
-                  <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Active Projects</h3>
-                </div>
-                <div className="flex-1 overflow-y-auto p-1 py-2">
+            <div className="flex min-h-0 flex-1 overflow-hidden">
+              {/* Projects and submissions */}
+              <div className="flex w-72 shrink-0 flex-col overflow-hidden border-r border-border">
+                <div className="flex-1 overflow-y-auto p-2">
+                  <h3 className="px-2 pb-2 pt-1 text-[11px] font-medium uppercase tracking-wider text-subtle-foreground">Projects</h3>
                   {dataLoading ? (
-                    <div className="p-4 flex justify-center">
-                      <div className="w-5 h-5 border-2 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin"></div>
-                    </div>
+                    <div className="flex justify-center p-4"><Spinner /></div>
                   ) : projects.length === 0 ? (
-                    <div className="p-4 text-center text-gray-600 text-xs italic">No active projects</div>
+                    <p className="px-2 pb-2 text-[13px] text-subtle-foreground">No projects</p>
                   ) : (
                     projects.map((p) => (
                       <button
                         key={p._id}
                         onClick={() => setSelectedActivity(p)}
-                        className={`w-full text-left px-4 py-3 rounded-lg mb-1 transition-all group ${
-                          selectedActivity?._id === p._id 
-                            ? 'bg-cyan-500/10 ring-1 ring-cyan-500/30' 
-                            : 'hover:bg-gray-800/40'
-                        }`}
+                        className={cn(
+                          'mb-0.5 w-full rounded-md px-3 py-2 text-left transition-colors',
+                          selectedActivity?._id === p._id ? 'bg-secondary' : 'hover:bg-muted',
+                        )}
                       >
-                        <div className="text-xs font-semibold text-gray-200 group-hover:text-white mb-1 truncate">
-                          {p.name}
-                        </div>
-                        <div className="flex items-center justify-between text-[10px] text-gray-500">
-                          <span>Project</span>
-                          <span>{new Date(p.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
+                        <div className="truncate text-[13px] font-medium text-foreground">{p.name}</div>
+                        <div className="text-[12px] text-muted-foreground">Updated {timeAgo(p.updatedAt)}</div>
                       </button>
                     ))
                   )}
-                  
-                  <div className="mt-4 p-4 border-b border-gray-800 bg-gray-900/20 mb-2">
-                    <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Previous Submissions</h3>
-                  </div>
+
+                  <h3 className="px-2 pb-2 pt-5 text-[11px] font-medium uppercase tracking-wider text-subtle-foreground">Submissions</h3>
+                  {!dataLoading && submissions.length === 0 && (
+                    <p className="px-2 text-[13px] text-subtle-foreground">No submissions</p>
+                  )}
                   {submissions.map((s) => {
                     const timeElapsedSeconds = s.timeTaken || 0;
                     const hours = Math.floor(timeElapsedSeconds / 3600);
                     const minutes = Math.floor((timeElapsedSeconds % 3600) / 60);
                     const seconds = timeElapsedSeconds % 60;
-                    
-                    let formattedTime = "";
-                    if (hours > 0) formattedTime += `${hours} hour${hours > 1 ? 's' : ''} `;
-                    if (minutes > 0) formattedTime += `${minutes} minute${minutes > 1 ? 's' : ''}`;
-                    if (hours === 0 && minutes === 0) formattedTime = `${seconds} second${seconds !== 1 ? 's' : ''}`;
-                    formattedTime = formattedTime.trim();
-                    
+                    const formattedTime = hours > 0 ? `${hours}h ${minutes}m` : minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+
                     return (
                       <button
                         key={s._id}
                         onClick={() => setSelectedActivity(s)}
-                        className={`w-full text-left px-4 py-3 rounded-lg mb-1 transition-all group ${
-                          selectedActivity?._id === s._id 
-                            ? 'bg-emerald-500/10 ring-1 ring-emerald-500/30' 
-                            : 'hover:bg-gray-800/40'
-                        }`}
+                        className={cn(
+                          'mb-0.5 w-full rounded-md px-3 py-2 text-left transition-colors',
+                          selectedActivity?._id === s._id ? 'bg-secondary' : 'hover:bg-muted',
+                        )}
                       >
-                        <div className="flex justify-between items-center mb-1">
-                          <div className="text-xs font-semibold text-gray-200 group-hover:text-white truncate flex items-center gap-2">
-                            <span>Submission {s._id.slice(-6)}</span>
-                            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
-                              ⏱ {formattedTime} taken
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between text-[10px] text-gray-500">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate font-mono text-[12px] text-foreground">#{s._id.slice(-6)}</span>
                           {s.disqualified ? (
-                            <span className="text-red-400 uppercase font-bold tracking-tighter" title="The user is banned">Disqualified</span>
+                            <Badge tone="danger" title="The user is banned">Disqualified</Badge>
                           ) : (
-                            <span className="text-emerald-500/80 uppercase font-bold tracking-tighter">Final</span>
+                            <Badge>Final</Badge>
                           )}
+                        </div>
+                        <div className="mt-0.5 flex items-center justify-between text-[12px] text-muted-foreground">
+                          <span className="flex items-center gap-1"><Clock className="size-3" /> {formattedTime}</span>
                           <span>{new Date(s.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </button>
@@ -331,59 +303,43 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Preview Panel */}
-              <div className="flex-1 bg-white relative">
+              {/* Preview */}
+              <div className="relative flex-1">
                 {selectedActivity ? (
                   <PreviewPanel 
                     html={selectedActivity.html}
                     css={selectedActivity.css}
                     js={selectedActivity.js}
-                    projectName={('name' in selectedActivity && selectedActivity.name) || `Submission ${selectedActivity._id.slice(-6)}`}
+                    projectName={('name' in selectedActivity && selectedActivity.name) || `Submission #${selectedActivity._id.slice(-6)}`}
                   />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-600 bg-[#0a0e1a]">
-                    <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-gray-800 flex items-center justify-center mb-4">
-                      <span className="text-2xl opacity-20">🗂</span>
-                    </div>
-                    <p className="text-sm font-medium">Select a project or submission to preview</p>
+                  <div className="flex h-full w-full flex-col items-center justify-center text-center">
+                    <MousePointerClick className="size-5 text-subtle-foreground" />
+                    <p className="mt-3 text-sm text-muted-foreground">Select a project or submission to preview it</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0e1a] text-center p-12">
-            <div className="relative mb-8">
-              <div className="absolute inset-0 bg-cyan-500/20 blur-3xl rounded-full"></div>
-              <div className="relative w-24 h-24 rounded-3xl bg-gray-900 border border-gray-800 flex items-center justify-center shadow-2xl">
-                <span className="text-4xl text-cyan-400">🛡️</span>
-              </div>
+          <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
+            <div className="flex size-10 items-center justify-center rounded-full border border-border bg-card">
+              <Users className="size-4 text-muted-foreground" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2 tracking-tight">Integrated Admin Terminal</h2>
-            <p className="text-gray-500 max-w-sm text-sm">
-              Monitoring user activity, warnings, and persistence across Redis, MongoDB, and IndexedDB. Select a user to begin audit.
+            <h2 className="mt-4 text-lg font-semibold tracking-tight text-foreground">Select a user</h2>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              See their projects and contest submissions, preview their code, and ban or unban them.
             </p>
-            <div className="mt-8 flex gap-3">
-              <div className="px-4 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                Storage: Multi-Node | PERSISTENT
-              </div>
-              <div className="px-4 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                Status: Audit Ready
-              </div>
-            </div>
           </div>
         )}
       </main>
 
       {error && (
-        <div className="fixed bottom-6 right-6 px-6 py-4 bg-red-950/80 border border-red-500/50 text-red-200 text-sm rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
-          <span className="text-lg">⛔</span>
-          <span>{error}</span>
-          <button 
-            onClick={() => setError(null)}
-            className="ml-4 text-red-400 hover:text-white"
-          >
-            ✕
+        <div className="animate-fadeIn fixed bottom-4 right-4 flex items-start gap-3 rounded-lg border border-border-strong bg-popover px-4 py-3 text-sm shadow-2xl shadow-black">
+          <XCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+          <span className="text-foreground">{error}</span>
+          <button onClick={() => setError(null)} aria-label="Dismiss" className="text-subtle-foreground hover:text-foreground">
+            <X className="size-4" />
           </button>
         </div>
       )}
