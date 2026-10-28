@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getLocalProject, clearMismatchingProjects } from "../lib/indexedDB";
 import { INITIAL_HTML, INITIAL_CSS, INITIAL_JS } from "../utils/constants";
@@ -13,6 +13,8 @@ interface Project {
     js: string;
     updatedAt: string;
     timeLeft?: number;
+    // Contest strikes recorded for this project (kept in step by the backend)
+    warningCount?: number;
 }
 
 // A new user's starter project is created asynchronously after sign-up (code-service handles
@@ -88,6 +90,13 @@ export function useProjectManager({
         }
     };
 
+    // The loader runs when the requested project changes, using the caller's latest
+    // callbacks (they are new functions on every render)
+    const callbacks = useRef({ onLogout, onUserLoaded, setIsContestPending, setTimeLeft });
+    useEffect(() => {
+        callbacks.current = { onLogout, onUserLoaded, setIsContestPending, setTimeLeft };
+    });
+
     useEffect(() => {
         const initData = async () => {
             let profile: { id?: string; name: string; email: string; createdAt?: string } | null = null;
@@ -120,13 +129,13 @@ export function useProjectManager({
                         }
                     }
                 } else if (profRes.status === 401) {
-                    onLogout();
+                    callbacks.current.onLogout();
                     return;
                 }
                 if (profile?.id || profile?.email) {
                     const uid = profile.id || profile.email;
                     await clearMismatchingProjects(uid);
-                    if (onUserLoaded) onUserLoaded(uid);
+                    if (callbacks.current.onUserLoaded) callbacks.current.onUserLoaded(uid);
                 }
             } catch (err) {
                 console.error("Profile fetch failed", err);
@@ -177,7 +186,7 @@ export function useProjectManager({
                                         }
 
                                         if (fullProject.timeLeft !== undefined) {
-                                            setTimeLeft(fullProject.timeLeft);
+                                            callbacks.current.setTimeLeft(fullProject.timeLeft);
                                         }
                                         setIsLoading(false);
                                         return;
@@ -213,11 +222,11 @@ export function useProjectManager({
                         }
 
                         if (targetProject.timeLeft !== undefined) {
-                            setTimeLeft(targetProject.timeLeft);
+                            callbacks.current.setTimeLeft(targetProject.timeLeft);
                         }
                     } else {
                         setIsModalCancelable(false);
-                        setIsContestPending(false);
+                        callbacks.current.setIsContestPending(false);
                         setShowCreateModal(true);
                     }
                 }
@@ -346,11 +355,12 @@ export function useProjectManager({
                         "Content-Type": "application/json",
                     },
                     credentials: 'include',
+                    // Exactly the code the caller passed (e.g. at time-up), not this render's copy
                     body: JSON.stringify({
                         name: projectName,
-                        html,
-                        css,
-                        js,
+                        html: currentData.html,
+                        css: currentData.css,
+                        js: currentData.js,
                         timeLeft: currentData.timeLeft
                     }),
                 }

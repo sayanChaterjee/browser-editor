@@ -62,8 +62,9 @@ forwards each call to the API gateway (`NEXT_PUBLIC_API_URL`):
   old an empty project list is re-checked for up to a minute before the user is asked to create
   a project. That covers a backend service waking up on Render's free tier.
 - **Contests** (`hooks/useContestSecurity.ts`): fullscreen is required. Leaving the tab or
-  window records a strike with contest-service (`/api/v1/contest/strikes/:projectId`), and the
-  4th strike signs the user out. Submitting, including the automatic submit when the window
+  window records a strike with contest-service (`/api/v1/contest/strikes/:projectId`), whose
+  count is authoritative: reloading the page doesn't reset it. The 4th strike signs the user out.
+  These deterrents (and the desktop-only screen) apply only to the editor and admin pages. Submitting, including the automatic submit when the window
   closes (`sendBeacon`), goes to `/api/v1/contest/submissions`.
 
 ## Running locally

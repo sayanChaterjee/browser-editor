@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Contest, fetchAllContests, createContest, updateContest, updateContestStatus, deleteContest } from '@/lib/adminApi';
 import PreviewPanel from '@/components/admin/PreviewPanel';
 import { ImageIcon, Pencil, Play, Square, Trash2, Trophy } from 'lucide-react';
@@ -41,11 +41,15 @@ export default function ContestManager() {
   }, []);
 
   // Auto-update contest status when endTime passes
+  const handleStatusChangeRef = useRef<typeof handleStatusChange | null>(null);
+  useEffect(() => {
+    handleStatusChangeRef.current = handleStatusChange;
+  });
   useEffect(() => {
     const interval = setInterval(() => {
       contests.forEach(c => {
         if (c.status === 'active' && new Date(c.endTime).getTime() <= Date.now()) {
-          handleStatusChange(c._id, 'ended');
+          handleStatusChangeRef.current?.(c._id, 'ended');
         }
       });
     }, 10000);
@@ -231,6 +235,7 @@ export default function ContestManager() {
               {(html || css || js) ? (
                 <PreviewPanel html={html} css={css} js={js} projectName="Live preview" />
               ) : imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- arbitrary admin-entered URL; next/image needs known hosts
                 <img src={imageUrl} alt="Target" className="h-full w-full object-contain" />
               ) : (
                 <div className="flex h-full w-full flex-col items-center justify-center text-center">
@@ -255,6 +260,7 @@ export default function ContestManager() {
                   <div className="flex min-w-0 items-center gap-4">
                     <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-background">
                       {c.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- arbitrary admin-entered URL; next/image needs known hosts
                         <img src={c.imageUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <Trophy className="size-4 text-subtle-foreground" />

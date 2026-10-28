@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { isFromOwnFrame } from "@/lib/utils";
 
 interface SecurityProps {
     contestStarted: boolean;
@@ -21,21 +22,40 @@ export function useContestSecurity({
     userId,
     projectId,
 }: SecurityProps) {
-    const [strikeCount, setStrikeCount] = useState(0);
+    const [strikeCount, setStrikeCountState] = useState(0);
+    // Mirrors strikeCount for event handlers, which would otherwise see a stale value
+    const strikesRef = useRef(0);
+    const endedRef = useRef(false);
     const violationLock = useRef(false);
     const isQuittingRef = useRef(false);
     const ignoreNextBlur = useRef(false);
     const securityLoopRef = useRef<NodeJS.Timeout | null>(null);
 
-    const persistWarning = async () => {
-        if (!userId || !projectId) return;
+    const setStrikeCount = (count: number) => {
+        strikesRef.current = count;
+        setStrikeCountState(count);
+    };
+
+    const endSession = () => {
+        if (endedRef.current) return;
+        endedRef.current = true;
+        onLogout();
+    };
+
+    /** Records the strike with contest-service; returns its total (the source of truth), or null. */
+    const persistWarning = async (): Promise<number | null> => {
+        if (!userId || !projectId) return null;
         try {
-            await fetch(`/api/v1/contest/strikes/${projectId}`, {
+            const res = await fetch(`/api/v1/contest/strikes/${projectId}`, {
                 method: 'POST',
                 credentials: 'include',
             });
+            if (!res.ok) return null;
+            const { warningCount } = await res.json();
+            return typeof warningCount === 'number' ? warningCount : null;
         } catch (err) {
             console.error('Failed to persist warning:', err);
+            return null;
         }
     };
 
@@ -43,14 +63,19 @@ export function useContestSecurity({
         if (violationLock.current) return;
 
         violationLock.current = true;
-        const newStrikes = strikeCount + 1;
+        const newStrikes = strikesRef.current + 1;
         setStrikeCount(newStrikes);
 
-        // Persist warning to backend (fire-and-forget)
-        persistWarning();
+        // The server's count wins: strikes recorded before a reload still count
+        persistWarning().then((serverCount) => {
+            if (serverCount !== null && serverCount > strikesRef.current) {
+                setStrikeCount(serverCount);
+                if (serverCount >= maxWarnings) endSession();
+            }
+        });
 
         if (newStrikes >= maxWarnings) {
-            onLogout();
+            endSession();
             return;
         }
 
@@ -76,8 +101,15 @@ export function useContestSecurity({
         ignoreNextBlur.current = val;
     };
 
+    const violateRef = useRef(violate);
+    useEffect(() => {
+        violateRef.current = violate;
+    });
+
     useEffect(() => {
         if (!contestStarted) return;
+        endedRef.current = false;
+        const violate = () => violateRef.current();
 
         // 1. Console Deterrent
         securityLoopRef.current = setInterval(() => {
@@ -158,7 +190,8 @@ export function useContestSecurity({
 
         const handleMessage = (e: MessageEvent) => {
             if (isQuittingRef.current) return;
-            if (e.data?.type === "PREVIEW_LINK_CLICK") {
+            // Only the preview may report a link click (it counts as a strike)
+            if (e.data?.type === "PREVIEW_LINK_CLICK" && isFromOwnFrame(e)) {
                 violate();
             }
         };
@@ -181,7 +214,7 @@ export function useContestSecurity({
             window.removeEventListener("pagehide", handlePageHide);
             window.removeEventListener("message", handleMessage);
         };
-    }, [contestStarted, showWarningModal, strikeCount]);
+    }, [contestStarted, showWarningModal]);
 
     return {
         strikeCount,

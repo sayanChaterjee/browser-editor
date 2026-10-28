@@ -38,6 +38,7 @@ export default function QuestionPanel({ imageUrl, html, css, js }: QuestionPanel
 
       <div className="p-4 overflow-auto flex-1 flex">
         {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- arbitrary admin-entered URL; next/image needs known hosts
           <img
             src={imageUrl}
             alt="Question"
@@ -48,7 +49,9 @@ export default function QuestionPanel({ imageUrl, html, css, js }: QuestionPanel
             key={refreshKey}
             srcDoc={srcDoc}
             title="target-preview"
-            sandbox="allow-scripts allow-same-origin allow-modals"
+            // No allow-same-origin: with allow-scripts it would let the target's code run as
+            // this app (e.g. call the API as the contestant)
+            sandbox="allow-scripts allow-modals"
             className="h-full w-full flex-1 rounded-lg border border-border bg-white"
           />
         ) : (

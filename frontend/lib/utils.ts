@@ -14,3 +14,8 @@ export function timeAgo(date: string | Date): string {
   if (seconds < 30 * 86_400) return `${Math.floor(seconds / 86_400)} d ago`;
   return new Date(date).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
+
+/** True when a postMessage came from one of this page's own iframes (the preview). */
+export function isFromOwnFrame(e: MessageEvent): boolean {
+  return Array.from(document.querySelectorAll("iframe")).some((frame) => frame.contentWindow === e.source);
+}
