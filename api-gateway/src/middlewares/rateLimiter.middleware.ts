@@ -57,5 +57,5 @@ export const userLimiter = rateLimit({
   limit: config.RATE_LIMIT_USER_PER_MINUTE,
   store: redisStore('rl:user:'),
   handler: rejectWith('user'),
-  keyGenerator: (req: Request) => (req as any).user?.id ?? req.clientIp ?? 'unknown',
+  keyGenerator: (req: Request) => req.user?.id ?? req.clientIp ?? 'unknown',
 });

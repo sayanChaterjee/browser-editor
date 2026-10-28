@@ -17,6 +17,10 @@ const schema = z.object({
   CODE_SERVICE_URL: serviceUrl('http://localhost:3003'),
   CONTEST_SERVICE_URL: serviceUrl('http://localhost:3004'),
   INTERNAL_GATEWAY_SECRET: envRequired('shared with the backend services'),
+  // Signs the user identity passed to the services (base64 PKCS#8 Ed25519; npm run keys:user-token)
+  USER_TOKEN_PRIVATE_KEY: envRequired('generate with: npm run keys:user-token'),
+  // The public key the services verify with; when set, startup fails unless it matches the private key
+  USER_TOKEN_PUBLIC_KEY: z.string().default(''),
   // Number of reverse proxies in front of the gateway whose X-Forwarded-For can be trusted
   // (0 = header ignored). Only affects req.ip; rate limiting uses clientIpMiddleware.
   TRUST_PROXY_HOPS: envNumber(0),

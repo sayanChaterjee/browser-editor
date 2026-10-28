@@ -1,4 +1,4 @@
-import { loadConfig, z, envRequired, envNumber, envList } from '@ceditor/common';
+import { loadConfig, z, envRequired, envNumber, envList, envUserTokenPublicKey } from '@ceditor/common';
 
 const schema = z.object({
   PORT: envNumber(3001),
@@ -10,6 +10,8 @@ const schema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
   KAFKA_BROKER: z.string().default('localhost:9092'),
   INTERNAL_GATEWAY_SECRET: envRequired('shared with the API gateway'),
+  // Verifies the user tokens the gateway signs
+  USER_TOKEN_PUBLIC_KEY: envUserTokenPublicKey(),
   ADMIN_EMAILS: envList('').transform((emails) => emails.map((e) => e.toLowerCase())),
   ALLOWED_ORIGINS: envList('http://localhost:3000'),
   // Public URL of the frontend (requests reach auth through its /api proxy)

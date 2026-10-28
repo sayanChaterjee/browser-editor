@@ -3,6 +3,11 @@ envVarGroups:
     envVars:
       - key: INTERNAL_GATEWAY_SECRET
         generateValue: true
+      # Public half of the gateway's user-token key: the services verify user identity with
+      # it, and the gateway refuses to start if its private key doesn't match. Not a secret.
+      # Rotate: npm run keys:user-token, put the private key on api-gateway, this value here.
+      - key: USER_TOKEN_PUBLIC_KEY
+        value: MCowBQYDK2VwAyEAbBtarlSUbyC8JVEN1dKo2nUeYZ5RT0N0cXMwkJkeACQ=
       - key: NODE_ENV
         value: production
       - key: KAFKAJS_NO_PARTITIONER_WARNING
@@ -54,6 +59,9 @@ services:
         sync: false
       - key: TRUST_CF_CONNECTING_IP
         value: "true"
+      # Signs the user identity sent to the services; set in the dashboard, never committed
+      - key: USER_TOKEN_PRIVATE_KEY
+        sync: false
 
   # 2. IDENTITY SERVICE (Public - Web Type for Free Tier): sign-in, sessions, profiles, moderation
   - type: web

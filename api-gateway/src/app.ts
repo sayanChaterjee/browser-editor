@@ -11,8 +11,9 @@ import { metrics } from "./config/metrics";
 import { ipLimiter, authLimiter, userLimiter } from "./middlewares/rateLimiter.middleware";
 import { clientIpMiddleware } from "./middlewares/clientIp.middleware";
 import { proxyServices } from "./config/services";
-import { correlationMiddleware, isRedisReady, registerDependencyGauge, setupGracefulShutdown } from "@ceditor/common";
-import { authMiddleware, sessionCacheInvalidation } from "./middlewares/auth.middleware";
+import { correlationMiddleware, isRedisReady, registerDependencyGauge, setupGracefulShutdown, USER_TOKEN_HEADER } from "@ceditor/common";
+import { authMiddleware, sessionCacheInvalidation, stripClientIdentity } from "./middlewares/auth.middleware";
+import { userTokenFor } from "./config/userToken";
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorHandler } from './middlewares/error.middleware';
 import { setupAxiosInterceptors } from './utils/axios-interceptors';
@@ -56,6 +57,9 @@ app.use(helmet({
 
 // 4. Correlation - creates AsyncLocalStorage context for the entire request lifecycle
 app.use(correlationMiddleware);
+
+// Identity comes only from the session: drop any x-user-* / x-user-token the client sent
+app.use(stripClientIdentity);
 
 // Health checks sit before the rate limiters so probes never consume limits or get a 429.
 // Liveness:
@@ -124,21 +128,16 @@ app.use('/api/auth', sessionCacheInvalidation);
  */
 app.get("/api/v1/dashboard", async (req: Request, res: Response) => {
   try {
-    const userId = req.headers['x-user-id'];
+    const user = req.user!;
 
-    logger.info(`Fetching dashboard data for user: ${userId}`);
+    logger.info(`Fetching dashboard data for user: ${user.id}`);
 
     const [profileRes, projectsRes] = await Promise.all([
       internalClient.get(`${config.IDENTITY_SERVICE_URL}/users/profile`, {
-        headers: {
-          'x-user-id': userId,
-          'x-user-email': req.headers['x-user-email'],
-        }
+        headers: { [USER_TOKEN_HEADER]: userTokenFor(user, 'identity-service') }
       }),
       internalClient.get(`${config.CODE_SERVICE_URL}/`, {
-        headers: {
-          'x-user-id': userId,
-        }
+        headers: { [USER_TOKEN_HEADER]: userTokenFor(user, 'code-service') }
       })
     ]);
 

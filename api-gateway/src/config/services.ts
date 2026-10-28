@@ -3,7 +3,9 @@ import { createProxyMiddleware, Options } from 'http-proxy-middleware';
 import CircuitBreaker from 'opossum';
 import { config } from './index';
 import logger from './logger';
+import { LEGACY_USER_HEADERS, USER_TOKEN_HEADER } from '@ceditor/common';
 import { ServiceConfig } from '../types/index';
+import { userTokenFor } from './userToken';
 
 class ServiceProxy {
   private static readonly serviceConfigs: ServiceConfig[] = [
@@ -23,6 +25,7 @@ class ServiceProxy {
       // app.use strips '/api/v1/user'; identity-service serves these under /users
       pathRewrite: { '^/': '/users/' },
       name: 'identity-service-users',
+      audience: 'identity-service',
       timeout: 60000,
     },
     {
@@ -58,7 +61,7 @@ class ServiceProxy {
       on: {
         error: ServiceProxy.handleProxyError,
         proxyReq: (proxyReq, req: any) => {
-          // 1. Header Hydration: Strip Authorization, inject user context and correlation ID
+          // 1. Header Hydration: Strip Authorization, attach the user token and correlation ID
           proxyReq.removeHeader('Authorization');
 
           // Debug logging for auth service
@@ -66,17 +69,11 @@ class ServiceProxy {
             logger.info(`Auth proxy: ${req.method} ${req.url} -> ${proxyReq.path}`);
           }
 
-          if (req.headers['x-user-id']) {
-            proxyReq.setHeader('x-user-id', req.headers['x-user-id']);
-          }
-          if (req.headers['x-user-name']) {
-            proxyReq.setHeader('x-user-name', req.headers['x-user-name']);
-          }
-          if (req.headers['x-user-email']) {
-            proxyReq.setHeader('x-user-email', req.headers['x-user-email']);
-          }
-          if (req.headers['x-user-role']) {
-            proxyReq.setHeader('x-user-role', req.headers['x-user-role']);
+          // The user goes only as a token signed for this service; any identity headers
+          // copied from the incoming request are dropped
+          for (const header of [...LEGACY_USER_HEADERS, USER_TOKEN_HEADER]) proxyReq.removeHeader(header);
+          if (req.user) {
+            proxyReq.setHeader(USER_TOKEN_HEADER, userTokenFor(req.user, service.audience ?? service.name));
           }
           if (req.headers['x-correlation-id']) {
             proxyReq.setHeader('x-correlation-id', req.headers['x-correlation-id']);

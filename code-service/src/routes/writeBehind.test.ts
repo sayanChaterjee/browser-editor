@@ -1,4 +1,4 @@
-import { skip } from '../test/env';
+import { skip, userTokenFor } from '../test/env';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AddressInfo } from 'net';
@@ -24,7 +24,7 @@ async function api(method: string, path: string, body?: unknown) {
   try {
     const res = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}${path}`, {
       method,
-      headers: { 'content-type': 'application/json', 'x-user-id': USER },
+      headers: { 'content-type': 'application/json', 'x-user-token': userTokenFor(USER) },
       body: body ? JSON.stringify(body) : undefined,
     });
     return { status: res.status, body: await res.json() };
