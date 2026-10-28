@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import PanelHeader, { PanelIconButton } from "./PanelHeader";
+import { buildPreviewDocument } from "@/lib/previewDocument";
 
 type Props = {
   html: string;
@@ -14,20 +15,7 @@ export default function Preview({ html, css, js }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Build srcDoc with properly isolated system scripts in <head>
   const buildSrcDoc = () => {
-    const systemStyles = `
-      body { 
-        margin: 0; 
-        padding: 16px; 
-        font-family: sans-serif; 
-        background-color: white;
-        color: black;
-      }
-      ${css}
-    `;
-
-    // System scripts moved to head and wrapped in DOMContentLoaded to prevent rendering issues
     const systemScriptHead = `
 <script>
 (function() {
@@ -92,61 +80,7 @@ export default function Preview({ html, css, js }: Props) {
 })();
 </script>`;
 
-    // User JS runs in a separate script block
-    const userJsBlock = js.trim()
-      ? `
-<script>
-try {
-  ${js}
-} catch(err) {
-  console.error("Execution Error:", err);
-}
-</script>`
-      : "";
-
-    const hasBody = html.toLowerCase().includes("<body");
-    const hasHead = html.toLowerCase().includes("<head");
-
-    let doc = "";
-    if (hasBody) {
-      doc = html;
-      
-      // Inject styles and system scripts into <head> if exists, otherwise before <body>
-      const headContent = `<style>${systemStyles}</style>${systemScriptHead}`;
-      
-      if (hasHead) {
-        doc = doc.replace(/<\/head>/i, `${headContent}</head>`);
-      } else if (doc.toLowerCase().includes("<html")) {
-        doc = doc.replace(/<html[^>]*>/i, `$&<head>${headContent}</head>`);
-      } else {
-        // Fallback: insert at the very beginning
-        doc = `<head>${headContent}</head>` + doc;
-      }
-
-      // Inject user JS at the end of body if exists, or just at the end
-      if (doc.toLowerCase().includes("</body>")) {
-         doc = doc.replace(/<\/body>/i, `${userJsBlock}</body>`);
-      } else {
-         doc += userJsBlock;
-      }
-    } else {
-      // Boilerplate mode for HTML fragments. User JS goes after the markup (as in the
-      // <body> case above), so scripts can find the elements they use.
-      doc = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>${systemStyles}</style>
-  ${systemScriptHead}
-</head>
-<body>
-  ${html}
-  ${userJsBlock}
-</body>
-</html>`;
-    }
-    return doc;
+    return buildPreviewDocument({ html, css, js, systemScript: systemScriptHead });
   };
 
   const srcDoc = buildSrcDoc();
