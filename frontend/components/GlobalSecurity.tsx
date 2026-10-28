@@ -7,8 +7,9 @@ export default function GlobalSecurity() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Disable security checks on admin routes to allow inspection
-    if (pathname?.startsWith("/admin")) {
+    // Only the editor needs these deterrents (contests run there); everywhere else the
+    // browser's context menu and shortcuts work normally
+    if (!pathname?.startsWith("/editor")) {
       return;
     }
 

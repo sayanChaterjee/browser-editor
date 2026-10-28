@@ -6,7 +6,9 @@ import logger from '../config/logger';
  * Prevents multiple users/sessions from overwriting the same project concurrently.
  */
 export const conflictLock = async (req: Request, res: Response, next: NextFunction) => {
-    const { projectId, name } = req.body;
+    // /sync/:projectId carries the id in the URL; /save names the project in the body
+    const projectId = req.params.projectId || req.body?.projectId;
+    const { name } = req.body ?? {};
     const userId = req.userId;
 
     // Create a unique key for the project lock

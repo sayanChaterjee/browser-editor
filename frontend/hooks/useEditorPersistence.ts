@@ -15,20 +15,18 @@ interface PersistenceProps {
     isLoading: boolean;
 }
 
-export function useEditorPersistence({
-    html,
-    css,
-    js,
-    timeLeft,
-    projectName,
-    projectId,
-    userId,
-    contestStarted,
-    isLoading,
-}: PersistenceProps) {
-    const syncRef = useRef<NodeJS.Timeout | null>(null);
+export function useEditorPersistence(props: PersistenceProps) {
+    const { contestStarted, isLoading, projectId } = props;
+
+    // The timers below run on a steady interval and read the latest values from here.
+    // (Restarting them on every edit meant that while someone kept typing they never fired.)
+    const latest = useRef(props);
+    useEffect(() => {
+        latest.current = props;
+    });
 
     const saveToIDB = async () => {
+        const { isLoading, projectId, userId, projectName, html, css, js } = latest.current;
         if (isLoading || !projectId || !userId) return;
         try {
             await saveLocalProject({
@@ -47,6 +45,7 @@ export function useEditorPersistence({
     };
 
     const syncToBackend = async () => {
+        const { isLoading, projectId, projectName, html, css, js, timeLeft } = latest.current;
         if (isLoading || !projectId || !projectName) return;
 
         try {
@@ -66,28 +65,26 @@ export function useEditorPersistence({
         }
     };
 
-    // 2s Auto-save to IndexedDB (only if NOT loading and project exists)
+    // Local copy in IndexedDB every 2s
+    const saveToIDBRef = useRef(saveToIDB);
+    const syncToBackendRef = useRef(syncToBackend);
+    useEffect(() => {
+        saveToIDBRef.current = saveToIDB;
+        syncToBackendRef.current = syncToBackend;
+    });
+
     useEffect(() => {
         if (isLoading || !projectId) return;
-
-        const interval = setInterval(() => {
-            saveToIDB();
-        }, 2000);
+        const interval = setInterval(() => saveToIDBRef.current(), 2000);
         return () => clearInterval(interval);
-    }, [html, css, js, timeLeft, isLoading, projectId]);
+    }, [isLoading, projectId]);
 
-    // 10s Periodic Sync to Backend
+    // During a contest, a full save to the backend every 10s
     useEffect(() => {
         if (!contestStarted || isLoading || !projectId) return;
-
-        syncRef.current = setInterval(() => {
-            syncToBackend();
-        }, 10000);
-
-        return () => {
-            if (syncRef.current) clearInterval(syncRef.current);
-        };
-    }, [contestStarted, html, css, js, timeLeft, projectName, isLoading, projectId]);
+        const interval = setInterval(() => syncToBackendRef.current(), 10000);
+        return () => clearInterval(interval);
+    }, [contestStarted, isLoading, projectId]);
 
     return { saveToIDB, syncToBackend };
 }

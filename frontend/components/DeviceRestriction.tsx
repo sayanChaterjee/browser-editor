@@ -1,10 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { ArrowRight, Laptop } from "lucide-react";
 
+// Pages that need a large screen; the rest (landing, sign-in, projects) work on any size
+const DESKTOP_ONLY = ["/editor", "/admin"];
+
 export default function DeviceRestriction({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
+  const desktopOnly = DESKTOP_ONLY.some((path) => pathname?.startsWith(path));
 
   useEffect(() => {
     const checkSize = () => {
@@ -16,7 +22,7 @@ export default function DeviceRestriction({ children }: { children: React.ReactN
     return () => window.removeEventListener("resize", checkSize);
   }, []);
 
-  if (isMobile) {
+  if (isMobile && desktopOnly) {
     return (
       <div className="fixed inset-0 z-[100000] flex flex-col items-center justify-center bg-background p-6 text-center">
         <div className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_65%)]" />

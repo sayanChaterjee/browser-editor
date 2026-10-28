@@ -6,7 +6,7 @@ import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "reac
 import FileExplorer from "./FileExplorer";
 import CodeEditor from "./CodeEditor";
 import Preview from "./Preview";
-import Terminal from "./Terminal";
+import Terminal, { type ConsoleLine } from "./Terminal";
 import QuestionPanel from "./QuestionPanel";
 import CreateProjectModal from "./CreateProjectModal";
 import { INITIAL_README } from "../../utils/constants";
@@ -19,6 +19,7 @@ import { clearLocalProjects } from "../../lib/indexedDB";
 import ToastNotification, { useToast } from "../ui/ToastNotification";
 import ConfirmModal from "../ui/ConfirmModal";
 import { Spinner } from "../ui/spinner";
+import { isFromOwnFrame } from "@/lib/utils";
 
 // Hooks
 import { useProjectManager } from "../../hooks/useProjectManager";
@@ -27,6 +28,7 @@ import { useContestSecurity } from "../../hooks/useContestSecurity";
 import { signOut } from "../../lib/auth-client";
 
 const MAX_WARNINGS = 4;
+const MAX_CONSOLE_LINES = 500;
 
 export default function EditorLayout() {
   const router = useRouter();
@@ -39,7 +41,8 @@ export default function EditorLayout() {
   const [startDuration, setStartDuration] = useState<number>(0);
   const startDurationRef = useRef(0);
   const timeLeftRef = useRef(0);
-  const [logs, setLogs] = useState<{ type: string; args: unknown[] }[]>([]);
+  const [logs, setLogs] = useState<ConsoleLine[]>([]);
+  const nextLogIdRef = useRef(1);
 
   const { toasts, showToast, dismissToast } = useToast();
 
@@ -49,8 +52,10 @@ export default function EditorLayout() {
     };
     
     const handleMessage = (e: MessageEvent) => {
-        if (e.data?.type === 'CONSOLE_LOG') {
-            setLogs(prev => [...prev, { type: e.data.logType, args: e.data.args }]);
+        if (e.data?.type === 'CONSOLE_LOG' && isFromOwnFrame(e)) {
+            // Capped so a script logging in a loop can't grow this without bound
+            const line = { id: nextLogIdRef.current++, type: e.data.logType, args: e.data.args };
+            setLogs(prev => [...prev, line].slice(-MAX_CONSOLE_LINES));
         }
     };
 
@@ -177,9 +182,8 @@ export default function EditorLayout() {
         }
       }
 
-      setHtml("");
-      setCss("");
-      setJs("");
+      // The editor isn't cleared here: an autosync firing before sign-out finishes would
+      // otherwise overwrite the saved project with empty code
       setContestStarted(false);
       stopTimer();
       setTimeLeft(0);
@@ -187,6 +191,11 @@ export default function EditorLayout() {
       logoutUser();
     }
   };
+
+  // Every edit re-runs the preview, so each run starts with a clean console
+  useEffect(() => {
+    setLogs([]);
+  }, [html, css, js]);
 
   useEditorPersistence({
     html,
@@ -217,12 +226,14 @@ export default function EditorLayout() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [contestStarted, projectId, html, css, js]);
+  }, [contestStarted, projectId, html, css, js, isQuittingRef]);
 
-  const handleContestStart = async () => {
+  // recordedStrikes: strikes already recorded for this project (resuming after a reload);
+  // a project created for the contest starts at 0
+  const handleContestStart = async (recordedStrikes = 0) => {
     try {
       await document.documentElement.requestFullscreen();
-      setStrikeCount(0);
+      setStrikeCount(recordedStrikes);
       setContestStarted(true);
 
       // Determine duration dynamically based on the active contest
@@ -245,7 +256,7 @@ export default function EditorLayout() {
     if (projectId && activeContest?.startTime) {
       const existingProject = projects.find(p => p._id === projectId);
       if (existingProject && new Date(existingProject.updatedAt) >= new Date(activeContest.startTime)) {
-        handleContestStart();
+        handleContestStart(existingProject.warningCount ?? 0);
         return;
       }
     }

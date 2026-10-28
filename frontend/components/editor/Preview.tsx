@@ -43,8 +43,12 @@ export default function Preview({ html, css, js }: Props) {
     window.parent.postMessage({
       type: 'CONSOLE_LOG',
       logType: type,
+      // Strings as-is (not JSON-quoted); values that can't be sent as-is become readable text
       args: Array.from(args).map(arg => {
+          if (typeof arg === 'string') return arg;
+          if (arg === undefined || typeof arg === 'function' || typeof arg === 'symbol') return String(arg);
           if (arg instanceof Error) return arg.toString();
+          if (arg instanceof Node) return arg.outerHTML || arg.nodeName;
           try { return JSON.stringify(arg); } catch { return String(arg); }
       })
     }, '*');
@@ -54,6 +58,14 @@ export default function Preview({ html, css, js }: Props) {
   console.warn = function(...args) { originalConsole.warn(...args); sendLog('warn', args); };
   console.error = function(...args) { originalConsole.error(...args); sendLog('error', args); };
   console.info = function(...args) { originalConsole.info(...args); sendLog('info', args); };
+
+  // Installed now, before the user's script runs, so syntax errors and errors thrown
+  // later (e.g. in event handlers) reach the console panel
+  // (No line number: it would point into this generated page, not the user's script)
+  window.onerror = function(msg) {
+    console.error(msg);
+    return false;
+  };
 
   function setup() {
     document.addEventListener('contextmenu', function(e) {
@@ -71,10 +83,6 @@ export default function Preview({ html, css, js }: Props) {
         window.parent.postMessage({ type: 'PREVIEW_LINK_CLICK' }, '*');
       }
     }, true);
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
-      console.error("Preview Error:", msg, error);
-      return false;
-    };
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setup);

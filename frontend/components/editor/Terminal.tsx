@@ -2,31 +2,57 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Terminal as XTerm } from "xterm";
-import type { FitAddon } from "xterm-addon-fit";
 import PanelHeader from "./PanelHeader";
 
+export interface ConsoleLine {
+  id: number; // increasing, so lines already printed are skipped even after old ones are trimmed
+  type: string;
+  args: unknown[];
+}
 
 interface TerminalProps {
-  logs: { type: string; args: unknown[] }[];
+  logs: ConsoleLine[];
 }
+
+const EMPTY_MESSAGE = "\x1b[90mConsole output from the preview appears here.\x1b[0m";
+
+const formatArg = (arg: unknown): string => {
+  if (typeof arg === "string") return arg;
+  if (arg instanceof Error) return arg.toString();
+  try {
+    return JSON.stringify(arg, null, 2);
+  } catch {
+    return String(arg);
+  }
+};
+
+const COLORS: Record<string, string> = {
+  error: "\x1b[31m",
+  warn: "\x1b[33m",
+  info: "\x1b[36m",
+};
 
 export default function Terminal({ logs }: TerminalProps) {
   const [isTerminalReady, setIsTerminalReady] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const lastLogIndexRef = useRef(0);
+  const lastPrintedIdRef = useRef(0);
 
   useEffect(() => {
-    if (!terminalRef.current) return;
+    const container = terminalRef.current;
+    if (!container) return;
 
-    let term: XTerm;
-    let fitAddon: FitAddon;
+    // The terminal loads asynchronously; if this effect is cleaned up first (unmount, or
+    // React's development double-run), don't open a second terminal in the same box
+    let cancelled = false;
+    let term: XTerm | null = null;
+    let observer: ResizeObserver | null = null;
 
-    const initTerminal = async () => {
+    (async () => {
       const { Terminal: XTermClass } = await import("xterm");
-      const { FitAddon: FitAddonClass } = await import("xterm-addon-fit");
+      const { FitAddon } = await import("xterm-addon-fit");
       await import("xterm/css/xterm.css");
+      if (cancelled) return;
 
       term = new XTermClass({
         theme: {
@@ -41,75 +67,46 @@ export default function Terminal({ logs }: TerminalProps) {
         disableStdin: true,
         cursorBlink: false,
       });
-      
-      fitAddon = new FitAddonClass();
+      const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
-
-      term.open(terminalRef.current!);
+      term.open(container);
       fitAddon.fit();
+      term.writeln(EMPTY_MESSAGE);
+
+      // Refit on any size change of the panel (window resize or dragging the divider)
+      observer = new ResizeObserver(() => fitAddon.fit());
+      observer.observe(container);
 
       xtermRef.current = term;
-      fitAddonRef.current = fitAddon;
-
-      term.writeln("\x1b[90mConsole output from the preview appears here.\x1b[0m");
       setIsTerminalReady(true);
-
-      const handleResize = () => {
-        fitAddon?.fit();
-      };
-      window.addEventListener("resize", handleResize);
-    };
-
-    initTerminal();
+    })();
 
     return () => {
-      window.removeEventListener("resize", () => fitAddon?.fit());
+      cancelled = true;
+      observer?.disconnect();
       term?.dispose();
+      xtermRef.current = null;
     };
   }, []);
 
-  // Update terminal when logs change
+  // Print new lines; an empty list means a new run, so the terminal is cleared
   useEffect(() => {
-    if (!isTerminalReady || !xtermRef.current) return;
     const term = xtermRef.current;
+    if (!isTerminalReady || !term) return;
 
     if (logs.length === 0) {
-      term.clear();
-      term.writeln("\x1b[90mConsole output from the preview appears here.\x1b[0m");
-      lastLogIndexRef.current = 0;
+      term.reset();
+      term.writeln(EMPTY_MESSAGE);
       return;
     }
 
-    for (let i = lastLogIndexRef.current; i < logs.length; i++) {
-      const log = logs[i];
-      const formatArg = (arg: unknown): string => {
-        if (typeof arg === "string") return arg;
-        if (arg instanceof Error) return arg.toString();
-        try {
-          return JSON.stringify(arg, null, 2);
-        } catch {
-          return String(arg);
-        }
-      };
-
+    for (const log of logs) {
+      if (log.id <= lastPrintedIdRef.current) continue;
       const message = log.args.map(formatArg).join(" ");
-      
-      let prefix = "";
-      if (log.type === "error") {
-        prefix = "\x1b[31m"; // Red
-      } else if (log.type === "warn") {
-        prefix = "\x1b[33m"; // Yellow
-      } else if (log.type === "info") {
-        prefix = "\x1b[36m"; // Cyan
-      }
-
-      const suffix = "\x1b[0m"; // Reset
-
-      // writeln handles new lines natively in xterm
-      term.writeln(`${prefix}${message}${suffix}`);
+      const color = COLORS[log.type];
+      term.writeln(color ? `${color}${message}\x1b[0m` : message);
+      lastPrintedIdRef.current = log.id;
     }
-
-    lastLogIndexRef.current = logs.length;
   }, [logs, isTerminalReady]);
 
   return (

@@ -137,3 +137,14 @@ test('after the outage, older Redis copies never replace what was saved to Mongo
   assert.equal(await flushDirtyProjects(), 1);
   assert.equal((await Project.findById(projectId))!.html, 'v7');
 });
+
+test('a save in progress locks only its own project', { skip }, async () => {
+  const other = (await api('POST', '/save', { name: 'wb-other', html: 'x' })).body._id;
+  await redis.set(`lock:project:${projectId}`, 'locked', 'EX', 15);
+  try {
+    assert.equal((await api('PATCH', `/sync/${projectId}`, { html: 'blocked' })).status, 409);
+    assert.equal((await api('PATCH', `/sync/${other}`, { html: 'y' })).status, 200, 'other projects still save');
+  } finally {
+    await redis.del(`lock:project:${projectId}`);
+  }
+});
