@@ -6,6 +6,19 @@ admin console. Deployed on Vercel. The backend (gateway and services) is describ
 
 **Stack:** Next.js 16 (App Router), React 19, Monaco editor, Tailwind CSS 4, Better Auth client.
 
+## Design system
+
+Dark only, monochrome with hairline borders, set in Geist Sans and Geist Mono.
+
+- **Tokens** are defined once in `app/globals.css` (`--background`, `--card`, `--border`,
+  `--muted-foreground`, ...). Components use the semantic Tailwind classes generated from them
+  (`bg-card`, `border-border`, `text-muted-foreground`) rather than raw colours.
+- **Colour carries meaning only:** blue for focus and links, red for errors and destructive
+  actions, amber for warnings, green for success.
+- **Primitives** live in `components/ui`: `Button` (primary, secondary, ghost, danger), `Input`/`Label`,
+  `Badge`, `Spinner`, `Modal`, `ConfirmModal`, toasts and the `Logo`. Icons are `lucide-react`.
+- **Code** uses a matching Monaco theme (`ceditor`, defined in `components/editor/CodeEditor.tsx`).
+
 ## How it talks to the backend
 
 The browser only ever calls its own origin (`/api/...`). `app/api/[...proxy]/route.ts`

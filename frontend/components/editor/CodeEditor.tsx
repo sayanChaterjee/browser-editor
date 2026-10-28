@@ -1,7 +1,33 @@
 "use client";
 
 import { useState, useRef } from "react";
-import Editor, { type OnMount } from "@monaco-editor/react";
+import Editor, { type BeforeMount, type OnMount } from "@monaco-editor/react";
+
+// Monaco theme matching the app: near-black, dim gutter, blue selection
+const defineTheme: BeforeMount = (monaco) => {
+  monaco.editor.defineTheme("ceditor", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [{ token: "comment", foreground: "6b6b6b", fontStyle: "italic" }],
+    colors: {
+      "editor.background": "#0a0a0a",
+      "editor.lineHighlightBackground": "#ffffff08",
+      "editor.lineHighlightBorder": "#00000000",
+      "editorLineNumber.foreground": "#3d3d3d",
+      "editorLineNumber.activeForeground": "#a1a1a1",
+      "editorIndentGuide.background1": "#1c1c1c",
+      "editorIndentGuide.activeBackground1": "#333333",
+      "editor.selectionBackground": "#0070f344",
+      "editor.inactiveSelectionBackground": "#0070f322",
+      "editorCursor.foreground": "#ededed",
+      "editorWidget.background": "#0a0a0a",
+      "editorWidget.border": "#262626",
+      "editorGutter.background": "#0a0a0a",
+      "scrollbarSlider.background": "#2e2e2e80",
+      "scrollbarSlider.hoverBackground": "#3d3d3d",
+    },
+  });
+};
 import { X, Copy, ClipboardPaste } from "lucide-react";
 
 type Props = {
@@ -54,32 +80,33 @@ export default function CodeEditor({ language, value, onChange }: Props) {
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden bg-editor">
       {/* Floating Toolbar */}
       {floatingAction && (
         <div 
-          className="absolute z-[100] flex items-center gap-1 bg-[#1e293b] border border-slate-700 p-1.5 rounded-lg shadow-2xl animate-in fade-in zoom-in duration-150"
+          className="animate-fadeIn absolute z-[100] flex items-center gap-1 rounded-lg border border-border-strong bg-popover p-1 shadow-2xl shadow-black"
           style={{ top: Math.max(10, floatingAction.top - 50), left: Math.max(10, floatingAction.left - 20) }}
         >
           {floatingAction.type === 'copy' ? (
              <button
                onClick={handleCopy}
-               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#38bdf8] hover:bg-[#0ea5e9] text-white text-xs font-bold rounded-md transition-all"
+               className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/85"
              >
-               <Copy size={14} /> Copy
+               <Copy size={13} /> Copy
              </button>
           ) : (
              <button
                onClick={handlePaste}
-               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold rounded-md transition-all"
+               className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/85"
              >
-               <ClipboardPaste size={14} /> Paste
+               <ClipboardPaste size={13} /> Paste
              </button>
           )}
-          <div className="w-[1px] h-5 bg-slate-700 mx-0.5"></div>
+          <div className="mx-0.5 h-4 w-px bg-border"></div>
           <button 
              onClick={closeFloating}
-             className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-md transition-colors"
+             aria-label="Close"
+             className="rounded-md p-1 text-subtle-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X size={14} />
           </button>
@@ -88,13 +115,20 @@ export default function CodeEditor({ language, value, onChange }: Props) {
 
       <Editor
         height="100%"
-        theme="vs-dark"
+        theme="ceditor"
+        beforeMount={defineTheme}
         language={language}
         value={value}
         onChange={(val) => onChange(val || "")}
         options={{
           minimap: { enabled: false },
-          fontSize: 14,
+          fontSize: 13.5,
+          lineHeight: 22,
+          fontFamily: "var(--font-geist-mono), Menlo, monospace",
+          fontLigatures: true,
+          padding: { top: 12 },
+          renderLineHighlight: "line",
+          guides: { indentation: true },
           wordWrap: "on",
           automaticLayout: true,
           readOnly: false,

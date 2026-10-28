@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { AuthCard, FieldError, FormMessage, GoogleButton, OrDivider } from "@/components/auth/AuthCard";
+import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
 
 export default function RegisterPage() {
   const [username, setUsername] = useState("");
@@ -78,7 +82,7 @@ const validatePassword = (value: string) => {
         return;
       }
 
-      setFormMessage({ text: "Registration successful 🎉 Redirecting...", type: "success" });
+      setFormMessage({ text: "Account created. Redirecting...", type: "success" });
       setTimeout(() => {
         window.location.href = "/editor";
       }, 1000);
@@ -93,116 +97,91 @@ const validatePassword = (value: string) => {
     !validatePassword(password) &&
     !validateConfirm(confirm);
 
+  const signInWithGoogle = async () => {
+    try {
+      const { signIn } = await import("../../../lib/auth-client");
+      await signIn.social({
+        provider: "google",
+        callbackURL: window.location.origin + "/editor",
+      });
+    } catch (error) {
+      console.error("Google login failed:", error);
+    }
+  };
+
   return (
-    <div className="h-[calc(100vh-50px)] flex items-center justify-center">
-      <div className="w-[360px] bg-[#1b1b1b] rounded-[10px] p-[30px] border border-[#333] shadow-[0_0_30px_rgba(0,0,0,0.8)] text-center">
-        <div className="w-[70px] h-[70px] bg-[#333] rounded-full -mt-[60px] mx-auto mb-[10px] flex items-center justify-center text-[30px]">
-          <span>🧑‍💻</span>
+    <AuthCard
+      title="Create your account"
+      subtitle="Start coding in seconds. No setup needed."
+      footer={
+        <>
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-foreground hover:underline">
+            Log in
+          </Link>
+        </>
+      }
+    >
+      <FormMessage message={formMessage} />
+      <form onSubmit={handleRegister} className="space-y-4">
+        <div>
+          <Label htmlFor="username">Username</Label>
+          <Input
+            id="username"
+            autoComplete="username"
+            className="mt-1.5"
+            value={username}
+            onChange={(e) => {
+              setUsername(e.target.value);
+              setErrors({ ...errors, username: validateUsername(e.target.value) });
+              setFormMessage(null);
+            }}
+          />
+          <FieldError>{errors.username}</FieldError>
         </div>
-
-        <h2 className="mb-5 tracking-[2px] font-bold text-white text-lg">CREATE ACCOUNT</h2>
-
-        {formMessage && (
-          <div className={`mb-4 px-3 py-2.5 rounded-lg text-sm font-medium text-left ${
-            formMessage.type === "error" 
-              ? "bg-[#ef4444]/10 border border-[#ef4444]/30 text-[#fca5a5]" 
-              : "bg-[#10b981]/10 border border-[#10b981]/30 text-[#6ee7b7]"
-          }`}>
-            {formMessage.text}
-          </div>
-        )}
-
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">
-              <span className="mr-2">👤</span>
-              <input
-                type="text"
-                placeholder="Username"
-                className="bg-transparent border-none outline-none text-white w-full text-[14px]"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  setErrors({ ...errors, username: validateUsername(e.target.value) });
-                  setFormMessage(null);
-                }}
-              />
-            </div>
-            {errors.username && <p className="text-red-500 text-[12px] mt-1 text-left">{errors.username}</p>}
-          </div>
-
-
-
-          <div>
-            <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">
-              <span className="mr-2">🔒</span>
-              <input
-                type="password"
-                placeholder="Password"
-                className="bg-transparent border-none outline-none text-white w-full text-[14px]"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setErrors({ ...errors, password: validatePassword(e.target.value) });
-                  setFormMessage(null);
-                }}
-              />
-            </div>
-            {errors.password && <p className="text-red-500 text-[12px] mt-1 text-left inline-block w-full">{errors.password}</p>}
-          </div>
-
-          <div>
-            <div className="flex items-center bg-[#2a2a2a] rounded-[5px] p-2.5">
-              <span className="mr-2">🔒</span>
-              <input
-                type="password"
-                placeholder="Confirm Password"
-                className="bg-transparent border-none outline-none text-white w-full text-[14px]"
-                value={confirm}
-                onChange={(e) => {
-                  setConfirm(e.target.value);
-                  setErrors({ ...errors, confirm: validateConfirm(e.target.value) });
-                  setFormMessage(null);
-                }}
-              />
-            </div>
-            {errors.confirm && <p className="text-red-500 text-[12px] mt-1 text-left">{errors.confirm}</p>}
-          </div>
-
-          <button className="w-full p-2.5 bg-[#00ffcc] text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer transition-colors hover:bg-[#00e6b8] disabled:opacity-50 disabled:cursor-not-allowed" type="submit" disabled={!isFormValid}>
-            Register
-          </button>
-        </form>
-
-        <div className="flex items-center my-5">
-           <div className="flex-1 border-t border-[#333]"></div>
-           <span className="px-3 text-[#aaa] text-[12px]">OR</span>
-           <div className="flex-1 border-t border-[#333]"></div>
+        <div>
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            className="mt-1.5"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setErrors({ ...errors, password: validatePassword(e.target.value) });
+              setFormMessage(null);
+            }}
+          />
+          <FieldError>{errors.password}</FieldError>
+          {!errors.password && (
+            <p className="mt-1.5 text-[12px] text-subtle-foreground">
+              6+ characters with upper and lower case, a number and a symbol.
+            </p>
+          )}
         </div>
-
-        <button
-          className="w-full p-[10px] bg-white text-black border-none rounded-[5px] text-[14px] font-bold cursor-pointer flex items-center justify-center gap-2 hover:bg-[#f0f0f0] transition-colors mb-4"
-          onClick={async () => {
-            try {
-              const { signIn } = await import("../../../lib/auth-client");
-              await signIn.social({
-                provider: "google",
-                callbackURL: "https://browser-editor-cyan.vercel.app/editor",
-              });
-            } catch (error) {
-              console.error("Google login failed:", error);
-            }
-          }}
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-[18px] h-[18px]" />
-          Continue with Google
-        </button>
-
-        <p className="mt-5 text-[12px] text-[#aaa]">
-          Already have an account?
-          <a href="/login" className="text-white font-bold no-underline ml-1 hover:underline"> LOGIN</a>
-        </p>
-      </div>
-    </div>
+        <div>
+          <Label htmlFor="confirm">Confirm password</Label>
+          <Input
+            id="confirm"
+            type="password"
+            autoComplete="new-password"
+            className="mt-1.5"
+            value={confirm}
+            onChange={(e) => {
+              setConfirm(e.target.value);
+              setErrors({ ...errors, confirm: validateConfirm(e.target.value) });
+              setFormMessage(null);
+            }}
+          />
+          <FieldError>{errors.confirm}</FieldError>
+        </div>
+        <Button type="submit" variant="primary" className="h-10 w-full" disabled={!isFormValid}>
+          Create account
+        </Button>
+      </form>
+      <OrDivider />
+      <GoogleButton onClick={signInWithGoogle} />
+    </AuthCard>
   );
 }

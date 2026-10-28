@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { Maximize2, Minimize2, RefreshCw } from "lucide-react";
+import PanelHeader, { PanelIconButton } from "./PanelHeader";
 
 type Props = {
   html: string;
@@ -151,26 +152,19 @@ try {
   }, []);
 
   return (
-    <div className={`w-full min-w-[320px] flex flex-col bg-[#1e1e1e] border-l border-[#333] overflow-hidden flex-1 h-full ${isFullscreen ? "fixed top-[56px] left-0 right-0 bottom-0 w-screen h-[calc(100vh-56px)] z-[99999] border-l-0" : ""}`}>
-      <div className="h-9 px-3 flex items-center justify-between bg-[#020617] text-[#e5e7eb] text-[12px] font-medium border-b border-[#1e293b]">
-        <span>Preview</span>
-
-        <div className="flex items-center gap-3">
-          <button
-            className="text-[#e5e7eb] hover:text-white transition-colors"
-            title="Refresh Preview"
-            onClick={() => setRefreshKey((k) => k + 1)}
-          >
-            <RefreshCw size={14} />
-          </button>
-          <button
-            className="text-[#e5e7eb] hover:text-white transition-colors"
-            onClick={() => setIsFullscreen((v) => !v)}
-          >
-            {isFullscreen ? "Exit" : "⛶"}
-          </button>
-        </div>
-      </div>
+    <div className={`flex h-full w-full min-w-[320px] flex-1 flex-col overflow-hidden border-l border-border bg-background ${isFullscreen ? "fixed bottom-0 left-0 right-0 top-14 z-[99999] h-[calc(100vh-56px)] w-screen border-l-0" : ""}`}>
+      <PanelHeader title="Preview">
+        <PanelIconButton title="Refresh preview" aria-label="Refresh preview" onClick={() => setRefreshKey((k) => k + 1)}>
+          <RefreshCw />
+        </PanelIconButton>
+        <PanelIconButton
+          title={isFullscreen ? "Exit full screen (Esc)" : "Full screen"}
+          aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+          onClick={() => setIsFullscreen((v) => !v)}
+        >
+          {isFullscreen ? <Minimize2 /> : <Maximize2 />}
+        </PanelIconButton>
+      </PanelHeader>
 
       <iframe
         key={refreshKey}

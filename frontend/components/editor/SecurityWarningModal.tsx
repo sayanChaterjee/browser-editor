@@ -1,6 +1,10 @@
 "use client";
 
 import React from "react";
+import { ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Modal, ModalFooter } from "@/components/ui/modal";
+import { cn } from "@/lib/utils";
 
 interface SecurityWarningModalProps {
   isVisible: boolean;
@@ -18,28 +22,36 @@ export default function SecurityWarningModal({
   onSubmit,
 }: SecurityWarningModalProps) {
   if (!isVisible) return null;
+  const lastChance = strikeCount >= MAX_WARNINGS - 1;
 
   return (
-    <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[9999]">
-      <div className="bg-[#181818] p-10 rounded-lg border border-[#333] text-center max-w-[400px]">
-        <div className="text-[3rem] mb-4">⚠️</div>
-        <h2 className="text-white font-bold text-xl mb-2">Security Violation</h2>
-        <p className={`font-bold mb-2 ${strikeCount >= 2 ? "text-[#ff5555]" : "text-[#ffcc00]"}`}>
-          Warning {strikeCount} of {MAX_WARNINGS}
+    <Modal z="z-[9999]" className="max-w-sm">
+      <div className="p-6">
+        <div className="flex size-10 items-center justify-center rounded-full border border-warning/30 bg-warning/10">
+          <ShieldAlert className="size-5 text-warning" />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold tracking-tight text-foreground">You left the contest</h2>
+        <p className={cn("mt-1 text-sm font-medium", lastChance ? "text-destructive" : "text-warning")}>
+          Strike {strikeCount} of {MAX_WARNINGS}
         </p>
-        <p className="text-[#888] text-[0.9rem] my-[10px_20px] mb-5">
-          Switching tabs, exiting fullscreen, or opening devtools is strictly prohibited.
-          One more violation may end your session.
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          Switching tabs, leaving full screen or opening developer tools counts as a strike.
+          {lastChance ? " One more ends your session." : " Reaching the limit ends your session."}
         </p>
-        <div className="flex gap-[15px] justify-center">
-          <button className="px-5 py-2.5 bg-[#007acc] text-white border-none rounded cursor-pointer transition-colors hover:bg-[#005fa3]" onClick={onResume}>
-            Return to Contest
-          </button>
-          <button className="px-5 py-2.5 bg-transparent text-[#ff5555] border border-[#ff5555] rounded cursor-pointer transition-colors hover:bg-[#ff5555]/10" onClick={onSubmit}>
-            Submit & Exit
-          </button>
+        <div className="mt-4 flex gap-1">
+          {Array.from({ length: MAX_WARNINGS }, (_, i) => (
+            <span key={i} className={cn("h-1 flex-1 rounded-full", i < strikeCount ? (lastChance ? "bg-destructive" : "bg-warning") : "bg-border-strong")} />
+          ))}
         </div>
       </div>
-    </div>
+      <ModalFooter>
+        <Button variant="danger-outline" onClick={onSubmit}>
+          Submit &amp; exit
+        </Button>
+        <Button variant="primary" onClick={onResume}>
+          Return to contest
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }
