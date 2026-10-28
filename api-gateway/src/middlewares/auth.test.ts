@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'crypto';
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { authMiddleware, sessionCacheInvalidation } from './auth.middleware';
+import { authMiddleware, sessionCacheInvalidation, stripClientIdentity } from './auth.middleware';
 import redis from '../config/redis';
 import { listen } from '../test/http';
 
@@ -35,9 +35,10 @@ identity.get('/api/auth/get-session', (req, res) => {
 // Gateway slice: cookie parsing, invalidation on /api/auth, auth on /api/v1
 const gateway = express();
 gateway.use(cookieParser());
+gateway.use(stripClientIdentity);
 gateway.use('/api/auth', sessionCacheInvalidation, (req, res) => res.json({ ok: true }));
 gateway.use('/api/v1', authMiddleware, (req, res) => {
-  res.json({ userId: req.headers['x-user-id'], email: req.headers['x-user-email'] });
+  res.json({ userId: req.user?.id, email: req.user?.email, clientHeaders: [req.headers['x-user-id'], req.headers['x-user-token']] });
 });
 
 let identityServer: Awaited<ReturnType<typeof listen>>;
@@ -83,10 +84,13 @@ test('a valid session is checked once, then served from the cache', { skip }, as
   assert.equal(identityCalls - before, 1, 'second request came from the cache');
 });
 
-test('client-sent user headers are overwritten', { skip }, async () => {
-  const res = await call('/api/v1/x', token('valid-b'), { headers: { 'x-user-id': 'admin', 'x-user-email': 'admin@example.com' } });
+test('client-sent identity headers are dropped; the user comes from the session', { skip }, async () => {
+  const res = await call('/api/v1/x', token('valid-b'), {
+    headers: { 'x-user-id': 'admin', 'x-user-email': 'admin@example.com', 'x-user-token': 'forged' },
+  });
   assert.match(res.body.userId, /^u-b-/);
   assert.equal(res.body.email, 'test@example.com');
+  assert.deepEqual(res.body.clientHeaders, [null, null]);
 });
 
 test('invalid sessions are rejected and never cached', { skip }, async () => {
@@ -118,8 +122,13 @@ test('sign-out drops the cached session immediately', { skip }, async () => {
 });
 
 test('Redis down: sessions are checked at identity-service instead', { skip }, async () => {
+  // disconnect() returns before the connection is closed; wait, so the request really runs
+  // without Redis (and connect() below doesn't find it still connected)
+  const ended = new Promise((resolve) => redis.once('end', resolve));
   redis.disconnect();
+  await ended;
   try {
+    assert.equal(redis.status, 'end');
     const before = identityCalls;
     assert.equal((await call('/api/v1/x', token('valid-d'))).status, 200);
     assert.equal(identityCalls - before, 1);

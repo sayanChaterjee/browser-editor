@@ -6,6 +6,8 @@ import {
     forgetUserSessions,
     getCachedSession,
     isRedisReady,
+    LEGACY_USER_HEADERS,
+    USER_TOKEN_HEADER,
 } from '@ceditor/common';
 import { config } from '../config';
 import logger from '../config/logger';
@@ -74,8 +76,17 @@ async function fromIdentity(req: Request, res?: Response): Promise<ValidatedSess
 }
 
 /**
- * Authenticates /api/v1 requests and passes the user to downstream services in x-user-*
- * headers. Sessions validated by identity-service are cached in Redis for
+ * Mounted first: identity headers from the client are dropped, so nothing in the gateway or
+ * behind it can mistake them for the gateway's own.
+ */
+export function stripClientIdentity(req: Request, res: Response, next: NextFunction) {
+    for (const header of [...LEGACY_USER_HEADERS, USER_TOKEN_HEADER]) delete req.headers[header];
+    next();
+}
+
+/**
+ * Authenticates /api/v1 requests and sets req.user; the proxy passes it to the services as a
+ * signed token (see config/userToken). Sessions validated by identity-service are cached in Redis for
  * SESSION_CACHE_TTL_SECONDS, so most requests cost one Redis read instead of an HTTP call.
  */
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
@@ -123,11 +134,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     endSessionCheck({ source, result: 'valid' });
 
-    // Inject user context headers for downstream services (overwrites anything the client sent)
-    req.headers['x-user-id'] = session.userId;
-    req.headers['x-user-name'] = session.name;
-    req.headers['x-user-email'] = session.email;
-    (req as any).user = { id: session.userId, name: session.name, email: session.email };
+    req.user = { id: session.userId, name: session.name, email: session.email };
 
     logger.debug(`Authenticated request from user ${session.userId} (${source})`);
     next();

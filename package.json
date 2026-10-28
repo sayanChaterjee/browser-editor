@@ -22,6 +22,7 @@
     "build": "npm run build -w @ceditor/common -w @ceditor/contracts && npm run build --workspaces --if-present",
     "lint": "eslint packages api-gateway identity-service code-service contest-service",
     "test": "npm test --workspaces --if-present",
-    "typecheck": "npm run build -w @ceditor/common -w @ceditor/contracts && tsc --noEmit -p api-gateway && tsc --noEmit -p identity-service && tsc --noEmit -p code-service && tsc --noEmit -p contest-service"
+    "typecheck": "npm run build -w @ceditor/common -w @ceditor/contracts && tsc --noEmit -p api-gateway && tsc --noEmit -p identity-service && tsc --noEmit -p code-service && tsc --noEmit -p contest-service",
+    "keys:user-token": "node scripts/generate-user-token-keys.mjs"
   }
 }

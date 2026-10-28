@@ -49,8 +49,9 @@ Prometheus metrics, graceful shutdown, session cache, event publishing/consuming
    gateway with a shared secret that vouches for the client IP (used for per-IP rate limits).
 2. The gateway validates the session cookie: from its Redis session cache (~5 ms p95), or on a
    miss by asking identity-service, which checks MongoDB. It then applies the per-user rate
-   limit and forwards the request with `x-user-*` headers and an internal secret that only the
-   gateway has.
+   limit and forwards the request with a 60-second token naming the user, signed (Ed25519) for
+   that one service, plus an internal secret that only the gateway has. Services verify the
+   token with the gateway's public key and ignore any plain `x-user-*` headers.
 3. code-service writes the edit to a Redis buffer and returns. A flusher writes buffered
    projects to MongoDB every minute; reads overlay the buffer, so users always see their
    latest edit.
@@ -81,6 +82,7 @@ One-page records in [docs/adr](docs/adr), each with the alternatives and trade-o
 5. [Contests split into their own service](docs/adr/0005-contest-service-split.md)
 6. [Write-behind saves](docs/adr/0006-write-behind-saves.md)
 7. [A database per service](docs/adr/0007-database-per-service.md)
+8. [Signed user tokens from the gateway to the services](docs/adr/0008-signed-user-tokens.md)
 
 ## Results
 
@@ -120,6 +122,7 @@ cp .env.example .env    # shared secrets for docker compose
 for s in api-gateway identity-service code-service contest-service; do cp $s/.env.example $s/.env; done
 cp frontend/.env.example frontend/.env.local
 # set BETTER_AUTH_SECRET and INTERNAL_GATEWAY_SECRET (openssl rand -base64 32) in .env
+# (.env.example has a local user-token key pair; npm run keys:user-token makes a new one)
 
 docker compose up -d --build --wait
 scripts/smoke.sh        # end-to-end check through the gateway
@@ -179,6 +182,8 @@ Load and failure tests: [loadtest/README.md](loadtest/README.md), `loadtest/chao
 Secrets are set in the Render and Vercel dashboards, never in the repo.
 `INTERNAL_GATEWAY_SECRET` comes only from the shared Render environment group: a service-level
 copy overrides it and the gateway's requests get 403s.
+`USER_TOKEN_PRIVATE_KEY` is set on the gateway only; its public half (`USER_TOKEN_PUBLIC_KEY`)
+is in the shared group in `render.yaml`, and the gateway won't start if the two don't match.
 
 ## Known limitations
 

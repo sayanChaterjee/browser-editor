@@ -144,6 +144,8 @@ services:
     environment:
       - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
+      - USER_TOKEN_PRIVATE_KEY=${USER_TOKEN_PRIVATE_KEY}
+      - USER_TOKEN_PUBLIC_KEY=${USER_TOKEN_PUBLIC_KEY}
       - REDIS_URL=redis://redis:6379
       - IDENTITY_SERVICE_URL=http://identity-service:3001
       - CODE_SERVICE_URL=http://code-service:3003
@@ -173,6 +175,7 @@ services:
     environment:
       - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
+      - USER_TOKEN_PUBLIC_KEY=${USER_TOKEN_PUBLIC_KEY}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
@@ -203,6 +206,7 @@ services:
     environment:
       - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
+      - USER_TOKEN_PUBLIC_KEY=${USER_TOKEN_PUBLIC_KEY}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
       - DATABASE_URL=mongodb://mongo:27017/ceditor_code
       - REDIS_URL=redis://redis:6379
@@ -231,6 +235,7 @@ services:
     environment:
       - METRICS_TOKEN=local-dev-metrics-token
       - INTERNAL_GATEWAY_SECRET=${INTERNAL_GATEWAY_SECRET}
+      - USER_TOKEN_PUBLIC_KEY=${USER_TOKEN_PUBLIC_KEY}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
       - DATABASE_URL=mongodb://mongo:27017/ceditor_contest
       - KAFKA_BROKER=kafka:9092

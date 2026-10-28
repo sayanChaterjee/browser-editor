@@ -1,4 +1,4 @@
-import { loadConfig, z, envRequired, envNumber, envList } from '@ceditor/common';
+import { loadConfig, z, envRequired, envNumber, envList, envUserTokenPublicKey } from '@ceditor/common';
 
 const schema = z.object({
   PORT: envNumber(3004),
@@ -8,6 +8,8 @@ const schema = z.object({
   DATABASE_URL: envRequired('MongoDB connection string'),
   KAFKA_BROKER: z.string().default('localhost:9092'),
   INTERNAL_GATEWAY_SECRET: envRequired('shared with the API gateway'),
+  // Verifies the user tokens the gateway signs
+  USER_TOKEN_PUBLIC_KEY: envUserTokenPublicKey(),
   ADMIN_EMAILS: envList('').transform((emails) => emails.map((e) => e.toLowerCase())),
 });
 
