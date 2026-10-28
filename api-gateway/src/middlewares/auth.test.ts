@@ -122,8 +122,13 @@ test('sign-out drops the cached session immediately', { skip }, async () => {
 });
 
 test('Redis down: sessions are checked at identity-service instead', { skip }, async () => {
+  // disconnect() returns before the connection is closed; wait, so the request really runs
+  // without Redis (and connect() below doesn't find it still connected)
+  const ended = new Promise((resolve) => redis.once('end', resolve));
   redis.disconnect();
+  await ended;
   try {
+    assert.equal(redis.status, 'end');
     const before = identityCalls;
     assert.equal((await call('/api/v1/x', token('valid-d'))).status, 200);
     assert.equal(identityCalls - before, 1);
