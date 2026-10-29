@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Eye, HardDriveDownload, Timer } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import WakeBackend from "@/components/WakeBackend";
 
 const FEATURES = [
   {
@@ -76,6 +77,7 @@ function EditorPreview() {
 export default function Home() {
   return (
     <main className="relative overflow-hidden">
+      <WakeBackend />
       <div className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_70%)]" />
 
       <section className="relative mx-auto flex max-w-5xl flex-col items-center px-6 pt-24 pb-16 text-center md:pt-32">

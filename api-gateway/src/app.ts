@@ -18,6 +18,7 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorHandler } from './middlewares/error.middleware';
 import { setupAxiosInterceptors } from './utils/axios-interceptors';
 import internalClient from './utils/internalClient';
+import { wakeServices } from './utils/wake';
 
 // initialize axios interceptors for auto correlation ID injection
 setupAxiosInterceptors();
@@ -89,6 +90,12 @@ app.use(authLimiter);
 app.use((req: Request, res: Response, next: NextFunction) => {
   logger.info(`${req.method} ${req.url}`);
   next();
+});
+
+// Starts sleeping services early (free-tier cold starts); answers at once. Public, after the
+// per-IP limiter; see utils/wake.
+app.get('/api/wake', (req: Request, res: Response) => {
+  res.status(202).json({ waking: wakeServices() });
 });
 
 // Handle OAuth error redirects at root
