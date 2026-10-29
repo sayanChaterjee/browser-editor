@@ -12,9 +12,10 @@ import {
 } from '@/lib/adminApi';
 import UserList from '@/components/admin/UserList';
 import PreviewPanel from '@/components/admin/PreviewPanel';
+import SubmissionSignals from '@/components/admin/SubmissionSignals';
 import ContestManager from '@/components/admin/ContestManager';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Ban, Clock, Lock, MousePointerClick, ShieldCheck, Users, X, XCircle } from 'lucide-react';
+import { ArrowLeft, Ban, Clock, Lock, MousePointerClick, ShieldCheck, TriangleAlert, Users, X, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
@@ -287,11 +288,18 @@ export default function AdminDashboard() {
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate font-mono text-[12px] text-foreground">#{s._id.slice(-6)}</span>
-                          {s.disqualified ? (
-                            <Badge tone="danger" title="The user is banned">Disqualified</Badge>
-                          ) : (
-                            <Badge>Final</Badge>
-                          )}
+                          <span className="flex items-center gap-1">
+                            {(s.flags?.length ?? 0) > 0 && (
+                              <Badge tone="warning" title={`Flagged for review: ${s.flags!.join(', ')}`}>
+                                <TriangleAlert className="size-3" />{s.flags!.length}
+                              </Badge>
+                            )}
+                            {s.disqualified ? (
+                              <Badge tone="danger" title="The user is banned">Disqualified</Badge>
+                            ) : (
+                              <Badge>Final</Badge>
+                            )}
+                          </span>
                         </div>
                         <div className="mt-0.5 flex items-center justify-between text-[12px] text-muted-foreground">
                           <span className="flex items-center gap-1"><Clock className="size-3" /> {formattedTime}</span>
@@ -304,14 +312,19 @@ export default function AdminDashboard() {
               </div>
 
               {/* Preview */}
-              <div className="relative flex-1">
+              <div className="relative flex min-w-0 flex-1 flex-col">
+                {selectedActivity && !('name' in selectedActivity) && (
+                  <SubmissionSignals submission={selectedActivity} />
+                )}
                 {selectedActivity ? (
-                  <PreviewPanel 
-                    html={selectedActivity.html}
-                    css={selectedActivity.css}
-                    js={selectedActivity.js}
-                    projectName={('name' in selectedActivity && selectedActivity.name) || `Submission #${selectedActivity._id.slice(-6)}`}
-                  />
+                  <div className="min-h-0 flex-1">
+                    <PreviewPanel
+                      html={selectedActivity.html}
+                      css={selectedActivity.css}
+                      js={selectedActivity.js}
+                      projectName={('name' in selectedActivity && selectedActivity.name) || `Submission #${selectedActivity._id.slice(-6)}`}
+                    />
+                  </div>
                 ) : (
                   <div className="flex h-full w-full flex-col items-center justify-center text-center">
                     <MousePointerClick className="size-5 text-subtle-foreground" />

@@ -25,6 +25,7 @@ import { isFromOwnFrame } from "@/lib/utils";
 import { useProjectManager } from "../../hooks/useProjectManager";
 import { useContestTimer } from "../../hooks/useContestTimer";
 import { useContestSecurity } from "../../hooks/useContestSecurity";
+import { useContestActivity } from "../../hooks/useContestActivity";
 import { signOut } from "../../lib/auth-client";
 
 const MAX_WARNINGS = 4;
@@ -150,12 +151,23 @@ export default function EditorLayout() {
   useEffect(() => { startDurationRef.current = startDuration; }, [startDuration]);
   useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
 
+  // Contest heartbeats to contest-service: typed vs pasted characters, for the admin's review
+  const activity = useContestActivity({
+    contestStarted,
+    projectId,
+    codeSize: html.length + css.length + js.length,
+  });
+  const handleInsert = (chars: number, kind: "typed" | "pasted") =>
+    kind === "pasted" ? activity.recordPasted(chars) : activity.recordTyped(chars);
+
   const submitProject = async (isAutoSubmit = false) => {
     isQuittingRef.current = true;
     setIgnoreNextBlur(true);
 
     try {
       await saveCode({ html, css, js, timeLeft });
+      // The last few seconds of typing, so the submission's numbers include them
+      await activity.flush();
 
       const timeTaken = Math.max(0, startDurationRef.current - timeLeftRef.current);
 
@@ -215,6 +227,7 @@ export default function EditorLayout() {
 
     const handleBeforeUnload = () => {
       if (isQuittingRef.current) return; // Already submitting via normal flow
+      activity.flushBeacon();
       const timeTaken = Math.max(0, startDurationRef.current - timeLeftRef.current);
       const payload = JSON.stringify({
         projectId, html, css, js,
@@ -226,7 +239,7 @@ export default function EditorLayout() {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [contestStarted, projectId, html, css, js, isQuittingRef]);
+  }, [contestStarted, projectId, html, css, js, isQuittingRef, activity]);
 
   // recordedStrikes: strikes already recorded for this project (resuming after a reload);
   // a project created for the contest starts at 0
@@ -364,6 +377,7 @@ export default function EditorLayout() {
                 <FileTabs activeFile={activeFile} />
                 <div className="flex-1 overflow-hidden">
                   <CodeEditor
+                    onInsert={contestStarted ? handleInsert : undefined}
                     {...getEditorConfig(activeFile, {
                       html,
                       setHtml,

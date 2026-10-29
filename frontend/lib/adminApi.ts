@@ -21,8 +21,33 @@ export interface Submission {
     warningCount?: number;
     // Set while the user is banned
     disqualified?: boolean;
+    // Review evidence from contest-service (absent on submissions made before it existed)
+    signals?: SubmissionSignals | null;
+    flags?: SubmissionFlag[];
     createdAt: string;
     updatedAt: string;
+}
+
+export type SubmissionFlag =
+    | 'missing-heartbeats'
+    | 'offline'
+    | 'large-paste'
+    | 'code-without-typing'
+    | 'similar-submission'
+    | 'matches-target';
+
+export interface SubmissionSignals {
+    heartbeats: number;
+    expectedHeartbeats: number;
+    gaps: number;
+    offlineSeconds: number;
+    typedChars: number;
+    pastedChars: number;
+    pasteCount: number;
+    largestPaste: number;
+    unexplainedChars: number;
+    similarity: { score: number; submissionId: string; userId: string } | null;
+    targetSimilarity: number;
 }
 
 export interface Project {
