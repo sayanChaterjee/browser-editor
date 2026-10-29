@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Maximize2, Minimize2, RefreshCw } from "lucide-react";
 import PanelHeader, { PanelIconButton } from "./PanelHeader";
 import { buildPreviewDocument } from "@/lib/previewDocument";
+import PreviewFrame from "@/components/PreviewFrame";
 
 type Props = {
   html: string;
@@ -108,10 +109,10 @@ export default function Preview({ html, css, js }: Props) {
         </PanelIconButton>
       </PanelHeader>
 
-      <iframe
+      <PreviewFrame
         key={refreshKey}
         className="flex-1 w-full h-full border-none bg-white block"
-        srcDoc={srcDoc}
+        html={srcDoc}
         sandbox="allow-scripts"
         title="preview"
       />

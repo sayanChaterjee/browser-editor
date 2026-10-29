@@ -84,6 +84,7 @@ One-page records in [docs/adr](docs/adr), each with the alternatives and trade-o
 7. [A database per service](docs/adr/0007-database-per-service.md)
 8. [Signed user tokens from the gateway to the services](docs/adr/0008-signed-user-tokens.md)
 9. [Rate limits and sign-in lockout keep working without Redis](docs/adr/0009-limits-without-redis.md)
+10. [Nonce-based CSP, with previews in a frame page of their own](docs/adr/0010-strict-csp-preview-frame.md)
 
 ## Results
 

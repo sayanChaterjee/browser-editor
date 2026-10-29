@@ -37,19 +37,16 @@ app.use(corsMiddleware);
 // 2. Cookie parser - required for session cookies
 app.use(cookieParser());
 
-// 3. Helmet - security headers
+// 3. Helmet - security headers. The gateway serves only JSON and redirects, so the policy
+// allows nothing to load or run; pages get their own (nonce-based) policy from the frontend.
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: {
+    useDefaults: false,
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // needed for some editor features
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3004", "http://localhost:3005"],
-      frameSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: [],
+      defaultSrc: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"],
       frameAncestors: ["'none'"], // prevent clickjacking
     },
   },

@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { contentSecurityPolicy, createNonce } from './lib/csp';
+
+// CSP_REPORT_ONLY=true reports violations (to /api/csp-report) without blocking anything
+const CSP_HEADER = process.env.CSP_REPORT_ONLY === 'true'
+  ? 'Content-Security-Policy-Report-Only'
+  : 'Content-Security-Policy';
 
 /**
  * Next.js Middleware for Frontend Route Protection
- * 
- * This middleware handles authentication-based redirects for frontend routes.
- * 
+ *
+ * This middleware handles authentication-based redirects for frontend routes, and gives
+ * every page a Content-Security-Policy with a fresh nonce (Next.js reads the nonce from the
+ * request's CSP header and adds it to its scripts).
+ *
  * Note: API route proxying is handled by /app/api/[...proxy]/route.ts
  * because middleware rewrites cannot modify headers for external URLs.
  */
@@ -34,7 +42,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/editor', request.url));
   }
 
-  return NextResponse.next();
+  const nonce = createNonce();
+  const policy = contentSecurityPolicy(nonce, { dev: process.env.NODE_ENV === 'development' });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('content-security-policy', policy);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set(CSP_HEADER, policy);
+  return response;
 }
 
 export const config = {

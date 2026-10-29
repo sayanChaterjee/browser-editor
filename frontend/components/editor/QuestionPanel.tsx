@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import PanelHeader, { PanelIconButton } from "./PanelHeader";
 import { buildPreviewDocument } from "@/lib/previewDocument";
+import PreviewFrame from "@/components/PreviewFrame";
 
 interface QuestionPanelProps {
   imageUrl?: string;
@@ -35,9 +36,9 @@ export default function QuestionPanel({ imageUrl, html, css, js }: QuestionPanel
             className="w-full rounded-lg border border-border"
           />
         ) : hasCodePreview ? (
-          <iframe
+          <PreviewFrame
             key={refreshKey}
-            srcDoc={srcDoc}
+            html={srcDoc}
             title="target-preview"
             // No allow-same-origin: with allow-scripts it would let the target's code run as
             // this app (e.g. call the API as the contestant)

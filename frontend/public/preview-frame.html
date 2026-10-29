@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Preview</title>
+<!--
+  Hosts a preview of the user's project. The app sends the page to show (built by
+  lib/previewDocument) in a message, and it replaces this document.
+
+  Why a page of its own instead of an iframe srcdoc: a srcdoc document inherits the app's
+  Content-Security-Policy, which would block the user's own inline scripts and handlers.
+  This page has its own policy (next.config.ts), so the app can keep a strict one. It is
+  always loaded in a sandboxed iframe without allow-same-origin, so the user's code runs on
+  an opaque origin and can't reach the app's cookies, storage or DOM.
+-->
+<script>
+(function () {
+  // Only as a frame of the app (the app's frame-ancestors keeps other sites out)
+  if (window.parent === window) return;
+
+  var rendered = false;
+  window.addEventListener("message", function (event) {
+    if (rendered || event.source !== window.parent) return;
+    var data = event.data;
+    if (!data || data.type !== "PREVIEW_RENDER" || typeof data.html !== "string") return;
+    rendered = true; // one page per load: the app reloads the frame for the next version
+    document.open();
+    document.write(data.html);
+    document.close();
+  });
+
+  window.parent.postMessage({ type: "PREVIEW_READY" }, "*");
+})();
+</script>
+</head>
+<body></body>
+</html>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -20,11 +21,15 @@ export const metadata: Metadata = {
   description: "Write HTML, CSS and JavaScript with a live preview, in your browser.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Render per request: each response's scripts need that request's CSP nonce (middleware.ts),
+  // which a page prerendered at build time wouldn't have
+  await connection();
+
   return (
     <html lang="en" className="dark" suppressHydrationWarning={true}>
       <body
