@@ -4,6 +4,7 @@ import { APIError } from "better-auth/api";
 import mongoose from "mongoose";
 import { config } from "../config";
 import { publishUserEvent } from "../events/publisher";
+import { lockoutAfterSignIn, lockoutBeforeSignIn } from "./loginLockout";
 
 let authInstance: any = null;
 
@@ -30,6 +31,12 @@ export function getAuth() {
                     warningCount: { type: "number", defaultValue: 0, input: false },
                     banned: { type: "boolean", defaultValue: false, input: false },
                 },
+            },
+
+            // Per-email lockout after repeated failed sign-ins (password guessing from many IPs)
+            hooks: {
+                before: lockoutBeforeSignIn,
+                after: lockoutAfterSignIn,
             },
 
             databaseHooks: {

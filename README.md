@@ -83,6 +83,7 @@ One-page records in [docs/adr](docs/adr), each with the alternatives and trade-o
 6. [Write-behind saves](docs/adr/0006-write-behind-saves.md)
 7. [A database per service](docs/adr/0007-database-per-service.md)
 8. [Signed user tokens from the gateway to the services](docs/adr/0008-signed-user-tokens.md)
+9. [Rate limits and sign-in lockout keep working without Redis](docs/adr/0009-limits-without-redis.md)
 
 ## Results
 
@@ -195,6 +196,9 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
 - **Cold starts.** Render's free tier sleeps idle services, and Kafka consumers sleep with them,
   so the first request can take up to a minute and events wait until the service wakes. The
   editor shows a loading screen, and waits up to a minute for a new user's starter project.
+- **Without Redis, rate limits and the sign-in lockout are counted per instance** (in memory)
+  rather than shared, and an alert fires. Anyone can lock an address for 15 minutes with 10
+  wrong passwords. See ADR 0009.
 - **Admins are configured by email** (`ADMIN_EMAILS` in each service), not by roles.
 
 ## Repository layout

@@ -2,8 +2,8 @@
 # End-to-end smoke test against the API gateway.
 # Usage: scripts/smoke.sh [gateway_url] [origin]
 # Signs up a fresh user, then exercises the starter project (user.registered.v1 event),
-# profile -> save -> list -> open, sign-out and, when SMOKE_ADMIN_EMAIL is in the stack's
-# ADMIN_EMAILS, a contest (strike -> submit) and
+# profile -> save -> list -> open, sign-out, the per-email sign-in lockout and, when
+# SMOKE_ADMIN_EMAIL is in the stack's ADMIN_EMAILS, a contest (strike -> submit) and
 # ban -> unban (including the submission disqualification events).
 set -euo pipefail
 
@@ -108,6 +108,17 @@ cp "$JAR" "$OLD_JAR"
 request "sign out" POST /api/auth/sign-out '{}'
 expect_status "old cookie rejected after sign-out" 401 "$OLD_JAR" GET /api/v1/user/profile
 request "sign in again" POST /api/auth/sign-in/email "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}"
+
+# Per-email lockout (identity-service): after LOGIN_MAX_FAILURES wrong passwords the address is
+# refused before the password is checked. Uses an unregistered address so other checks aren't
+# affected; docker compose sets the limit to 3.
+LOCKED_EMAIL="locked-$EMAIL"
+for ((i = 1; i <= ${SMOKE_LOGIN_MAX_FAILURES:-3}; i++)); do
+  expect_status "wrong password $i" 401 "$OLD_JAR" POST /api/auth/sign-in/email \
+    "{\"email\":\"$LOCKED_EMAIL\",\"password\":\"wrong-$i\"}"
+done
+expect_status "address locked after repeated failures" 429 "$OLD_JAR" POST /api/auth/sign-in/email \
+  "{\"email\":\"$LOCKED_EMAIL\",\"password\":\"wrong\"}"
 
 # Ban: needs an admin, i.e. SMOKE_ADMIN_EMAIL listed in ADMIN_EMAILS (CI uses the .env.example values)
 ADMIN_BODY="{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$PASSWORD\",\"name\":\"Smoke Admin\"}"

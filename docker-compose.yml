@@ -93,6 +93,7 @@ services:
       - "9090:9090"
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
 
   grafana:
     image: grafana/grafana:11.3.0
@@ -180,6 +181,8 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - ADMIN_EMAILS=${ADMIN_EMAILS}
+      # Low so scripts/smoke.sh can check the lockout quickly (default 10)
+      - LOGIN_MAX_FAILURES=3
       - DATABASE_URL=mongodb://mongo:27017/ceditor_auth
       - REDIS_URL=redis://redis:6379
       - KAFKA_BROKER=kafka:9092

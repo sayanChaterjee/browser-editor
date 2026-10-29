@@ -1,0 +1,26 @@
+# Local development only (docker compose); visible at http://localhost:9090/alerts
+groups:
+  - name: security
+    rules:
+      # Limits are being counted per gateway instance, not shared in Redis
+      - alert: RateLimiterDegraded
+        expr: sum(increase(rate_limit_store_fallbacks_total[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Rate limits are counted in gateway memory because Redis is unavailable
+
+      - alert: LoginLockoutDegraded
+        expr: sum(increase(login_lockout_events_total{event="fallback"}[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Sign-in lockout is counted in identity-service memory because Redis is unavailable
+
+      # Many failed sign-ins: password guessing or credential stuffing
+      - alert: SignInFailureSpike
+        expr: sum(increase(login_lockout_events_total{event="failure"}[5m])) > 50
+        labels:
+          severity: warning
+        annotations:
+          summary: More than 50 failed sign-ins in 5 minutes

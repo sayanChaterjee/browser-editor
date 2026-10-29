@@ -19,3 +19,10 @@ export const eventsPublished = new prom.Counter({
   labelNames: ['type', 'result'] as const,
   registers: [metrics.registry],
 });
+
+export const loginLockoutEvents = new prom.Counter({
+  name: 'login_lockout_events_total',
+  help: 'Per-email sign-in lockout: failure (counted), blocked (refused while locked), fallback (Redis unavailable, counted in memory)',
+  labelNames: ['event'] as const,
+  registers: [metrics.registry],
+});

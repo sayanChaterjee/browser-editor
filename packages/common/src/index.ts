@@ -11,3 +11,4 @@ export * from './shutdown';
 export * from './sessionCache';
 export * from './events';
 export * from './userToken';
+export * from './loginLockout';
