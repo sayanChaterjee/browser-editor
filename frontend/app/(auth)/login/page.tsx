@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useWakeBackend } from "@/components/WakeBackend";
 import { useSession } from "../../../lib/auth-client";
 import { AuthCard, FieldError, FormMessage, GoogleButton, OrDivider } from "@/components/auth/AuthCard";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ import { Input, Label } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function LoginPage() {
+  // Start the backend now: by the time the form is sent, it is awake
+  useWakeBackend();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({ username: "", password: "" });

@@ -197,7 +197,11 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
   identity-service, which at free-tier capacity returns some 503s (see the failure test).
 - **Cold starts.** Render's free tier sleeps idle services, and Kafka consumers sleep with them,
   so the first request can take up to a minute and events wait until the service wakes. The
-  editor shows a loading screen, and waits up to a minute for a new user's starter project.
+  landing, login and register pages call the gateway's `/api/wake`, which starts every service
+  (at most one ping each per minute), so start-up overlaps with signing in. The editor shows a
+  loading screen, and waits up to a minute for a new user's starter project.
+- **Sign-in takes ~2 s on the free tier.** Most of it is the password hash (scrypt, ~80 ms on a
+  full core) on a fraction of a CPU; lowering its cost would weaken password storage.
 - **Without Redis, rate limits and the sign-in lockout are counted per instance** (in memory)
   rather than shared, and an alert fires. Anyone can lock an address for 15 minutes with 10
   wrong passwords. See ADR 0009.
