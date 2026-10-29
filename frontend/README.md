@@ -54,9 +54,14 @@ forwards each call to the API gateway (`NEXT_PUBLIC_API_URL`):
 
 - **Saving:** edits autosave through `/api/v1/code/sync` and are also kept in IndexedDB
   (`lib/indexedDB.ts`), so a newer local copy wins on reload.
-- **Preview:** each project runs in a sandboxed iframe (`components/editor/Preview.tsx`). The
-  user's script runs after the markup, and console output is forwarded to the editor's console
-  panel.
+- **Preview:** each project runs in a sandboxed iframe (`components/PreviewFrame.tsx`) that loads
+  `public/preview-frame.html` and receives the page built by `lib/previewDocument.ts` in a
+  message. The user's script runs after the markup, and console output is forwarded to the
+  editor's console panel.
+- **Content-Security-Policy:** `middleware.ts` gives every page a policy with a fresh nonce
+  (`lib/csp.ts`): no inline or eval'd scripts except Next.js's own. The preview frame has its own
+  policy, so user code isn't affected. Violations are logged by `/api/csp-report`; set
+  `CSP_REPORT_ONLY=true` to report without blocking. See ADR 0010.
 - **First load:** the editor shows a loading screen until projects arrive. A brand-new account's
   "Welcome" project is created asynchronously by the backend, so for accounts under 5 minutes
   old an empty project list is re-checked for up to a minute before the user is asked to create

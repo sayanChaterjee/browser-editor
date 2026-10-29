@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { buildPreviewDocument } from '@/lib/previewDocument';
+import PreviewFrame from '@/components/PreviewFrame';
 
 interface PreviewPanelProps {
   html: string;
@@ -43,9 +44,9 @@ export default function PreviewPanel({ html, css, js, projectName }: PreviewPane
 
       {/* iframe Preview */}
       <div className="flex-1 bg-white">
-        <iframe
+        <PreviewFrame
           className="w-full h-full border-none block"
-          srcDoc={srcDoc}
+          html={srcDoc}
           sandbox="allow-scripts"
           title="admin-preview"
         />
