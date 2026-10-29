@@ -85,6 +85,7 @@ One-page records in [docs/adr](docs/adr), each with the alternatives and trade-o
 8. [Signed user tokens from the gateway to the services](docs/adr/0008-signed-user-tokens.md)
 9. [Rate limits and sign-in lockout keep working without Redis](docs/adr/0009-limits-without-redis.md)
 10. [Nonce-based CSP, with previews in a frame page of their own](docs/adr/0010-strict-csp-preview-frame.md)
+11. [Contest integrity from signals the server keeps](docs/adr/0011-contest-signals.md)
 
 ## Results
 
@@ -200,6 +201,10 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
 - **Without Redis, rate limits and the sign-in lockout are counted per instance** (in memory)
   rather than shared, and an alert fires. Anyone can lock an address for 15 minutes with 10
   wrong passwords. See ADR 0009.
+- **Contest anti-cheat is evidence, not proof.** The browser deterrents can be switched off with
+  devtools; what holds up is server-side: heartbeats, typed vs pasted counts, code that wasn't
+  typed, and similarity to other entries and the target. Flags go to an admin to decide.
+  See ADR 0011.
 - **Admins are configured by email** (`ADMIN_EMAILS` in each service), not by roles.
 
 ## Repository layout

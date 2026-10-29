@@ -16,6 +16,19 @@ export const strikesRecorded = new prom.Counter({
   registers,
 });
 
+export const heartbeatsRecorded = new prom.Counter({
+  name: 'contest_heartbeats_total',
+  help: 'Contest activity heartbeats received from editors',
+  registers,
+});
+
+export const submissionFlags = new prom.Counter({
+  name: 'contest_submission_flags_total',
+  help: 'Flags raised on submissions for review, by flag',
+  labelNames: ['flag'] as const,
+  registers,
+});
+
 export const eventsPublished = new prom.Counter({
   name: 'events_published_total',
   help: 'Events sent to Kafka, by type and result (published, failed = dropped after retries)',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Editor, { type BeforeMount, type OnMount } from "@monaco-editor/react";
 
 // Monaco theme matching the app: near-black, dim gutter, blue selection
@@ -34,7 +34,13 @@ type Props = {
   language: "html" | "css" | "javascript" | "markdown";
   value: string;
   onChange: (value: string) => void;
+  /** Characters the user put in: typed, or pasted (one insertion of BULK_INSERT_CHARS or more) */
+  onInsert?: (chars: number, kind: "typed" | "pasted") => void;
 };
+
+// One insertion this large didn't come from typing (autocomplete inserts far less): a paste
+// (e.g. Shift+Insert), a drop, or a script editing the editor
+const BULK_INSERT_CHARS = 80;
 
 // Global-ish clipboard for the app session
 let internalClipboard = "";
@@ -46,9 +52,22 @@ type FloatingAction = {
   left: number;
 } | null;
 
-export default function CodeEditor({ language, value, onChange }: Props) {
+export default function CodeEditor({ language, value, onChange, onInsert }: Props) {
   const [floatingAction, setFloatingAction] = useState<FloatingAction>(null);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+
+  const onInsertRef = useRef(onInsert);
+  useEffect(() => {
+    onInsertRef.current = onInsert;
+  });
+  // The value the app last set. A layout effect, so it's current before the editor library
+  // applies a new value (in its own passive effect), e.g. when switching files.
+  const valueRef = useRef(value);
+  useLayoutEffect(() => {
+    valueRef.current = value;
+  });
+  // The next edit is the in-app Paste button (the user's own copied code)
+  const internalPasteRef = useRef(false);
 
   const handleCopy = () => {
     if (floatingAction && floatingAction.type === 'copy' && floatingAction.text) {
@@ -70,6 +89,7 @@ export default function CodeEditor({ language, value, onChange }: Props) {
       if (!selectionObj) return; // nothing to paste into (e.g. editor not focused yet)
       const id = { major: 1, minor: 1 };
       const op = { identifier: id, range: selectionObj, text: internalClipboard, forceMoveMarkers: true };
+      internalPasteRef.current = true;
       editor.executeEdits("custom-paste", [op]);
       setFloatingAction(null);
     }
@@ -147,6 +167,18 @@ export default function CodeEditor({ language, value, onChange }: Props) {
         }}
         onMount={(editor) => {
           editorRef.current = editor;
+
+          // Contest activity: what the user put in, by typing or in bulk. Not counted: the app
+          // setting the value (loading a project, switching files) and undo/redo.
+          editor.onDidChangeModelContent((e) => {
+            const fromOwnClipboard = internalPasteRef.current;
+            internalPasteRef.current = false;
+            if (e.isFlush || e.isUndoing || e.isRedoing || editor.getValue() === valueRef.current) return;
+            const inserted = e.changes.reduce((total, change) => total + change.text.length, 0);
+            if (inserted === 0) return;
+            const bulk = !fromOwnClipboard && inserted >= BULK_INSERT_CHARS;
+            onInsertRef.current?.(inserted, bulk ? "pasted" : "typed");
+          });
 
           // Block OS level clipboard shortcuts (Ctrl+C/V/X) and Search (Ctrl+F)
           editor.onKeyDown((e) => {

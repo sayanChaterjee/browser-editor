@@ -140,11 +140,15 @@ if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
   # strike.recorded.v1 -> code-service copies the count onto the project
   eventually "project shows the strike (event)" "$JAR" "/api/v1/code/$PROJECT_ID" '.warningCount == 1'
 
+  request "contest heartbeat" POST "/api/v1/contest/activity/$PROJECT_ID" \
+    '{"typedChars":120,"pastedChars":0,"pasteCount":0,"largestPaste":0,"startChars":40}'
   request "profile before ban (session cached)" GET /api/v1/user/profile
   request "submit project" POST /api/v1/contest/submissions \
     "{\"projectId\":\"$PROJECT_ID\",\"html\":\"<h1>final</h1>\",\"css\":\"\",\"js\":\"\",\"timeTaken\":60}"
   jq -e --arg c "$CONTEST_ID" '.warningCount == 1 and .contestId == $c' <<<"$BODY" >/dev/null \
     || fail "submission records strikes and contest" "$BODY"
+  jq -e 'has("signals") or has("flags") | not' <<<"$BODY" >/dev/null \
+    || fail "review evidence isn't sent to the contestant" "$BODY"
   expect_status "admin bans user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/ban"
   expect_status "banned user's next request rejected" 401 "$JAR" GET /api/v1/user/profile
   expect_status "banned user cannot sign in" 403 "$JAR" POST /api/auth/sign-in/email \

@@ -69,7 +69,10 @@ forwards each call to the API gateway (`NEXT_PUBLIC_API_URL`):
 - **Contests** (`hooks/useContestSecurity.ts`): fullscreen is required. Leaving the tab or
   window records a strike with contest-service (`/api/v1/contest/strikes/:projectId`), whose
   count is authoritative: reloading the page doesn't reset it. The 4th strike signs the user out.
-  These deterrents (and the desktop-only screen) apply only to the editor and admin pages. Submitting, including the automatic submit when the window
+  These deterrents (and the desktop-only screen) apply only to the editor and admin pages.
+  The editor also sends a heartbeat every 15 s (`hooks/useContestActivity.ts`) with what was
+  typed and pasted (`CodeEditor`'s `onInsert`); contest-service turns these into flags shown on
+  the admin page (`components/admin/SubmissionSignals.tsx`). See ADR 0011. Submitting, including the automatic submit when the window
   closes (`sendBeacon`), goes to `/api/v1/contest/submissions`.
 
 ## Running locally

@@ -2,14 +2,14 @@ import { Router, Request, Response } from 'express';
 import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 import { createSubmission, recordStrike } from '../domain/attempts';
+import { recordActivity } from '../domain/activity';
 import { publishContestEvent } from '../events/publisher';
 import Submission from '../models/submission.model';
 import logger from '../config/logger';
-import { strikesRecorded, submissionsCreated } from '../config/metrics';
+import { heartbeatsRecorded, strikesRecorded, submissionFlags, submissionsCreated } from '../config/metrics';
 import { requireAdmin, requireUser } from '../middlewares/userContext.middleware';
 
-// Submissions and anti-cheat strikes. The frontend still calls the old code-service paths
-// (/api/v1/code/submit, /warning/:id, /admin/submissions/:id); the gateway maps them here.
+// Submissions, anti-cheat strikes and contest heartbeats.
 
 const attemptRouter = Router();
 attemptRouter.use(requireUser);
@@ -31,8 +31,37 @@ attemptRouter.post('/submissions', async (req: Request, res: Response): Promise<
   }
   const submission = await createSubmission({ ...parsed.data, userId: req.userContext!.id }, publishContestEvent);
   submissionsCreated.inc();
-  logger.info(`Submission ${submission._id} for project ${submission.projectId}`);
-  res.status(201).json(submission);
+  for (const flag of submission.flags) submissionFlags.inc({ flag });
+  logger.info(`Submission ${submission._id} for project ${submission.projectId}${submission.flags.length ? ` flagged: ${submission.flags.join(', ')}` : ''}`);
+  // The review evidence is for admins: telling contestants which signals they tripped would
+  // teach them what to avoid
+  const receipt: Record<string, unknown> = submission.toObject();
+  for (const reviewOnly of ['signals', 'flags', 'fingerprint']) delete receipt[reviewOnly];
+  res.status(201).json(receipt);
+});
+
+// Bounds per heartbeat (15 s): far above what anyone types, small enough to keep totals sane
+const MAX_CHARS_PER_BEAT = 200_000;
+const count = z.number().int().min(0).max(MAX_CHARS_PER_BEAT).default(0);
+const activitySchema = z.object({
+  typedChars: count,
+  pastedChars: count,
+  pasteCount: count,
+  largestPaste: count,
+  startChars: z.number().int().min(0).max(5_000_000).optional(),
+});
+
+// POST /activity/:projectId - Contest heartbeat: what was typed and pasted since the last one
+attemptRouter.post('/activity/:projectId', async (req: Request, res: Response) => {
+  const projectId = String(req.params.projectId);
+  const parsed = activitySchema.safeParse(req.body ?? {});
+  if (!isValidObjectId(projectId) || !parsed.success) {
+    res.status(400).json({ message: 'Invalid activity report' });
+    return;
+  }
+  await recordActivity(req.userContext!.id, projectId, parsed.data);
+  heartbeatsRecorded.inc();
+  res.status(204).end();
 });
 
 // POST /strikes/:projectId - Record an anti-cheat strike (e.g. the user left the contest tab)
