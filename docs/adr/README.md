@@ -13,3 +13,4 @@ alternatives and what it costs. Each is the state of thinking when it was made.
 | [0006](0006-write-behind-saves.md) | Editor saves buffered in Redis and flushed to MongoDB (write-behind) |
 | [0007](0007-database-per-service.md) | A database per service, on one shared cluster |
 | [0008](0008-signed-user-tokens.md) | User identity passed to services as gateway-signed, per-service, 60-second Ed25519 tokens |
+| [0009](0009-limits-without-redis.md) | Rate limits fall back to memory without Redis; per-email sign-in lockout |

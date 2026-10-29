@@ -23,6 +23,13 @@ export const rateLimitRejections = new prom.Counter({
   registers,
 });
 
+export const rateLimitStoreFallbacks = new prom.Counter({
+  name: 'rate_limit_store_fallbacks_total',
+  help: 'Rate-limit counts kept in gateway memory because Redis was unavailable, by limiter',
+  labelNames: ['limiter'] as const,
+  registers,
+});
+
 // Every authenticated API request validates its session: from the Redis session cache when
 // possible, otherwise by asking identity-service
 export const sessionCheckDuration = new prom.Histogram({

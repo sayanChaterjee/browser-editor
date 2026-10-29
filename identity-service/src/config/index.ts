@@ -12,6 +12,9 @@ const schema = z.object({
   INTERNAL_GATEWAY_SECRET: envRequired('shared with the API gateway'),
   // Verifies the user tokens the gateway signs
   USER_TOKEN_PUBLIC_KEY: envUserTokenPublicKey(),
+  // Failed sign-ins per email address before it is locked for the rest of the window
+  LOGIN_MAX_FAILURES: envNumber(10),
+  LOGIN_LOCKOUT_MINUTES: envNumber(15),
   ADMIN_EMAILS: envList('').transform((emails) => emails.map((e) => e.toLowerCase())),
   ALLOWED_ORIGINS: envList('http://localhost:3000'),
   // Public URL of the frontend (requests reach auth through its /api proxy)
