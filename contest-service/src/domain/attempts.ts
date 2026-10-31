@@ -1,8 +1,8 @@
 import type { PublishContestEvent } from '../events/publisher';
 import Attempt from '../models/attempt.model';
-import Contest from '../models/contest.model';
 import Submission, { ISubmission } from '../models/submission.model';
 import { assessSubmission, THRESHOLDS } from './activity';
+import { checkSubmission, liveContest, markSubmitted } from './contests';
 import { fingerprint, similarity, submissionCode } from './similarity';
 
 /** Records an anti-cheat strike on the user's attempt and returns the new total. */
@@ -24,6 +24,8 @@ export async function recordStrike(userId: string, projectId: string, publish: P
 export interface SubmissionInput {
   userId: string;
   projectId: string;
+  // The contest it is for (the contest page sends it); without it, the contest live now
+  contestId?: string;
   html?: string;
   css?: string;
   js?: string;
@@ -37,10 +39,12 @@ export interface SubmissionInput {
  * target, and the flags they raise. Everything it needs is in this service, so submitting
  * works even if code-service is down.
  */
-export async function createSubmission(input: SubmissionInput, publish: PublishContestEvent): Promise<ISubmission> {
+export async function createSubmission(input: SubmissionInput, publish: PublishContestEvent, now = new Date()): Promise<ISubmission> {
+  const { contestId: requestedContest, ...fields } = input;
   const [attempt, activeContest] = await Promise.all([
     Attempt.findOne({ userId: input.userId, projectId: input.projectId }).lean(),
-    Contest.findOne({ status: 'active' }, { _id: 1, html: 1, css: 1, js: 1 }).lean(),
+    // A named contest must be open to this user (throws ContestError otherwise)
+    requestedContest ? checkSubmission(requestedContest, input.userId, now) : liveContest(now),
   ]);
   const contestId = activeContest ? String(activeContest._id) : null;
   const code = submissionCode(input);
@@ -66,7 +70,7 @@ export async function createSubmission(input: SubmissionInput, publish: PublishC
   });
 
   const submission = await Submission.create({
-    ...input,
+    ...fields,
     timeTaken: input.timeTaken || 0,
     contestId,
     warningCount: attempt?.strikeCount ?? 0,
@@ -87,6 +91,8 @@ export async function createSubmission(input: SubmissionInput, publish: PublishC
         $addToSet: { flags: 'similar-submission' },
       },
     )));
+
+  if (contestId) await markSubmitted(contestId, input.userId, now);
 
   publish('submission.created.v1', {
     submissionId: String(submission._id),

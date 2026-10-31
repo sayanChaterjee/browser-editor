@@ -16,3 +16,4 @@ alternatives and what it costs. Each is the state of thinking when it was made.
 | [0009](0009-limits-without-redis.md) | Rate limits fall back to memory without Redis; per-email sign-in lockout |
 | [0010](0010-strict-csp-preview-frame.md) | Nonce-based CSP on every page; previews in their own sandboxed frame page |
 | [0011](0011-contest-signals.md) | Contest heartbeats, typed vs pasted counts and code similarity, flagged for admin review |
+| [0012](0012-scheduled-contests-and-rooms.md) | Contests run on their schedule; rooms to join; the question held back until the start |
