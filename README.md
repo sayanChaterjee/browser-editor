@@ -205,19 +205,21 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
   so the first request can take up to a minute and events wait until the service wakes. The
   landing, login and register pages call the gateway's `/api/wake`, which starts every service
   (at most one ping each per minute), so start-up overlaps with signing in; signed-in page loads
-  do the same from the Next.js middleware, and practice opens from the browser's local copy
-  while the services start.
-- **Cloudflare sometimes challenges Vercel → Render requests** (Render's edge, shared Vercel
-  server addresses). The `/api` proxy retries them and the app shows "Server busy, retrying…";
-  a custom domain with the browser calling the gateway directly would remove the hop. The editor shows a
-  loading screen, and waits up to a minute for a new user's starter project.
-
+  do the same from the Next.js middleware, and contest rooms keep every service awake while
+  people wait. Practice opens from the browser's local copy while the services start (without
+  one it shows a loading screen, and waits up to a minute for a new user's starter project).
+- **Render's edge sometimes turns requests away:** Cloudflare challenges Vercel → Render requests
+  (shared Vercel server addresses), and Render answers `429 hibernate-rate-limited` while a
+  free service wakes. The `/api` proxy retries both, then the app retries for about a minute
+  behind "Server busy, retrying…". A custom domain with the browser calling the gateway
+  directly would remove the Vercel hop.
 - **Without Redis, rate limits are counted per gateway instance** (in memory) rather than
   shared, and an alert fires. See ADR 0009.
 - **Contest anti-cheat is evidence, not proof.** The browser deterrents can be switched off with
   devtools; what holds up is server-side: heartbeats, typed vs pasted counts, code that wasn't
-  typed, and similarity to other entries and the target. Flags go to an admin to decide.
-  See ADR 0011.
+  typed, and similarity to other entries and the target. Flags go to an admin to decide, with a
+  replay of how the code grew (code size every 15 s, the code itself about once a minute).
+  See ADR 0011 and 0015.
 - **Sign-in is Google only in production.** Username/password (never verified) is off unless
   identity-service's `EMAIL_PASSWORD_AUTH` is set, as docker compose does for local development
   and the smoke and load tests. The accounts made with it were removed by

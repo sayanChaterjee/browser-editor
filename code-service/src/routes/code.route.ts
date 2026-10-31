@@ -6,15 +6,17 @@ import redis, { redisUp } from '../config/redis';
 import logger from '../config/logger';
 import { cacheLookups, redisFallbacks } from '../config/metrics';
 import { contentUpdate, writeThrough } from '../services/writeThrough';
+import { MAX_FILE_CHARS } from '../middlewares/body.middleware';
 
 const codeRouter = Router();
 
 // Schema for validation
+const file = z.string().max(MAX_FILE_CHARS, `Each file can be at most ${MAX_FILE_CHARS / 1000} KB`);
 const projectSchema = z.object({
   name: z.string().min(1, 'Project name is required').optional(),
-  html: z.string().optional(),
-  css: z.string().optional(),
-  js: z.string().optional(),
+  html: file.optional(),
+  css: file.optional(),
+  js: file.optional(),
   timeLeft: z.number().optional(),
 });
 
@@ -276,6 +278,9 @@ codeRouter.patch('/sync/:projectId', verifyToken, conflictLock, async (req: Requ
       changed = next;
     } else {
       return res.status(400).json({ message: 'Invalid sync data' });
+    }
+    if ([next.html, next.css, next.js].some((content) => (content?.length ?? 0) > MAX_FILE_CHARS)) {
+      return res.status(413).json({ message: `Each file can be at most ${MAX_FILE_CHARS / 1000} KB` });
     }
 
     // 3. Buffer it, mark it dirty and keep a snapshot, in one round trip
