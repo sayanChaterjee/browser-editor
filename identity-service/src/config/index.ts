@@ -1,4 +1,4 @@
-import { loadConfig, z, envRequired, envNumber, envList, envUserTokenPublicKey } from '@ceditor/common';
+import { loadConfig, z, envRequired, envNumber, envList, envBoolean, envUserTokenPublicKey } from '@ceditor/common';
 
 const schema = z.object({
   PORT: envNumber(3001),
@@ -12,6 +12,10 @@ const schema = z.object({
   INTERNAL_GATEWAY_SECRET: envRequired('shared with the API gateway'),
   // Verifies the user tokens the gateway signs
   USER_TOKEN_PUBLIC_KEY: envUserTokenPublicKey(),
+  // New accounts by email and password. Off in production: those addresses aren't verified,
+  // so new users come through Google; existing email accounts can still sign in. Local
+  // development and CI (docker compose) turn it on.
+  EMAIL_SIGN_UP: envBoolean(false),
   // Failed sign-ins per email address before it is locked for the rest of the window
   LOGIN_MAX_FAILURES: envNumber(10),
   LOGIN_LOCKOUT_MINUTES: envNumber(15),

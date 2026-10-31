@@ -22,6 +22,11 @@ export function getAuth() {
             emailAndPassword: {
                 enabled: true,
                 autoSignIn: true,
+                // Sign-in stays open for existing accounts; new ones come through Google
+                // (verified addresses). Google is deliberately not linked to existing,
+                // unverified email accounts: someone could pre-register a victim's address and
+                // keep its password after the owner signs in with Google.
+                disableSignUp: !config.EMAIL_SIGN_UP,
             },
 
             // Profile and moderation fields live on Better Auth's own user record, so there's

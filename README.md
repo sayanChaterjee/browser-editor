@@ -215,6 +215,10 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
   devtools; what holds up is server-side: heartbeats, typed vs pasted counts, code that wasn't
   typed, and similarity to other entries and the target. Flags go to an admin to decide.
   See ADR 0011.
+- **New accounts sign up with Google only** (identity-service `EMAIL_SIGN_UP`, off by default).
+  Username/password accounts made earlier still log in. Google isn't linked to them
+  automatically: their addresses were never verified, so linking would let whoever registered
+  an address keep access after its owner signs in with Google (account pre-hijacking).
 - **Admins are configured by email** (`ADMIN_EMAILS` in each service), not by roles.
 
 ## Repository layout

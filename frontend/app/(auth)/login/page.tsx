@@ -139,6 +139,8 @@ export default function LoginPage() {
         </>
       }
     >
+      <GoogleButton onClick={signInWithGoogle} />
+      <OrDivider label="or log in with email" />
       <FormMessage message={formMessage} />
       <form
         className="space-y-4"
@@ -182,8 +184,6 @@ export default function LoginPage() {
           {isLoading ? <Spinner className="border-primary-foreground/30 border-t-primary-foreground" /> : "Log in"}
         </Button>
       </form>
-      <OrDivider />
-      <GoogleButton onClick={signInWithGoogle} />
     </AuthCard>
   );
 }

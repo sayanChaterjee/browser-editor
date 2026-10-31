@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useWakeBackend } from "@/components/WakeBackend";
 import { forgetUser } from "@/lib/session";
+import { EMAIL_SIGN_UP } from "@/lib/features";
 import { AuthCard, FieldError, FormMessage, GoogleButton, OrDivider } from "@/components/auth/AuthCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -119,7 +120,7 @@ const validatePassword = (value: string) => {
   return (
     <AuthCard
       title="Create your account"
-      subtitle="Start coding in seconds. No setup needed."
+      subtitle={EMAIL_SIGN_UP ? "Start coding in seconds. No setup needed." : "Sign up with your Google account. It takes a few seconds."}
       footer={
         <>
           Already have an account?{" "}
@@ -129,66 +130,70 @@ const validatePassword = (value: string) => {
         </>
       }
     >
-      <FormMessage message={formMessage} />
-      <form onSubmit={handleRegister} className="space-y-4">
-        <div>
-          <Label htmlFor="username">Username</Label>
-          <Input
-            id="username"
-            autoComplete="username"
-            className="mt-1.5"
-            value={username}
-            onChange={(e) => {
-              setUsername(e.target.value);
-              setErrors({ ...errors, username: validateUsername(e.target.value) });
-              setFormMessage(null);
-            }}
-          />
-          <FieldError>{errors.username}</FieldError>
-        </div>
-        <div>
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            className="mt-1.5"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setErrors({ ...errors, password: validatePassword(e.target.value) });
-              setFormMessage(null);
-            }}
-          />
-          <FieldError>{errors.password}</FieldError>
-          {!errors.password && (
-            <p className="mt-1.5 text-[12px] text-subtle-foreground">
-              6+ characters with upper and lower case, a number and a symbol.
-            </p>
-          )}
-        </div>
-        <div>
-          <Label htmlFor="confirm">Confirm password</Label>
-          <Input
-            id="confirm"
-            type="password"
-            autoComplete="new-password"
-            className="mt-1.5"
-            value={confirm}
-            onChange={(e) => {
-              setConfirm(e.target.value);
-              setErrors({ ...errors, confirm: validateConfirm(e.target.value) });
-              setFormMessage(null);
-            }}
-          />
-          <FieldError>{errors.confirm}</FieldError>
-        </div>
-        <Button type="submit" variant="primary" className="h-10 w-full" disabled={!isFormValid}>
-          Create account
-        </Button>
-      </form>
-      <OrDivider />
       <GoogleButton onClick={signInWithGoogle} />
+      {EMAIL_SIGN_UP && (
+        <>
+          <OrDivider label="or with email" />
+          <FormMessage message={formMessage} />
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                autoComplete="username"
+                className="mt-1.5"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setErrors({ ...errors, username: validateUsername(e.target.value) });
+                  setFormMessage(null);
+                }}
+              />
+              <FieldError>{errors.username}</FieldError>
+            </div>
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                className="mt-1.5"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrors({ ...errors, password: validatePassword(e.target.value) });
+                  setFormMessage(null);
+                }}
+              />
+              <FieldError>{errors.password}</FieldError>
+              {!errors.password && (
+                <p className="mt-1.5 text-[12px] text-subtle-foreground">
+                  6+ characters with upper and lower case, a number and a symbol.
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="confirm">Confirm password</Label>
+              <Input
+                id="confirm"
+                type="password"
+                autoComplete="new-password"
+                className="mt-1.5"
+                value={confirm}
+                onChange={(e) => {
+                  setConfirm(e.target.value);
+                  setErrors({ ...errors, confirm: validateConfirm(e.target.value) });
+                  setFormMessage(null);
+                }}
+              />
+              <FieldError>{errors.confirm}</FieldError>
+            </div>
+            <Button type="submit" variant="primary" className="h-10 w-full" disabled={!isFormValid}>
+              Create account
+            </Button>
+          </form>
+        </>
+      )}
     </AuthCard>
   );
 }
