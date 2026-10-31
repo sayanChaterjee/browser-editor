@@ -14,12 +14,16 @@ services:
   mongo:
     image: mongo:7
     container_name: mongo
+    # A single-node replica set: the services save events in a transaction with each change
+    # (transactional outbox), and MongoDB transactions need a replica set (Atlas is one)
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
+      # Also starts the replica set on first boot
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }).ok }" ]
       # Each check starts a mongosh process (~150-200 MB for a moment): poll quickly only
       # while starting, then every 30s
       interval: 30s

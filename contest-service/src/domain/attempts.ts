@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import type { PublishContestEvent } from '../events/publisher';
 import Attempt from '../models/attempt.model';
 import Submission, { ISubmission } from '../models/submission.model';
@@ -5,20 +6,25 @@ import { assessSubmission, THRESHOLDS } from './activity';
 import { checkSubmission, liveContest, markSubmitted } from './contests';
 import { fingerprint, similarity, submissionCode } from './similarity';
 
-/** Records an anti-cheat strike on the user's attempt and returns the new total. */
+/**
+ * Records an anti-cheat strike on the user's attempt and returns the new total. The strike and
+ * its event are one transaction (transactional outbox): neither is saved without the other.
+ */
 export async function recordStrike(userId: string, projectId: string, publish: PublishContestEvent): Promise<number> {
-  const attempt = await Attempt.findOneAndUpdate(
-    { userId, projectId },
-    { $inc: { strikeCount: 1 } },
-    { upsert: true, new: true },
-  );
-  publish('strike.recorded.v1', {
-    userId,
-    projectId,
-    strikeCount: attempt.strikeCount,
-    recordedAt: new Date().toISOString(),
+  return mongoose.connection.transaction(async (session) => {
+    const attempt = await Attempt.findOneAndUpdate(
+      { userId, projectId },
+      { $inc: { strikeCount: 1 } },
+      { upsert: true, new: true, session },
+    );
+    await publish('strike.recorded.v1', {
+      userId,
+      projectId,
+      strikeCount: attempt.strikeCount,
+      recordedAt: new Date().toISOString(),
+    }, session);
+    return attempt.strikeCount;
   });
-  return attempt.strikeCount;
 }
 
 export interface SubmissionInput {
@@ -69,14 +75,28 @@ export async function createSubmission(input: SubmissionInput, publish: PublishC
     targetSimilarity: activeContest ? similarity(print, fingerprint(submissionCode(activeContest))) : 0,
   });
 
-  const submission = await Submission.create({
-    ...fields,
-    timeTaken: input.timeTaken || 0,
-    contestId,
-    warningCount: attempt?.strikeCount ?? 0,
-    signals,
-    flags,
-    fingerprint: print,
+  // The submission, the participant's "submitted" mark and the event are one transaction
+  const submission = await mongoose.connection.transaction(async (session) => {
+    const [created] = await Submission.create([{
+      ...fields,
+      timeTaken: input.timeTaken || 0,
+      contestId,
+      warningCount: attempt?.strikeCount ?? 0,
+      signals,
+      flags,
+      fingerprint: print,
+    }], { session });
+    if (contestId) await markSubmitted(contestId, input.userId, now, session);
+    await publish('submission.created.v1', {
+      submissionId: String(created._id),
+      userId: created.userId,
+      projectId: created.projectId,
+      contestId: created.contestId,
+      timeTakenSeconds: created.timeTaken,
+      strikeCount: created.warningCount,
+      submittedAt: created.createdAt.toISOString(),
+    }, session);
+    return created;
   });
 
   // A copy implicates both entries: earlier ones it matches get the match too, unless they
@@ -92,17 +112,6 @@ export async function createSubmission(input: SubmissionInput, publish: PublishC
       },
     )));
 
-  if (contestId) await markSubmitted(contestId, input.userId, now);
-
-  publish('submission.created.v1', {
-    submissionId: String(submission._id),
-    userId: submission.userId,
-    projectId: submission.projectId,
-    contestId: submission.contestId,
-    timeTakenSeconds: submission.timeTaken,
-    strikeCount: submission.warningCount,
-    submittedAt: submission.createdAt.toISOString(),
-  });
   return submission;
 }
 

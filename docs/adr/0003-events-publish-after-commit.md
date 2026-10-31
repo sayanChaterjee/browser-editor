@@ -1,6 +1,6 @@
 # 0003: Events published after commit, no outbox
 
-**Status:** accepted (Session 4)
+**Status:** accepted (Session 4); "no outbox" superseded by [0014](0014-transactional-outbox.md)
 
 ## Context
 Services need to react to each other's changes (a new user gets a starter project, a ban

@@ -20,51 +20,6 @@ interface EventLike {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-export interface EventPublisherOptions {
-  /** Attempts before the event is dropped (logged and counted). Default 8, ~2 min with backoff. */
-  maxAttempts?: number;
-  retry?: RetryOptions;
-  onOutcome?: (type: string, outcome: 'published' | 'failed') => void;
-}
-
-/**
- * Publishes events after the change they describe is committed, retrying in the background
- * so callers never wait on Kafka or fail because of it.
- *
- * Trade-off (no outbox): an event still being retried is lost if the process stops, and one
- * that exhausts its attempts is dropped. Both are logged and counted (outcome "failed").
- */
-export class EventPublisher {
-  constructor(
-    private readonly producer: EventSender,
-    private readonly logger: Logger,
-    private readonly options: EventPublisherOptions = {},
-  ) {}
-
-  publish(topic: string, key: string, event: EventLike): void {
-    const { maxAttempts = 8, retry = { baseMs: 1000, maxMs: 60000 }, onOutcome } = this.options;
-    const value = JSON.stringify(event);
-
-    const attempt = async (n: number) => {
-      try {
-        await this.producer.send({ topic, messages: [{ key, value }] });
-        onOutcome?.(event.type, 'published');
-        this.logger.info(`Published ${event.type} ${event.eventId}`);
-      } catch (err) {
-        if (n >= maxAttempts) {
-          onOutcome?.(event.type, 'failed');
-          this.logger.error(`Dropped ${event.type} ${event.eventId} after ${n} attempts: ${errorMessage(err)}`);
-          return;
-        }
-        const delay = backoffDelay(n, retry);
-        this.logger.warn(`Publishing ${event.type} ${event.eventId} failed (attempt ${n}), retrying in ${delay}ms: ${errorMessage(err)}`);
-        setTimeout(() => void attempt(n + 1), delay).unref();
-      }
-    };
-    void attempt(1);
-  }
-}
-
 /** Remembers handled events so redeliveries are skipped. */
 export interface ProcessedEventStore {
   has(eventId: string): Promise<boolean>;

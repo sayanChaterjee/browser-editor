@@ -58,7 +58,8 @@ Prometheus metrics, graceful shutdown, session cache, event publishing/consuming
 
 ### Events
 
-Services publish after their database commit (retried in the background, no outbox).
+Services save each event in the same MongoDB transaction as the change it describes
+(transactional outbox), and a relay sends saved events to Kafka.
 Consumers skip already-handled event IDs, so redelivered events are harmless, and send
 malformed or repeatedly failing messages to a shared `dead-letter` topic. Messages are keyed
 by user ID, so each user's events stay in order. Logs carry the originating request's
@@ -77,7 +78,7 @@ One-page records in [docs/adr](docs/adr), each with the alternatives and trade-o
 
 1. [Monorepo with shared packages](docs/adr/0001-monorepo-shared-packages.md)
 2. [Server-side sessions, gateway cache, explicit revocation](docs/adr/0002-sessions-gateway-cache.md)
-3. [Events published after commit, no outbox](docs/adr/0003-events-publish-after-commit.md)
+3. [Events published after commit](docs/adr/0003-events-publish-after-commit.md) (superseded by 14)
 4. [One topic per publishing service, shared dead-letter topic](docs/adr/0004-topic-per-service.md)
 5. [Contests split into their own service](docs/adr/0005-contest-service-split.md)
 6. [Write-behind saves](docs/adr/0006-write-behind-saves.md)
@@ -88,6 +89,7 @@ One-page records in [docs/adr](docs/adr), each with the alternatives and trade-o
 11. [Contest integrity from signals the server keeps](docs/adr/0011-contest-signals.md)
 12. [Scheduled contests with rooms](docs/adr/0012-scheduled-contests-and-rooms.md)
 13. [Roles in the signed user token](docs/adr/0013-roles-in-the-user-token.md)
+14. [Transactional outbox](docs/adr/0014-transactional-outbox.md)
 
 ## Results
 
@@ -192,9 +194,9 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
 
 ## Known limitations
 
-- **No transactional outbox.** An event can be lost if a service dies between its database
-  commit and the publish. The publisher logs and counts this; bans are still enforced
-  synchronously. See ADR 0003.
+- **`user.registered.v1` isn't atomic with the user's creation:** Better Auth inserts the
+  user outside our transaction, so the event is saved to the outbox right after. Every other
+  event commits with its change. See ADR 0014.
 - **Without Redis, the gateway caches sessions in its own memory** for 30 s at most, so
   most requests still skip identity-service. A ban made during the outage takes effect within
   those 30 s (identity-service can only clear Redis); sign-out is immediate.

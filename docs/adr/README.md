@@ -7,7 +7,7 @@ alternatives and what it costs. Each is the state of thinking when it was made.
 |---|---|
 | [0001](0001-monorepo-shared-packages.md) | npm-workspaces monorepo with shared `common` and `contracts` packages |
 | [0002](0002-sessions-gateway-cache.md) | Server-side sessions, validated at the gateway through a Redis cache with explicit revocation |
-| [0003](0003-events-publish-after-commit.md) | Events published after commit with retries, no outbox; idempotent consumers and a dead-letter topic |
+| [0003](0003-events-publish-after-commit.md) | Events published after commit with retries; idempotent consumers and a dead-letter topic (outbox part superseded by 0014) |
 | [0004](0004-topic-per-service.md) | One Kafka topic per publishing service plus one shared dead-letter topic |
 | [0005](0005-contest-service-split.md) | Contests in their own service; strikes owned there; gateway aliases for old paths |
 | [0006](0006-write-behind-saves.md) | Editor saves buffered in Redis and flushed to MongoDB (write-behind) |
@@ -18,3 +18,4 @@ alternatives and what it costs. Each is the state of thinking when it was made.
 | [0011](0011-contest-signals.md) | Contest heartbeats, typed vs pasted counts and code similarity, flagged for admin review |
 | [0012](0012-scheduled-contests-and-rooms.md) | Contests run on their schedule; rooms to join; the question held back until the start |
 | [0013](0013-roles-in-the-user-token.md) | Roles stored by identity-service and carried as a claim in the gateway-signed user token |
+| [0014](0014-transactional-outbox.md) | Events saved in the same transaction as their change, sent by a relay |

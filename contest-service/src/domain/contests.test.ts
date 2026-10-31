@@ -24,7 +24,7 @@ after(async () => {
 
 const T0 = new Date(Date.UTC(2026, 5, 1, 10, 0, 0));
 const minutes = (n: number) => new Date(T0.getTime() + n * 60_000);
-const noEvents = () => {};
+const noEvents = async () => {};
 
 // Starts at T0, runs 60 minutes
 const scheduled = (extra: object = {}) =>

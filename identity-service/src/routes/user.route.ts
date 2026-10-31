@@ -4,7 +4,9 @@ import { getAuth } from '../lib/auth';
 import redis from '../config/redis';
 import logger from '../config/logger';
 import { requireAdmin, requireUser } from '../middlewares/userContext.middleware';
-import { publishUserEvent } from '../events/publisher';
+import mongoose, { ClientSession } from 'mongoose';
+import { ObjectId } from 'mongodb';
+import { outboxRelay, publishUserEvent } from '../events/publisher';
 import { isOwner } from '../lib/roles';
 import { z } from 'zod';
 
@@ -53,9 +55,24 @@ userRouter.post('/warning/:userId', requireAdmin, async (req: Request, res: Resp
 });
 
 /**
+ * Sets the ban flag and saves the matching event in one transaction (transactional outbox), so
+ * other services hear about every ban that happened and no other. Written to Better Auth's
+ * "user" collection directly: its adapter can't take part in our transaction.
+ */
+async function setBanned(userId: string, banned: boolean, saveEvent: (session: ClientSession) => Promise<void>) {
+  await mongoose.connection.transaction(async (session) => {
+    await mongoose.connection.db!
+      .collection('user')
+      .updateOne({ _id: new ObjectId(userId) }, { $set: { banned, updatedAt: new Date() } }, { session });
+    await saveEvent(session);
+  });
+  void outboxRelay.wake();
+}
+
+/**
  * Ban: blocks new sign-ins (database hook in lib/auth), deletes the user's sessions and
- * clears them from the gateway's session cache, so their next request is rejected. Then
- * announces user.banned.v1 for other services (code-service disqualifies submissions).
+ * clears them from the gateway's session cache, so their next request is rejected. The
+ * user.banned.v1 event (contest-service disqualifies submissions) commits with the flag.
  */
 userRouter.post('/admin/:userId/ban', requireAdmin, async (req: Request, res: Response): Promise<any> => {
   const adapter = await users();
@@ -65,7 +82,12 @@ userRouter.post('/admin/:userId/ban', requireAdmin, async (req: Request, res: Re
     return res.status(400).json({ message: 'Admins cannot be banned' });
   }
 
-  await adapter.updateUser(user.id, { banned: true });
+  await setBanned(user.id, true, (session) =>
+    publishUserEvent('user.banned.v1', {
+      userId: user.id,
+      bannedBy: req.userContext!.id,
+      bannedAt: new Date().toISOString(),
+    }, session));
   await adapter.deleteUserSessions(user.id);
   try {
     await forgetUserSessions(redis, user.id);
@@ -74,11 +96,6 @@ userRouter.post('/admin/:userId/ban', requireAdmin, async (req: Request, res: Re
     logger.warn(`Could not clear cached sessions for ${user.id}: ${err.message}`);
   }
 
-  publishUserEvent('user.banned.v1', {
-    userId: user.id,
-    bannedBy: req.userContext!.id,
-    bannedAt: new Date().toISOString(),
-  });
   logger.info(`User ${user.id} banned by ${req.userContext!.email}`);
   res.json({ ...toUserResponse(user), banned: true });
 });
@@ -88,12 +105,12 @@ userRouter.post('/admin/:userId/unban', requireAdmin, async (req: Request, res: 
   const user = await adapter.findUserById(req.params.userId);
   if (!user) return res.status(404).json({ message: 'User not found' });
 
-  await adapter.updateUser(user.id, { banned: false });
-  publishUserEvent('user.unbanned.v1', {
-    userId: user.id,
-    unbannedBy: req.userContext!.id,
-    unbannedAt: new Date().toISOString(),
-  });
+  await setBanned(user.id, false, (session) =>
+    publishUserEvent('user.unbanned.v1', {
+      userId: user.id,
+      unbannedBy: req.userContext!.id,
+      unbannedAt: new Date().toISOString(),
+    }, session));
   logger.info(`User ${user.id} unbanned by ${req.userContext!.email}`);
   res.json({ ...toUserResponse(user), banned: false });
 });

@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import mongoose from 'mongoose';
 import {
+  ensureOutboxIndexes,
   correlationMiddleware,
   healthRoutes,
   internalSecurity,
@@ -16,6 +17,7 @@ import { metrics } from './config/metrics';
 import { attemptRouter } from './routes/attempt.route';
 import { contestRouter } from './routes/contest.route';
 import { isKafkaConnected, startKafka, stopKafka } from './events/userEvents.consumer';
+import { outboxRelay } from './events/publisher';
 
 const app = express();
 
@@ -47,6 +49,9 @@ const startServer = async () => {
   try {
     await mongoose.connect(config.DATABASE_URL);
     logger.info('Connected to MongoDB');
+    // Events are saved in the outbox with each change; the relay sends them to Kafka
+    await ensureOutboxIndexes(mongoose.connection.db!);
+    outboxRelay.start();
 
     const server = app.listen(config.PORT, () => {
       logger.info(`${config.SERVICE_NAME} running on port ${config.PORT}`);
@@ -54,7 +59,8 @@ const startServer = async () => {
 
     setupGracefulShutdown(server, logger, {
       cleanup: [
-        // Leave the Kafka consumer group cleanly
+        // Finish the send in progress, then leave the Kafka consumer group cleanly
+        { name: 'Outbox relay', run: () => outboxRelay.stop() },
         { name: 'Kafka', run: stopKafka },
         { name: 'MongoDB', run: () => mongoose.connection.close() },
       ],

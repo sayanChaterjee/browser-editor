@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { createSubmission, recordStrike } from '../domain/attempts';
 import { recordActivity } from '../domain/activity';
 import { ContestError } from '../domain/contests';
-import { publishContestEvent } from '../events/publisher';
+import { outboxRelay, publishContestEvent } from '../events/publisher';
 import Submission from '../models/submission.model';
 import logger from '../config/logger';
 import { heartbeatsRecorded, strikesRecorded, submissionFlags, submissionsCreated } from '../config/metrics';
@@ -34,6 +34,7 @@ attemptRouter.post('/submissions', async (req: Request, res: Response): Promise<
   let submission;
   try {
     submission = await createSubmission({ ...parsed.data, userId: req.userContext!.id }, publishContestEvent);
+    void outboxRelay.wake(); // committed: send the event now rather than at the next tick
   } catch (error) {
     if (error instanceof ContestError) return res.status(error.status).json({ message: error.message });
     throw error;
@@ -79,6 +80,7 @@ attemptRouter.post('/strikes/:projectId', async (req: Request, res: Response): P
     return res.status(400).json({ message: 'Invalid project id' });
   }
   const strikeCount = await recordStrike(req.userContext!.id, projectId, publishContestEvent);
+  void outboxRelay.wake();
   strikesRecorded.inc();
   logger.info(`Strike ${strikeCount} for project ${projectId}`);
   // Same response shape as the old code-service /warning route

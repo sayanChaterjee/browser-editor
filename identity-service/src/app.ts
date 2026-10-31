@@ -13,7 +13,9 @@ import { config } from './config';
 import { indexRouter } from './routes';
 import { userRouter } from './routes/user.route';
 import redis from './config/redis';
-import { correlationMiddleware, internalSecurity, setupGracefulShutdown } from '@ceditor/common';
+import { correlationMiddleware, ensureOutboxIndexes, internalSecurity, setupGracefulShutdown } from '@ceditor/common';
+import mongoose from 'mongoose';
+import { outboxRelay } from './events/publisher';
 import { connectDB, disconnectDB } from './db/db';
 import { producer } from './config/kafka';
 import { metrics } from './config/metrics';
@@ -59,6 +61,9 @@ app.use(errorHandler);
 (async () => {
   try {
     await connectDB();
+    // Events are saved in the outbox with each change; the relay sends them to Kafka
+    await ensureOutboxIndexes(mongoose.connection.db!);
+    outboxRelay.start();
     // Kafka connects in the background (with retries) so it can't block or crash the API
     producer.start();
 
@@ -77,6 +82,7 @@ app.use(errorHandler);
 
     setupGracefulShutdown(server, logger, {
       cleanup: [
+        { name: 'Outbox relay', run: () => outboxRelay.stop() },
         { name: 'Kafka', run: () => producer.stop() },
         { name: 'Redis', run: () => redis.quit() },
         { name: 'MongoDB', run: disconnectDB },
