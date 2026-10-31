@@ -11,6 +11,9 @@ import { INITIAL_README } from "../../utils/constants";
 import { isFromOwnFrame } from "@/lib/utils";
 
 const MAX_CONSOLE_LINES = 500;
+// The preview reloads the whole page, so it waits for a pause in typing instead of
+// reloading on every keystroke
+const PREVIEW_DELAY_MS = 500;
 
 export interface Code {
   html: string;
@@ -34,10 +37,18 @@ interface WorkbenchProps {
 export default function Workbench({ code, onChange, toolbar, sidePanel, contest, className }: WorkbenchProps) {
   const [activeFile, setActiveFile] = useState("index.html");
   const nextLogId = useRef(1);
+  const editorRef = useRef<Parameters<NonNullable<React.ComponentProps<typeof CodeEditor>["onEditorReady"]>>[0] | null>(null);
 
-  // Every edit re-runs the preview, so each run starts with a clean console: lines are kept
-  // with the version of the code that printed them, and only the current run's are shown
-  const run = `${code.html}\u0000${code.css}\u0000${code.js}`;
+  // What the preview shows: the code as of the last pause in typing
+  const [shown, setShown] = useState(code);
+  useEffect(() => {
+    const timer = setTimeout(() => setShown({ html: code.html, css: code.css, js: code.js }), PREVIEW_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [code.html, code.css, code.js]);
+
+  // Every run of the preview starts with a clean console: lines are kept with the version of
+  // the code that printed them, and only the current run's are shown
+  const run = `${shown.html}\u0000${shown.css}\u0000${shown.js}`;
   const runRef = useRef(run);
   useEffect(() => {
     runRef.current = run;
@@ -77,13 +88,23 @@ export default function Workbench({ code, onChange, toolbar, sidePanel, contest,
         <Panel defaultSize={50} minSize={20} className="flex min-w-0 flex-col overflow-hidden bg-editor">
           <PanelGroup orientation="vertical">
             <Panel defaultSize={70} minSize={30} className="flex flex-col">
-              <FileTabs activeFile={activeFile} />
+              <FileTabs
+                activeFile={activeFile}
+                onFormat={
+                  file.language === "markdown"
+                    ? undefined
+                    : () => editorRef.current?.getAction("editor.action.formatDocument")?.run()
+                }
+              />
               <div className="flex-1 overflow-hidden">
                 <CodeEditor
                   language={file.language}
                   value={file.value}
                   onChange={file.onChange}
                   restrictClipboard={!!contest}
+                  onEditorReady={(editor) => {
+                    editorRef.current = editor;
+                  }}
                   onInsert={contest?.onInsert}
                 />
               </div>
@@ -102,7 +123,7 @@ export default function Workbench({ code, onChange, toolbar, sidePanel, contest,
         <Panel defaultSize={50} minSize={20} className="flex flex-col overflow-hidden bg-background">
           {toolbar}
           <div className="flex flex-1 flex-col overflow-hidden">
-            {sidePanel ?? <Preview html={code.html} css={code.css} js={code.js} />}
+            {sidePanel ?? <Preview html={shown.html} css={shown.css} js={shown.js} />}
           </div>
         </Panel>
       </PanelGroup>
