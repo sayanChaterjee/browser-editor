@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { LogoMark } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 
 export function AuthCard({
   title,
@@ -67,7 +68,17 @@ export function OrDivider({ label = "or" }: { label?: string }) {
   );
 }
 
-export function GoogleButton({ onClick }: { onClick: () => void }) {
+export function GoogleButton({ onClick, loading = false }: { onClick: () => void; loading?: boolean }) {
+  if (loading) {
+    return (
+      <div
+        role="status"
+        className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border-strong bg-background text-sm text-muted-foreground"
+      >
+        <Spinner className="size-4" /> Taking you to Google…
+      </div>
+    );
+  }
   return (
     <button
       type="button"

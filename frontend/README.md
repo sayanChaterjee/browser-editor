@@ -43,7 +43,7 @@ forwards each call to the API gateway (`NEXT_PUBLIC_API_URL`):
 | Route | What |
 |---|---|
 | `/` | Landing page: sign-up/log-in buttons when signed out; practice, contests and the live or next contest when signed in |
-| `/login`, `/register` | Google sign-in. Existing username/password accounts can still log in; new ones sign up with Google only, unless `NEXT_PUBLIC_EMAIL_SIGN_UP=true` (local development) |
+| `/login`, `/register` | Sign in with Google. The username/password forms appear only with `NEXT_PUBLIC_EMAIL_PASSWORD_AUTH=true` (local development) |
 | `/practice` | Practice: your projects in the editor (Monaco, live preview, console, autosave). `/editor` redirects here |
 | `/contests` | Contests: live, upcoming (with countdowns) and past ones |
 | `/contests/[id]` | A contest room: join, wait for the start (countdown, how many have joined), then the live contest in full screen, then "Submitted" |

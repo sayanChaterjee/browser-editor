@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useWakeBackend } from "@/components/WakeBackend";
 import { forgetUser } from "@/lib/session";
-import { EMAIL_SIGN_UP } from "@/lib/features";
+import { EMAIL_PASSWORD_AUTH } from "@/lib/features";
 import { AuthCard, FieldError, FormMessage, GoogleButton, OrDivider } from "@/components/auth/AuthCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -105,7 +105,10 @@ const validatePassword = (value: string) => {
     !validatePassword(password) &&
     !validateConfirm(confirm);
 
+  // Going to Google can take a few seconds (the page navigates away when it's ready)
+  const [googleLoading, setGoogleLoading] = useState(false);
   const signInWithGoogle = async () => {
+    setGoogleLoading(true);
     try {
       const { signIn } = await import("../../../lib/auth-client");
       await signIn.social({
@@ -114,13 +117,14 @@ const validatePassword = (value: string) => {
       });
     } catch (error) {
       console.error("Google login failed:", error);
+      setGoogleLoading(false);
     }
   };
 
   return (
     <AuthCard
       title="Create your account"
-      subtitle={EMAIL_SIGN_UP ? "Start coding in seconds. No setup needed." : "Sign up with your Google account. It takes a few seconds."}
+      subtitle={EMAIL_PASSWORD_AUTH ? "Start coding in seconds. No setup needed." : "Sign up with your Google account. It takes a few seconds."}
       footer={
         <>
           Already have an account?{" "}
@@ -130,8 +134,8 @@ const validatePassword = (value: string) => {
         </>
       }
     >
-      <GoogleButton onClick={signInWithGoogle} />
-      {EMAIL_SIGN_UP && (
+      <GoogleButton onClick={signInWithGoogle} loading={googleLoading} />
+      {EMAIL_PASSWORD_AUTH && (
         <>
           <OrDivider label="or with email" />
           <FormMessage message={formMessage} />

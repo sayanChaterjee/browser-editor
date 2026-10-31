@@ -12,10 +12,10 @@ const schema = z.object({
   INTERNAL_GATEWAY_SECRET: envRequired('shared with the API gateway'),
   // Verifies the user tokens the gateway signs
   USER_TOKEN_PUBLIC_KEY: envUserTokenPublicKey(),
-  // New accounts by email and password. Off in production: those addresses aren't verified,
-  // so new users come through Google; existing email accounts can still sign in. Local
-  // development and CI (docker compose) turn it on.
-  EMAIL_SIGN_UP: envBoolean(false),
+  // Username/password sign-up and sign-in. Off in production, where everyone signs in with
+  // Google (verified addresses); local development and CI (docker compose) turn it on, as
+  // the smoke and load tests create accounts that way.
+  EMAIL_PASSWORD_AUTH: envBoolean(false),
   // Failed sign-ins per email address before it is locked for the rest of the window
   LOGIN_MAX_FAILURES: envNumber(10),
   LOGIN_LOCKOUT_MINUTES: envNumber(15),

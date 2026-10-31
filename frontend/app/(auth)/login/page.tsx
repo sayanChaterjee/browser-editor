@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useWakeBackend } from "@/components/WakeBackend";
 import { forgetUser } from "@/lib/session";
+import { EMAIL_PASSWORD_AUTH } from "@/lib/features";
 import { useSession } from "../../../lib/auth-client";
 import { AuthCard, FieldError, FormMessage, GoogleButton, OrDivider } from "@/components/auth/AuthCard";
 import { Button } from "@/components/ui/button";
@@ -106,7 +107,10 @@ export default function LoginPage() {
   const isFormValid =
     !validateUsername(username) && !validatePassword(password);
 
+  // Going to Google can take a few seconds (the page navigates away when it's ready)
+  const [googleLoading, setGoogleLoading] = useState(false);
   const signInWithGoogle = async () => {
+    setGoogleLoading(true);
     try {
       const { signIn } = await import("../../../lib/auth-client");
       await signIn.social({
@@ -115,6 +119,7 @@ export default function LoginPage() {
       });
     } catch (error) {
       console.error("Google login failed:", error);
+      setGoogleLoading(false);
     }
   };
 
@@ -139,51 +144,55 @@ export default function LoginPage() {
         </>
       }
     >
-      <GoogleButton onClick={signInWithGoogle} />
-      <OrDivider label="or log in with email" />
-      <FormMessage message={formMessage} />
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleLogin();
-        }}
-      >
-        <div>
-          <Label htmlFor="username">Username</Label>
-          <Input
-            id="username"
-            autoComplete="username"
-            className="mt-1.5"
-            value={username}
-            onChange={(e) => {
-              setUsername(e.target.value);
-              setErrors({ ...errors, username: validateUsername(e.target.value) });
-              setFormMessage(null);
+      <GoogleButton onClick={signInWithGoogle} loading={googleLoading} />
+      {EMAIL_PASSWORD_AUTH && (
+        <>
+          <OrDivider label="or log in with email" />
+          <FormMessage message={formMessage} />
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleLogin();
             }}
-          />
-          <FieldError>{errors.username}</FieldError>
-        </div>
-        <div>
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            className="mt-1.5"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setErrors({ ...errors, password: validatePassword(e.target.value) });
-              setFormMessage(null);
-            }}
-          />
-          <FieldError>{errors.password}</FieldError>
-        </div>
-        <Button type="submit" variant="primary" className="h-10 w-full" disabled={!isFormValid || isLoading}>
-          {isLoading ? <Spinner className="border-primary-foreground/30 border-t-primary-foreground" /> : "Log in"}
-        </Button>
-      </form>
+          >
+            <div>
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                autoComplete="username"
+                className="mt-1.5"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setErrors({ ...errors, username: validateUsername(e.target.value) });
+                  setFormMessage(null);
+                }}
+              />
+              <FieldError>{errors.username}</FieldError>
+            </div>
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                className="mt-1.5"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrors({ ...errors, password: validatePassword(e.target.value) });
+                  setFormMessage(null);
+                }}
+              />
+              <FieldError>{errors.password}</FieldError>
+            </div>
+            <Button type="submit" variant="primary" className="h-10 w-full" disabled={!isFormValid || isLoading}>
+              {isLoading ? <Spinner className="border-primary-foreground/30 border-t-primary-foreground" /> : "Log in"}
+            </Button>
+          </form>
+        </>
+      )}
     </AuthCard>
   );
 }

@@ -44,6 +44,13 @@ export default function PracticeWorkspace() {
     if (code.js !== js) setJs(code.js);
   };
 
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    await saveCode({ html, css, js });
+    setSaving(false);
+  };
+
   const openNewProject = () => {
     setIsModalCancelable(true);
     setShowCreateModal(true);
@@ -105,8 +112,8 @@ export default function PracticeWorkspace() {
         toolbar={
           <div className="flex h-11 items-center gap-2 border-b border-border px-3">
             <span className="text-[13px] text-subtle-foreground">Changes save automatically</span>
-            <Button size="sm" variant="secondary" className="ml-auto" onClick={() => saveCode({ html, css, js })}>
-              <Save /> Save
+            <Button size="sm" variant="secondary" className="ml-auto" onClick={save} disabled={saving}>
+              {saving ? <Spinner className="size-4" /> : <Save />} {saving ? "Saving…" : "Save"}
             </Button>
           </div>
         }
