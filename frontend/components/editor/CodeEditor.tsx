@@ -36,11 +36,19 @@ type Props = {
   onChange: (value: string) => void;
   /** Characters the user put in: typed, or pasted (one insertion of BULK_INSERT_CHARS or more) */
   onInsert?: (chars: number, kind: "typed" | "pasted") => void;
+  /**
+   * Contest mode: the OS clipboard shortcuts are blocked and copying works only inside the
+   * editor (its own Copy/Paste buttons). Practice keeps the normal clipboard.
+   */
+  restrictClipboard?: boolean;
 };
 
 // One insertion this large didn't come from typing (autocomplete inserts far less): a paste
 // (e.g. Shift+Insert), a drop, or a script editing the editor
 const BULK_INSERT_CHARS = 80;
+
+// How many of its own recent values the editor recognises as echoes (see CodeEditor)
+const ECHOES_KEPT = 50;
 
 // Global-ish clipboard for the app session
 let internalClipboard = "";
@@ -52,7 +60,7 @@ type FloatingAction = {
   left: number;
 } | null;
 
-export default function CodeEditor({ language, value, onChange, onInsert }: Props) {
+export default function CodeEditor({ language, value, onChange, onInsert, restrictClipboard = false }: Props) {
   const [floatingAction, setFloatingAction] = useState<FloatingAction>(null);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
@@ -68,6 +76,24 @@ export default function CodeEditor({ language, value, onChange, onInsert }: Prop
   });
   // The next edit is the in-app Paste button (the user's own copied code)
   const internalPasteRef = useRef(false);
+
+  // Values this editor itself reported through onChange (for the current file). React's state
+  // can lag a keystroke or two behind fast typing; handing such an echo back as `value` makes
+  // the editor library replace the newer text with it, dropping keystrokes. So only values that
+  // came from elsewhere (loading a project, switching files) are pushed into the editor.
+  const [echoes, setEchoes] = useState<{ language: string; values: string[] }>({ language, values: [] });
+  const isEcho = echoes.language === language && echoes.values.includes(value);
+  const report = (next: string) => {
+    setEchoes((prev) => ({
+      language,
+      values: [...(prev.language === language ? prev.values : []), next].slice(-ECHOES_KEPT),
+    }));
+    onChange(next);
+  };
+  const restrictRef = useRef(restrictClipboard);
+  useEffect(() => {
+    restrictRef.current = restrictClipboard;
+  });
 
   const handleCopy = () => {
     if (floatingAction && floatingAction.type === 'copy' && floatingAction.text) {
@@ -102,7 +128,7 @@ export default function CodeEditor({ language, value, onChange, onInsert }: Prop
   return (
     <div className="relative h-full w-full overflow-hidden bg-editor">
       {/* Floating Toolbar */}
-      {floatingAction && (
+      {restrictClipboard && floatingAction && (
         <div 
           className="animate-fadeIn absolute z-[100] flex items-center gap-1 rounded-lg border border-border-strong bg-popover p-1 shadow-2xl shadow-black"
           style={{ top: Math.max(10, floatingAction.top - 50), left: Math.max(10, floatingAction.left - 20) }}
@@ -138,8 +164,8 @@ export default function CodeEditor({ language, value, onChange, onInsert }: Prop
         theme="ceditor"
         beforeMount={defineTheme}
         language={language}
-        value={value}
-        onChange={(val) => onChange(val || "")}
+        value={isEcho ? undefined : value}
+        onChange={(val) => report(val || "")}
         options={{
           minimap: { enabled: false },
           fontSize: 13.5,
@@ -182,6 +208,7 @@ export default function CodeEditor({ language, value, onChange, onInsert }: Prop
 
           // Block OS level clipboard shortcuts (Ctrl+C/V/X) and Search (Ctrl+F)
           editor.onKeyDown((e) => {
+            if (!restrictRef.current) return;
             const { ctrlKey, metaKey, code } = e;
             if ((ctrlKey || metaKey) && (code === 'KeyC' || code === 'KeyV' || code === 'KeyX' || code === 'KeyF')) {
               e.preventDefault();
@@ -207,6 +234,7 @@ export default function CodeEditor({ language, value, onChange, onInsert }: Prop
 
           // Detect selection to show the Copy button
           editor.onDidChangeCursorSelection(() => {
+            if (!restrictRef.current) return;
             const selectionObj = editor.getSelection();
             const model = editor.getModel();
             

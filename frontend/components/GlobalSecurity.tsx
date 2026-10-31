@@ -7,9 +7,9 @@ export default function GlobalSecurity() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Only the editor needs these deterrents (contests run there); everywhere else the
+    // Only contest rooms need these deterrents; everywhere else, practice included, the
     // browser's context menu and shortcuts work normally
-    if (!pathname?.startsWith("/editor")) {
+    if (!pathname?.startsWith("/contests/")) {
       return;
     }
 

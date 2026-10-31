@@ -44,7 +44,9 @@ forwards each call to the API gateway (`NEXT_PUBLIC_API_URL`):
 |---|---|
 | `/` | Landing page |
 | `/login`, `/register` | Email/password and Google sign-in |
-| `/editor` | The editor: Monaco panels, live preview, console, autosave, contests |
+| `/practice` | Practice: your projects in the editor (Monaco, live preview, console, autosave). `/editor` redirects here |
+| `/contests` | Contests: live, upcoming (with countdowns) and past ones |
+| `/contests/[id]` | A contest room: join, wait for the start (countdown, how many have joined), then the live contest in full screen, then "Submitted" |
 | `/profile` | The user's projects |
 | `/admin` | Users (ban/unban), their projects and submissions, contest management |
 
@@ -66,14 +68,20 @@ forwards each call to the API gateway (`NEXT_PUBLIC_API_URL`):
   "Welcome" project is created asynchronously by the backend, so for accounts under 5 minutes
   old an empty project list is re-checked for up to a minute before the user is asked to create
   a project. That covers a backend service waking up on Render's free tier.
-- **Contests** (`hooks/useContestSecurity.ts`): fullscreen is required. Leaving the tab or
-  window records a strike with contest-service (`/api/v1/contest/strikes/:projectId`), whose
-  count is authoritative: reloading the page doesn't reset it. The 4th strike signs the user out.
-  These deterrents (and the desktop-only screen) apply only to the editor and admin pages.
-  The editor also sends a heartbeat every 15 s (`hooks/useContestActivity.ts`) with what was
-  typed and pasted (`CodeEditor`'s `onInsert`); contest-service turns these into flags shown on
-  the admin page (`components/admin/SubmissionSignals.tsx`). See ADR 0011. Submitting, including the automatic submit when the window
-  closes (`sendBeacon`), goes to `/api/v1/contest/submissions`.
+- **Editing area:** `components/editor/Workbench.tsx` (files, editor, console, preview) is
+  shared by `PracticeWorkspace` and `components/contest/ContestWorkspace`. `CodeEditor` doesn't
+  hand its own recent values back to Monaco, so lagging React state can't drop keystrokes.
+- **Contests** run on their schedule (ADR 0012). `components/contest/ContestRoom.tsx` polls
+  `/api/v1/contest/:id/room` every 5 s and counts down on the server's clock; at the start it
+  switches to "live", and entering takes a click (full screen needs one). The workspace links a
+  contest project (`PUT /contest/:id/project`), fetches the question, and runs the deterrents
+  (`hooks/useContestSecurity.ts`): full screen, strikes recorded with contest-service (its count
+  wins over a reload; the 4th submits and ends the contest), clipboard limited to the editor. It
+  sends a heartbeat every 15 s (`hooks/useContestActivity.ts`) with what was typed and pasted;
+  contest-service turns these into flags on the admin page (ADR 0011). Submitting (also at
+  time-up, and by beacon if the window closes) goes to `/api/v1/contest/submissions` with the
+  contest id. The deterrents apply in contest rooms only; practice has the normal clipboard.
+  Rooms, practice and admin need a desktop-size screen; the contests list works on a phone.
 
 ## Running locally
 

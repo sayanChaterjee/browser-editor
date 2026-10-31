@@ -39,7 +39,7 @@ export function middleware(request: NextRequest) {
   // Redirect to editor if has session and on public auth pages
   if (sessionToken && isPublicPath && pathname !== '/') {
     console.log('[Middleware] Has session, redirecting to editor from:', pathname);
-    return NextResponse.redirect(new URL('/editor', request.url));
+    return NextResponse.redirect(new URL('/practice', request.url));
   }
 
   const nonce = createNonce();
@@ -56,6 +56,8 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/editor/:path*',
+    '/practice/:path*',
+    '/contests/:path*',
     '/login',
     '/register',
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)',

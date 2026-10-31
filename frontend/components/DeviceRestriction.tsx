@@ -4,8 +4,9 @@ import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ArrowRight, Laptop } from "lucide-react";
 
-// Pages that need a large screen; the rest (landing, sign-in, projects) work on any size
-const DESKTOP_ONLY = ["/editor", "/admin"];
+// Pages that need a large screen; the rest (landing, sign-in, projects, the contests list)
+// work on any size. "/contests/" is a contest room, not the list.
+const DESKTOP_ONLY = ["/practice", "/contests/", "/admin"];
 
 export default function DeviceRestriction({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

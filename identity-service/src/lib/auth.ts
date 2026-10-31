@@ -126,8 +126,8 @@ export function getAuth() {
             secret: config.BETTER_AUTH_SECRET,
 
             redirects: {
-                onSignIn: `${baseURL}/editor`,
-                onSignUp: `${baseURL}/editor`,
+                onSignIn: `${baseURL}/practice`,
+                onSignUp: `${baseURL}/practice`,
             },
         });
     }

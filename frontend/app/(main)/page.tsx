@@ -92,7 +92,7 @@ export default function Home() {
           Nothing to install.
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <Link href="/editor" className={buttonVariants({ variant: "primary", size: "lg" })}>
+          <Link href="/practice" className={buttonVariants({ variant: "primary", size: "lg" })}>
             Start coding <ArrowRight />
           </Link>
           <Link href="/register" className={buttonVariants({ variant: "secondary", size: "lg" })}>

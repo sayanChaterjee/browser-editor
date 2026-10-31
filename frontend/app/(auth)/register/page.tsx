@@ -87,7 +87,7 @@ const validatePassword = (value: string) => {
 
       setFormMessage({ text: "Account created. Redirecting...", type: "success" });
       setTimeout(() => {
-        window.location.href = "/editor";
+        window.location.href = "/practice";
       }, 1000);
     } catch (error) {
       console.warn("Registration attempt failed:", error);
@@ -105,7 +105,7 @@ const validatePassword = (value: string) => {
       const { signIn } = await import("../../../lib/auth-client");
       await signIn.social({
         provider: "google",
-        callbackURL: window.location.origin + "/editor",
+        callbackURL: window.location.origin + "/practice",
       });
     } catch (error) {
       console.error("Google login failed:", error);
