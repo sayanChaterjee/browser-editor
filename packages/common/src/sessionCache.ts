@@ -21,6 +21,8 @@ export interface CachedSession {
   userId: string;
   name: string;
   email: string;
+  // Entries cached before roles existed have none: read as 'user' (they expire within the TTL)
+  role?: 'user' | 'admin';
 }
 
 // Keys hold a hash of the session cookie, never the token itself

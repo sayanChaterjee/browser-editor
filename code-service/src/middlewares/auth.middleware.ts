@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { userFromRequest } from '@ceditor/common';
+import { Role, userFromRequest } from '@ceditor/common';
 import { config } from '../config';
 import logger from '../config/logger';
 
@@ -8,6 +8,9 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      userName?: string;
+      userEmail?: string;
+      userRole?: Role;
       token?: string;
     }
   }
@@ -28,7 +31,8 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
   }
 
   req.userId = user.id;
-  (req as any).userName = user.name;
-  (req as any).userEmail = user.email;
+  req.userName = user.name;
+  req.userEmail = user.email;
+  req.userRole = user.role;
   next();
 };

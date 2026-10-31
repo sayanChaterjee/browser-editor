@@ -19,6 +19,7 @@ import { producer } from './config/kafka';
 import { metrics } from './config/metrics';
 import { getAuth } from './lib/auth';
 import { toNodeHandler } from 'better-auth/node';
+import { syncOwnerRoles } from './lib/roles';
 
 const app = express();
 
@@ -65,6 +66,8 @@ app.use(errorHandler);
     logger.info('Initializing better-auth...');
     getAuth();
     logger.info('Better-auth initialized successfully');
+    // Owners already registered get the admin role (not fatal: they keep their current one)
+    await syncOwnerRoles().catch((err) => logger.error(`Owner role sync failed: ${err.message}`));
 
     const server = app.listen(config.PORT, '0.0.0.0', () => {
       logger.info(

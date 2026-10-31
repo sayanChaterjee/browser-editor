@@ -72,6 +72,7 @@ export default function UserList({
                     <span className={cn('truncate text-[13px] font-medium', selected ? 'text-foreground' : 'text-foreground/90')}>
                       {user.name}
                     </span>
+                    {user.isOwner ? <Badge tone="info">owner</Badge> : user.role === 'admin' && <Badge tone="info">admin</Badge>}
                     {user.banned && <Badge tone="danger">banned</Badge>}
                     {user.warningCount > 0 && (
                       <Badge tone={user.warningCount >= 3 ? 'danger' : 'warning'}><TriangleAlert className="size-3" />{user.warningCount}</Badge>

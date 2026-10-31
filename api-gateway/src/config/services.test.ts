@@ -24,7 +24,7 @@ function upstream(service: string) {
 }
 
 // Stands in for authMiddleware: x-test-user marks the request as signed in
-const USER = { id: 'u-42', name: 'Ada', email: 'ada@example.com' };
+const USER = { id: 'u-42', name: 'Ada', email: 'ada@example.com', role: 'user' as const };
 
 const servers: Awaited<ReturnType<typeof listen>>[] = [];
 let gateway: Awaited<ReturnType<typeof listen>>;

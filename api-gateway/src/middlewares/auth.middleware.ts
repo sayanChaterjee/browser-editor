@@ -6,6 +6,7 @@ import {
     forgetUserSessions,
     getCachedSession,
     isRedisReady,
+    toRole,
     LEGACY_USER_HEADERS,
     USER_TOKEN_HEADER,
 } from '@ceditor/common';
@@ -70,7 +71,7 @@ async function fromIdentity(req: Request, res?: Response): Promise<ValidatedSess
     const user = response.data?.user;
     if (!user?.id || user.banned) return null;
     return {
-        session: { userId: user.id, name: user.name || '', email: (user.email || '').toLowerCase() },
+        session: { userId: user.id, name: user.name || '', email: (user.email || '').toLowerCase(), role: toRole(user.role) },
         expiresAt: new Date(response.data.session?.expiresAt),
     };
 }
@@ -134,7 +135,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     endSessionCheck({ source, result: 'valid' });
 
-    req.user = { id: session.userId, name: session.name, email: session.email };
+    req.user = { id: session.userId, name: session.name, email: session.email, role: toRole(session.role) };
 
     logger.debug(`Authenticated request from user ${session.userId} (${source})`);
     next();

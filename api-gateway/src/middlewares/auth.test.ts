@@ -28,6 +28,7 @@ identity.get('/api/auth/get-session', (req, res) => {
   });
   if (cookie.includes('hang-up')) return req.socket.destroy();
   if (cookie.includes('banned')) return res.json(user('u-banned', { banned: true }));
+  if (cookie.includes('admin')) return res.json(user(`u-admin-${cookie.slice(-8)}`, { role: 'admin' }));
   if (cookie.includes('valid')) return res.json(user(`u-${cookie.split('valid-')[1]?.slice(0, 20)}`));
   res.json(null);
 });
@@ -38,7 +39,7 @@ gateway.use(cookieParser());
 gateway.use(stripClientIdentity);
 gateway.use('/api/auth', sessionCacheInvalidation, (req, res) => res.json({ ok: true }));
 gateway.use('/api/v1', authMiddleware, (req, res) => {
-  res.json({ userId: req.user?.id, email: req.user?.email, clientHeaders: [req.headers['x-user-id'], req.headers['x-user-token']] });
+  res.json({ userId: req.user?.id, email: req.user?.email, role: req.user?.role, clientHeaders: [req.headers['x-user-id'], req.headers['x-user-token']] });
 });
 
 let identityServer: Awaited<ReturnType<typeof listen>>;
@@ -135,4 +136,12 @@ test('Redis down: sessions are checked at identity-service instead', { skip }, a
   } finally {
     await redis.connect();
   }
+});
+
+test('the role comes from identity-service and survives the cache', { skip }, async () => {
+  const cookie = token('admin-x');
+  assert.equal((await call('/api/v1/x', cookie)).body.role, 'admin');
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal((await call('/api/v1/x', cookie)).body.role, 'admin', 'from the cache');
+  assert.equal((await call('/api/v1/x', token('valid-r'))).body.role, 'user');
 });

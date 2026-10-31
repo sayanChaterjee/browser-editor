@@ -1,4 +1,4 @@
-import { loadConfig, z, envRequired, envNumber, envList, envUserTokenPublicKey } from '@ceditor/common';
+import { loadConfig, z, envRequired, envNumber, envUserTokenPublicKey } from '@ceditor/common';
 
 const schema = z.object({
   PORT: envNumber(3003),
@@ -11,7 +11,6 @@ const schema = z.object({
   INTERNAL_GATEWAY_SECRET: envRequired('shared with the API gateway'),
   // Verifies the user tokens the gateway signs
   USER_TOKEN_PUBLIC_KEY: envUserTokenPublicKey(),
-  ADMIN_EMAILS: envList('').transform((emails) => emails.map((e) => e.toLowerCase())),
 });
 
 export const config = {

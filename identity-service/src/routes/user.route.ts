@@ -3,9 +3,10 @@ import { forgetUserSessions } from '@ceditor/common';
 import { getAuth } from '../lib/auth';
 import redis from '../config/redis';
 import logger from '../config/logger';
-import { config } from '../config';
 import { requireAdmin, requireUser } from '../middlewares/userContext.middleware';
 import { publishUserEvent } from '../events/publisher';
+import { isOwner } from '../lib/roles';
+import { z } from 'zod';
 
 // Users are Better Auth's own records; its internal adapter handles ID conversion and
 // keeps its session cache consistent, so all access goes through it.
@@ -20,6 +21,9 @@ const toUserResponse = (user: any) => ({
   image: user.image ?? null,
   warningCount: user.warningCount ?? 0,
   banned: user.banned ?? false,
+  role: user.role === 'admin' ? 'admin' : 'user',
+  // Owners (ADMIN_EMAILS) are always admins: their role can't be changed, nor can they be banned
+  isOwner: isOwner(user.email),
   createdAt: user.createdAt,
 });
 
@@ -57,7 +61,7 @@ userRouter.post('/admin/:userId/ban', requireAdmin, async (req: Request, res: Re
   const adapter = await users();
   const user = await adapter.findUserById(req.params.userId);
   if (!user) return res.status(404).json({ message: 'User not found' });
-  if (config.ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+  if (isOwner(user.email) || (user as { role?: string }).role === 'admin') {
     return res.status(400).json({ message: 'Admins cannot be banned' });
   }
 
@@ -92,6 +96,33 @@ userRouter.post('/admin/:userId/unban', requireAdmin, async (req: Request, res: 
   });
   logger.info(`User ${user.id} unbanned by ${req.userContext!.email}`);
   res.json({ ...toUserResponse(user), banned: false });
+});
+
+const roleSchema = z.object({ role: z.enum(['user', 'admin']) });
+
+/**
+ * Promote or demote. Owners keep their role, and an admin can't drop their own (the app always
+ * keeps an admin who can undo mistakes). The user's cached sessions are cleared, so their next
+ * request carries the new role in its token.
+ */
+userRouter.post('/admin/:userId/role', requireAdmin, async (req: Request, res: Response) => {
+  const refuse = (status: number, message: string) => res.status(status).json({ message });
+  const parsed = roleSchema.safeParse(req.body);
+  if (!parsed.success) return void refuse(400, 'role must be "user" or "admin"');
+  const adapter = await users();
+  const user = await adapter.findUserById(String(req.params.userId));
+  if (!user) return void refuse(404, 'User not found');
+  if (isOwner(user.email)) return void refuse(400, "An owner's role can't be changed");
+  if (user.id === req.userContext!.id) return void refuse(400, "You can't change your own role");
+
+  const updated = await adapter.updateUser(user.id, { role: parsed.data.role });
+  try {
+    await forgetUserSessions(redis, user.id);
+  } catch (err) {
+    logger.warn(`Could not clear cached sessions for ${user.id}: ${(err as Error).message}`);
+  }
+  logger.info(`User ${user.id} is now ${parsed.data.role} (by ${req.userContext!.email})`);
+  res.json(toUserResponse(updated));
 });
 
 export { userRouter };

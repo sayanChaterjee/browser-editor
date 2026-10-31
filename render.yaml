@@ -102,8 +102,10 @@ services:
         sync: false # Vercel frontend URL
       - key: ALLOWED_ORIGINS
         sync: false # Vercel frontend URL
+      # Owners (comma-separated): always admins. Other admins are promoted in the app; the
+      # role reaches the other services in the signed user token, so only this service has it
       - key: ADMIN_EMAILS
-        sync: false # comma-separated
+        sync: false
       - key: LOG_LEVEL
         value: info
 
@@ -134,10 +136,6 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
-      # Same list as identity-service and contest-service: the admin page reads users' projects
-      # from code-service
-      - key: ADMIN_EMAILS
-        sync: false # comma-separated
       - key: LOG_LEVEL
         value: info
 
@@ -168,7 +166,5 @@ services:
         sync: false # Atlas .../ceditor_contest
       - key: KAFKA_BROKER
         sync: false
-      - key: ADMIN_EMAILS
-        sync: false # comma-separated
       - key: LOG_LEVEL
         value: info

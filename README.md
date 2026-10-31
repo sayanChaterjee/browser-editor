@@ -87,6 +87,7 @@ One-page records in [docs/adr](docs/adr), each with the alternatives and trade-o
 10. [Nonce-based CSP, with previews in a frame page of their own](docs/adr/0010-strict-csp-preview-frame.md)
 11. [Contest integrity from signals the server keeps](docs/adr/0011-contest-signals.md)
 12. [Scheduled contests with rooms](docs/adr/0012-scheduled-contests-and-rooms.md)
+13. [Roles in the signed user token](docs/adr/0013-roles-in-the-user-token.md)
 
 ## Results
 
@@ -206,11 +207,9 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
   server addresses). The `/api` proxy retries them and the app shows "Server busy, retrying…";
   a custom domain with the browser calling the gateway directly would remove the hop. The editor shows a
   loading screen, and waits up to a minute for a new user's starter project.
-- **Sign-in takes ~2 s on the free tier.** Most of it is the password hash (scrypt, ~80 ms on a
-  full core) on a fraction of a CPU; lowering its cost would weaken password storage.
-- **Without Redis, rate limits and the sign-in lockout are counted per instance** (in memory)
-  rather than shared, and an alert fires. Anyone can lock an address for 15 minutes with 10
-  wrong passwords. See ADR 0009.
+
+- **Without Redis, rate limits are counted per gateway instance** (in memory) rather than
+  shared, and an alert fires. See ADR 0009.
 - **Contest anti-cheat is evidence, not proof.** The browser deterrents can be switched off with
   devtools; what holds up is server-side: heartbeats, typed vs pasted counts, code that wasn't
   typed, and similarity to other entries and the target. Flags go to an admin to decide.
@@ -219,7 +218,8 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
   identity-service's `EMAIL_PASSWORD_AUTH` is set, as docker compose does for local development
   and the smoke and load tests. The accounts made with it were removed by
   `identity-service/src/scripts/delete-password-accounts.ts` (dry run by default).
-- **Admins are configured by email** (`ADMIN_EMAILS` in each service), not by roles.
+- **Two roles only** (user, admin). Admins are promoted in the app; the owners in
+  identity-service's `ADMIN_EMAILS` are always admins. See ADR 0013.
 
 ## Repository layout
 

@@ -125,6 +125,7 @@ ADMIN_BODY="{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$PASSWORD\",\"name\":\"Sm
 call "$ADMIN_JAR" POST /api/auth/sign-in/email "$ADMIN_BODY"
 [[ "$STATUS" =~ ^2 ]] || call "$ADMIN_JAR" POST /api/auth/sign-up/email "$ADMIN_BODY"
 call "$ADMIN_JAR" GET /api/v1/user/profile
+ADMIN_ID="$(jq -r '.id' <<<"$BODY")"
 if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
   # Contest (contest-service): the admin opens one, the user gets a strike and submits
   # Contests run on their schedule: this one started a minute ago and runs for an hour
@@ -162,6 +163,15 @@ if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
     || fail "submission records strikes and contest" "$BODY"
   jq -e 'has("signals") or has("flags") | not' <<<"$BODY" >/dev/null \
     || fail "review evidence isn't sent to the contestant" "$BODY"
+  # Roles: promoting gives admin rights at the user's next request (role in the signed token);
+  # demoting takes them away again
+  expect_status "user is not an admin" 403 "$JAR" GET /api/v1/user/all
+  expect_status "admin promotes user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/role" '{"role":"admin"}'
+  expect_status "promoted user reaches admin routes" 200 "$JAR" GET /api/v1/user/all
+  expect_status "promoted user reaches contest admin routes" 200 "$JAR" GET "/api/v1/contest/admin/submissions/$USER_ID"
+  expect_status "admin demotes user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/role" '{"role":"user"}'
+  expect_status "demoted user is refused again" 403 "$JAR" GET /api/v1/user/all
+  expect_status "owner's role can't be changed" 400 "$ADMIN_JAR" POST "/api/v1/user/admin/$ADMIN_ID/role" '{"role":"user"}'
   expect_status "admin bans user" 200 "$ADMIN_JAR" POST "/api/v1/user/admin/$USER_ID/ban"
   expect_status "banned user's next request rejected" 401 "$JAR" GET /api/v1/user/profile
   expect_status "banned user cannot sign in" 403 "$JAR" POST /api/auth/sign-in/email \
