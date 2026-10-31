@@ -6,8 +6,8 @@ import { signUserToken } from '@ceditor/common';
 const userTokenKeys = generateKeyPairSync('ed25519');
 
 /** A token the gateway would send for this user (what verifyToken accepts). */
-export const userTokenFor = (id: string, audience = 'code-service') =>
-  signUserToken(userTokenKeys.privateKey, { id, name: 'Test User', email: `${id}@example.com` }, audience);
+export const userTokenFor = (id: string, audience = 'code-service', role: 'user' | 'admin' = 'user') =>
+  signUserToken(userTokenKeys.privateKey, { id, name: 'Test User', email: `${id}@example.com`, role }, audience);
 
 Object.assign(process.env, {
   NODE_ENV: 'test',

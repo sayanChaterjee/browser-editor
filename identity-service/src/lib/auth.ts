@@ -4,6 +4,7 @@ import { APIError } from "better-auth/api";
 import mongoose from "mongoose";
 import { config } from "../config";
 import { publishUserEvent } from "../events/publisher";
+import { isOwner } from "./roles";
 import { lockoutAfterSignIn, lockoutBeforeSignIn } from "./loginLockout";
 
 let authInstance: any = null;
@@ -33,6 +34,8 @@ export function getAuth() {
                 additionalFields: {
                     warningCount: { type: "number", defaultValue: 0, input: false },
                     banned: { type: "boolean", defaultValue: false, input: false },
+                    // "user" or "admin" (lib/roles); goes to the services in the signed user token
+                    role: { type: "string", defaultValue: "user", input: false },
                 },
             },
 
@@ -46,6 +49,10 @@ export function getAuth() {
                 // Runs after the user is committed (email sign-up and first Google sign-in)
                 user: {
                     create: {
+                        // Owners (ADMIN_EMAILS) are admins from their first sign-in
+                        before: async (user) => {
+                            if (isOwner(user.email)) return { data: { ...user, role: "admin" } };
+                        },
                         after: async (user) => {
                             publishUserEvent("user.registered.v1", {
                                 userId: user.id,

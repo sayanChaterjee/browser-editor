@@ -20,11 +20,18 @@ export const LEGACY_USER_HEADERS = ['x-user-id', 'x-user-name', 'x-user-email', 
 // Allowance for clock drift between the gateway and a service
 const CLOCK_SKEW_SECONDS = 5;
 
+export type Role = 'user' | 'admin';
+
 export interface UserIdentity {
   id: string;
   name: string;
   email: string;
+  // Set by identity-service (the user record's role); services authorise admin routes on it
+  role: Role;
 }
+
+// Anything but an explicit "admin" is an ordinary user
+export const toRole = (value: unknown): Role => (value === 'admin' ? 'admin' : 'user');
 
 export class InvalidUserTokenError extends Error {}
 
@@ -60,6 +67,7 @@ export function signUserToken(privateKey: KeyObject, user: UserIdentity, audienc
       sub: user.id,
       name: user.name,
       email: user.email,
+      role: user.role,
       iat,
       exp: iat + USER_TOKEN_TTL_SECONDS,
     }),
@@ -104,6 +112,7 @@ export function verifyUserToken(publicKey: KeyObject, token: string, audience: s
     id: claims.sub,
     name: typeof claims.name === 'string' ? claims.name : '',
     email: typeof claims.email === 'string' ? claims.email.toLowerCase() : '',
+    role: toRole(claims.role),
   };
 }
 

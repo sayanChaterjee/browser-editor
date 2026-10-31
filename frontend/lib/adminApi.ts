@@ -7,6 +7,9 @@ export interface User {
     email?: string;
     isAdmin?: boolean;
     banned?: boolean;
+    // "admin" users reach the admin pages; owners (identity-service ADMIN_EMAILS) always are
+    role?: 'user' | 'admin';
+    isOwner?: boolean;
 }
 
 export interface Submission {
@@ -90,6 +93,18 @@ export async function setUserBanned(userId: string, banned: boolean): Promise<Us
     if (!res.ok) {
         throw await errorFrom(res, `Failed to ${banned ? 'ban' : 'unban'} user: ${res.status}`);
     }
+    return res.json();
+}
+
+// Promote or demote; takes effect at the user's next request (the role is in their token)
+export async function setUserRole(userId: string, role: 'user' | 'admin'): Promise<User> {
+    const res = await fetch(`${BASE}/api/v1/user/admin/${userId}/role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role }),
+    });
+    if (!res.ok) throw await errorFrom(res, `Failed to change role: ${res.status}`);
     return res.json();
 }
 

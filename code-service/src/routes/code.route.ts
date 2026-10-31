@@ -380,14 +380,13 @@ codeRouter.delete('/:projectId', verifyToken, async (req: Request, res: Response
 
 // --- ADMIN ROUTES ---
 
-import { config } from '../config';
 
 // GET /admin/projects/:userId - Get all projects for any user (for admin dashboard)
 codeRouter.get('/admin/projects/:userId', verifyToken, async (req: Request, res: Response): Promise<any> => {
   try {
-    const userEmail = ((req as any).userEmail || '').toLowerCase();
-    if (!config.ADMIN_EMAILS.includes(userEmail)) {
-      logger.warn(`Unauthorized access attempt to admin projects by ${userEmail}`);
+    // The role comes from identity-service, signed into the token by the gateway
+    if (req.userRole !== 'admin') {
+      logger.warn(`Unauthorized access attempt to admin projects by ${req.userEmail}`);
       return res.status(403).json({ message: 'Forbidden: Admin access required' });
     }
 

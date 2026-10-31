@@ -8,14 +8,15 @@ import {
   fetchAllUsers, 
   fetchUserProjectsAdmin, 
   fetchUserSubmissionsAdmin,
-  setUserBanned
+  setUserBanned,
+  setUserRole
 } from '@/lib/adminApi';
 import UserList from '@/components/admin/UserList';
 import PreviewPanel from '@/components/admin/PreviewPanel';
 import SubmissionSignals from '@/components/admin/SubmissionSignals';
 import ContestManager from '@/components/admin/ContestManager';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Ban, Clock, Lock, MousePointerClick, ShieldCheck, TriangleAlert, Users, X, XCircle } from 'lucide-react';
+import { ArrowLeft, Ban, Clock, Crown, Lock, MousePointerClick, ShieldCheck, ShieldMinus, ShieldPlus, TriangleAlert, Users, X, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/ui/logo';
@@ -39,6 +40,27 @@ export default function AdminDashboard() {
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const [moderating, setModerating] = useState(false);
   const [moderationError, setModerationError] = useState<string | null>(null);
+  const [myId, setMyId] = useState<string | null>(null);
+
+  const toggleAdmin = async () => {
+    if (!selectedUser) return;
+    const role = selectedUser.role === 'admin' ? 'user' : 'admin';
+    const question = role === 'admin'
+      ? `Make ${selectedUser.name} an admin? They can manage users and contests from their next request.`
+      : `Remove ${selectedUser.name}'s admin rights?`;
+    if (!window.confirm(question)) return;
+    setModerating(true);
+    setModerationError(null);
+    try {
+      const updated = await setUserRole(selectedUser._id, role);
+      setSelectedUser(updated);
+      setUsers((prev) => prev.map((u) => (u._id === updated._id ? updated : u)));
+    } catch (err) {
+      setModerationError(err instanceof Error ? err.message : 'Role change failed');
+    } finally {
+      setModerating(false);
+    }
+  };
 
   const toggleBan = async () => {
     if (!selectedUser) return;
@@ -69,6 +91,7 @@ export default function AdminDashboard() {
         }
         const profile = await profileRes.json();
         
+        setMyId(profile.id);
         if (!profile.isAdmin) {
           setIsAuthorized(false);
           setLoading(false);
@@ -211,6 +234,9 @@ export default function AdminDashboard() {
                 <div className="min-w-0">
                   <h2 className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
                     {selectedUser.name}
+                    {selectedUser.isOwner ? (
+                      <Badge tone="info" title="Set in ADMIN_EMAILS: always an admin"><Crown className="size-3" /> Owner</Badge>
+                    ) : selectedUser.role === 'admin' && <Badge tone="info">Admin</Badge>}
                     {selectedUser.banned && <Badge tone="danger">Banned</Badge>}
                   </h2>
                   <p className="truncate font-mono text-[12px] text-muted-foreground">{selectedUser.email}</p>
@@ -232,14 +258,22 @@ export default function AdminDashboard() {
                   <p className="text-sm font-medium text-foreground">{new Date(selectedUser.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div className="flex flex-col items-end">
-                  <Button
-                    size="sm"
-                    variant={selectedUser.banned ? 'secondary' : 'danger-outline'}
-                    onClick={toggleBan}
-                    disabled={moderating}
-                  >
-                    {moderating ? <Spinner /> : selectedUser.banned ? <><ShieldCheck /> Unban</> : <><Ban /> Ban</>}
-                  </Button>
+                  <div className="flex gap-2">
+                    {/* Owners keep their role; nobody changes their own */}
+                    {!selectedUser.isOwner && selectedUser._id !== myId && (
+                      <Button size="sm" variant="secondary" onClick={toggleAdmin} disabled={moderating}>
+                        {selectedUser.role === 'admin' ? <><ShieldMinus /> Remove admin</> : <><ShieldPlus /> Make admin</>}
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant={selectedUser.banned ? 'secondary' : 'danger-outline'}
+                      onClick={toggleBan}
+                      disabled={moderating}
+                    >
+                      {moderating ? <Spinner /> : selectedUser.banned ? <><ShieldCheck /> Unban</> : <><Ban /> Ban</>}
+                    </Button>
+                  </div>
                   {moderationError && (
                     <span className="mt-1 max-w-[200px] text-right text-[11px] text-destructive">{moderationError}</span>
                   )}

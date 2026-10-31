@@ -26,7 +26,8 @@ export const requireUser = (req: Request, res: Response, next: NextFunction) => 
   if (!user) {
     return res.status(401).json({ message: 'Unauthorized: missing user context' });
   }
-  req.userContext = { ...user, isAdmin: config.ADMIN_EMAILS.includes(user.email) };
+  // The role comes from identity-service, signed into the token by the gateway
+  req.userContext = { ...user, isAdmin: user.role === 'admin' };
   next();
 };
 

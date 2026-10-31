@@ -12,7 +12,7 @@ import {
 } from './userToken';
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-const user = { id: 'u1', name: 'Ada', email: 'Ada@Example.com' };
+const user = { id: 'u1', name: 'Ada', email: 'Ada@Example.com', role: 'user' as const };
 const now = Date.UTC(2026, 0, 1);
 
 const rejects = (token: string, reason: RegExp, audience = 'code-service', at = now) =>
@@ -20,7 +20,7 @@ const rejects = (token: string, reason: RegExp, audience = 'code-service', at = 
 
 test('a token signed for a service verifies there and names the user', () => {
   const token = signUserToken(privateKey, user, 'code-service', now);
-  assert.deepEqual(verifyUserToken(publicKey, token, 'code-service', now), { id: 'u1', name: 'Ada', email: 'ada@example.com' });
+  assert.deepEqual(verifyUserToken(publicKey, token, 'code-service', now), { id: 'u1', name: 'Ada', email: 'ada@example.com', role: 'user' });
 });
 
 test('keys survive the one-line base64 form used in env vars', () => {
@@ -70,4 +70,16 @@ test('garbage is refused', () => {
   rejects('a.b.c', /malformed/);
   const nullPart = Buffer.from('null').toString('base64url');
   rejects(`${nullPart}.${nullPart}.x`, /malformed/);
+});
+
+test('the role travels in the token; anything but "admin" is a user', () => {
+  const admin = signUserToken(privateKey, { ...user, role: 'admin' }, 'code-service', now);
+  assert.equal(verifyUserToken(publicKey, admin, 'code-service', now).role, 'admin');
+
+  // A token without a role claim (signed before roles existed) is an ordinary user
+  const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const header = part({ alg: 'EdDSA', typ: 'JWT' });
+  const claims = part({ iss: 'api-gateway', aud: 'code-service', sub: 'u2', role: 'superuser', iat: now / 1000, exp: now / 1000 + 60 });
+  const signature = sign(null, Buffer.from(`${header}.${claims}`), privateKey).toString('base64url');
+  assert.equal(verifyUserToken(publicKey, `${header}.${claims}.${signature}`, 'code-service', now).role, 'user');
 });

@@ -11,7 +11,7 @@ import { verifyToken } from './auth.middleware';
 // even from a caller that holds the internal secret.
 async function whoAmI(headers: Record<string, string>) {
   const app = express();
-  app.get('/', verifyToken, (req, res) => res.json({ userId: req.userId, email: (req as any).userEmail }));
+  app.get('/', verifyToken, (req, res) => res.json({ userId: req.userId, email: req.userEmail, role: req.userRole }));
   const server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
   try {
@@ -25,7 +25,9 @@ async function whoAmI(headers: Record<string, string>) {
 test('a token signed for code-service identifies the user', async () => {
   const res = await whoAmI({ 'x-user-token': userTokenFor('u-1') });
   assert.equal(res.status, 200);
-  assert.deepEqual(res.body, { userId: 'u-1', email: 'u-1@example.com' });
+  assert.deepEqual(res.body, { userId: 'u-1', email: 'u-1@example.com', role: 'user' });
+  const admin = await whoAmI({ 'x-user-token': userTokenFor('u-2', 'code-service', 'admin') });
+  assert.equal(admin.body.role, 'admin', 'the role comes from the signed token');
 });
 
 test('plain x-user-* headers are not trusted', async () => {
@@ -37,6 +39,6 @@ test('a token for another service is refused', async () => {
 });
 
 test('a token signed with any other key is refused', async () => {
-  const forged = signUserToken(generateKeyPairSync('ed25519').privateKey, { id: 'admin', name: '', email: 'admin@example.com' }, 'code-service');
+  const forged = signUserToken(generateKeyPairSync('ed25519').privateKey, { id: 'admin', name: '', email: 'admin@example.com', role: 'admin' }, 'code-service');
   assert.equal((await whoAmI({ 'x-user-token': forged })).status, 401);
 });
