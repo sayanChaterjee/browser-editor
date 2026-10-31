@@ -134,6 +134,10 @@ services:
         sync: false
       - key: KAFKA_BROKER
         sync: false
+      # Same list as identity-service and contest-service: the admin page reads users' projects
+      # from code-service
+      - key: ADMIN_EMAILS
+        sync: false # comma-separated
       - key: LOG_LEVEL
         value: info
 

@@ -95,12 +95,18 @@ export default function AdminDashboard() {
     const fetchUserData = async () => {
       setDataLoading(true);
       try {
-        const [projData, subData] = await Promise.all([
+        // Projects come from code-service, submissions from contest-service: show whichever
+        // loaded, and say which didn't (one failing used to blank both lists)
+        const [projResult, subResult] = await Promise.allSettled([
           fetchUserProjectsAdmin(selectedUser._id),
           fetchUserSubmissionsAdmin(selectedUser._id)
         ]);
+        const projData = projResult.status === 'fulfilled' ? projResult.value : [];
+        const subData = subResult.status === 'fulfilled' ? subResult.value : [];
         setProjects(projData);
         setSubmissions(subData);
+        const failed = [projResult.status === 'rejected' && 'projects', subResult.status === 'rejected' && 'submissions'].filter(Boolean);
+        if (failed.length) setError(`Couldn't load this user's ${failed.join(' and ')}.`);
         
         // Auto-select the most recent activity
         if (projData.length > 0) {

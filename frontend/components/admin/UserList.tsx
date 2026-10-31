@@ -24,6 +24,7 @@ export default function UserList({
   const filteredUsers = users.filter(
     (u) =>
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (u.email ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       u._id.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const flagged = users.filter((u) => u.warningCount > 0).length;
