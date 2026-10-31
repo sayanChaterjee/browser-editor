@@ -16,6 +16,17 @@ export interface IActivity {
   pastedChars: number;
   pasteCount: number;
   largestPaste: number;
+  // One point per heartbeat, for the admin's replay (domain/replay); the latest MAX_TIMELINE
+  timeline?: TimelinePoint[];
+}
+
+export interface TimelinePoint {
+  at: Date;
+  typed: number;
+  pasted: number;
+  largestPaste: number;
+  // Size of the code at that moment (null from editors that didn't report it)
+  chars: number | null;
 }
 
 // A user's contest attempt on one project: anti-cheat strikes and activity so far.
@@ -37,6 +48,10 @@ const ActivitySchema = new Schema<IActivity>({
   pastedChars: { type: Number, default: 0 },
   pasteCount: { type: Number, default: 0 },
   largestPaste: { type: Number, default: 0 },
+  timeline: {
+    type: [{ at: Date, typed: Number, pasted: Number, largestPaste: Number, chars: Number, _id: false }],
+    default: undefined,
+  },
 }, { _id: false });
 
 const AttemptSchema = new Schema<IAttempt>({

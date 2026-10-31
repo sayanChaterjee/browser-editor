@@ -87,7 +87,9 @@ forwards each call to the API gateway (`NEXT_PUBLIC_API_URL`):
   (`hooks/useContestSecurity.ts`): full screen, strikes recorded with contest-service (its count
   wins over a reload; the 4th submits and ends the contest), clipboard limited to the editor. It
   sends a heartbeat every 15 s (`hooks/useContestActivity.ts`) with what was typed and pasted;
-  contest-service turns these into flags on the admin page (ADR 0011). Submitting (also at
+  contest-service turns these into flags on the admin page (ADR 0011). Heartbeats also carry
+  the code's size, and about once a minute the code itself, for the admin's replay
+  (`components/admin/ContestReplay.tsx`, ADR 0015). Submitting (also at
   time-up, and by beacon if the window closes) goes to `/api/v1/contest/submissions` with the
   contest id. The deterrents apply in contest rooms only; practice has the normal clipboard.
   Rooms, practice and admin need a desktop-size screen; the contests list works on a phone.

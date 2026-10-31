@@ -108,6 +108,34 @@ export async function setUserRole(userId: string, role: 'user' | 'admin'): Promi
     return res.json();
 }
 
+export interface ReplayPoint {
+    at: string;
+    typed: number;
+    pasted: number;
+    largestPaste: number;
+    chars: number | null;
+}
+
+/** How a submission came about (contest-service domain/replay): no code, just the outline. */
+export interface Replay {
+    submission: { _id: string; submittedAt: string; timeTaken: number; chars: number; flags: string[] };
+    contest: { title: string; startTime: string; endTime: string } | null;
+    timeline: ReplayPoint[];
+    snapshots: { _id: string; at: string; chars: number }[];
+}
+
+export async function fetchReplay(submissionId: string): Promise<Replay> {
+    const res = await fetch(`${BASE}/api/v1/contest/admin/replay/${submissionId}`, { credentials: 'include' });
+    if (!res.ok) throw await errorFrom(res, `Failed to load the replay: ${res.status}`);
+    return res.json();
+}
+
+export async function fetchSnapshotCode(submissionId: string, snapshotId: string): Promise<{ html: string; css: string; js: string }> {
+    const res = await fetch(`${BASE}/api/v1/contest/admin/replay/${submissionId}/snapshots/${snapshotId}`, { credentials: 'include' });
+    if (!res.ok) throw await errorFrom(res, `Failed to load the snapshot: ${res.status}`);
+    return res.json();
+}
+
 export async function fetchUserProjectsAdmin(userId: string): Promise<Project[]> {
     const res = await fetch(`${BASE}/api/v1/code/admin/projects/${userId}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`Failed to fetch projects: ${res.status}`);

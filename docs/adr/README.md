@@ -19,3 +19,4 @@ alternatives and what it costs. Each is the state of thinking when it was made.
 | [0012](0012-scheduled-contests-and-rooms.md) | Contests run on their schedule; rooms to join; the question held back until the start |
 | [0013](0013-roles-in-the-user-token.md) | Roles stored by identity-service and carried as a claim in the gateway-signed user token |
 | [0014](0014-transactional-outbox.md) | Events saved in the same transaction as their change, sent by a relay |
+| [0015](0015-contest-replay.md) | Heartbeats carry code size and minute snapshots; admins replay how a submission came about |

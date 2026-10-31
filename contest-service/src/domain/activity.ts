@@ -30,7 +30,12 @@ export interface ActivityDelta {
   largestPaste: number;
   // Sent with the first heartbeat: the code's size when the contest started
   startChars?: number;
+  // The code's size now (every heartbeat): the replay's size-over-time line
+  codeChars?: number;
 }
+
+// Heartbeats kept per attempt for the replay: 15 s apart, so over 4 hours
+export const MAX_TIMELINE = 1000;
 
 const field = (name: keyof IActivity, fallback: unknown = 0) => ({ $ifNull: [`$activity.${name}`, fallback] });
 
@@ -59,6 +64,17 @@ export async function recordActivity(userId: string, projectId: string, delta: A
             pastedChars: { $add: [field('pastedChars'), delta.pastedChars] },
             pasteCount: { $add: [field('pasteCount'), delta.pasteCount] },
             largestPaste: { $max: [field('largestPaste'), delta.largestPaste] },
+            timeline: {
+              $slice: [
+                {
+                  $concatArrays: [
+                    field('timeline', []),
+                    [{ at: now, typed: delta.typedChars, pasted: delta.pastedChars, largestPaste: delta.largestPaste, chars: delta.codeChars ?? null }],
+                  ],
+                },
+                -MAX_TIMELINE,
+              ],
+            },
           },
         },
       },

@@ -1,6 +1,6 @@
 'use client';
 
-import { TriangleAlert } from 'lucide-react';
+import { History, TriangleAlert } from 'lucide-react';
 import type { Submission, SubmissionFlag } from '@/lib/adminApi';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,16 @@ function Stat({ label, value, detail, alert }: { label: string; value: string; d
 }
 
 /** What contest-service recorded about a submission, for the reviewer: evidence, not a verdict. */
-export default function SubmissionSignals({ submission }: { submission: Submission }) {
+export default function SubmissionSignals({ submission, onReplay }: { submission: Submission; onReplay?: () => void }) {
+  const replayButton = onReplay && (
+    <button
+      type="button"
+      onClick={onReplay}
+      className="flex items-center gap-1.5 rounded-md border border-border-strong px-2 py-0.5 text-[12px] text-foreground transition-colors hover:bg-accent"
+    >
+      <History className="size-3.5" /> Replay
+    </button>
+  );
   const s = submission.signals;
   const flags = new Set(submission.flags ?? []);
   if (!s) {
@@ -53,6 +62,7 @@ export default function SubmissionSignals({ submission }: { submission: Submissi
           ))
         )}
         <span className="ml-auto text-[11px] text-subtle-foreground">Signals are for review, not proof</span>
+        {replayButton}
       </div>
       <div className="mt-3 grid grid-cols-4 gap-x-5 gap-y-3 xl:grid-cols-7">
         <Stat label="Heartbeats" value={`${s.heartbeats} / ${s.expectedHeartbeats}`} detail="got / due" alert={flags.has('missing-heartbeats')} />

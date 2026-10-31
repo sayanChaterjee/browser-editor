@@ -26,7 +26,8 @@ app.use(helmet({
 }));
 // CORS is handled by API Gateway, no need for it here
 app.use(metrics.httpMetrics);
-app.use(express.json());
+// Heartbeats can carry a snapshot of the contestant's code (three files of up to 500 KB)
+app.use(express.json({ limit: '2mb' }));
 app.use(correlationMiddleware);
 
 // /health (liveness) and /ready: MongoDB is required; Kafka is reported but optional
