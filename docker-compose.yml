@@ -183,6 +183,8 @@ services:
       - ADMIN_EMAILS=${ADMIN_EMAILS}
       # Low so scripts/smoke.sh can check the lockout quickly (default 10)
       - LOGIN_MAX_FAILURES=3
+      # Tests and local development sign up with email (off by default, i.e. in production)
+      - EMAIL_SIGN_UP=true
       - DATABASE_URL=mongodb://mongo:27017/ceditor_auth
       - REDIS_URL=redis://redis:6379
       - KAFKA_BROKER=kafka:9092

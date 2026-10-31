@@ -57,11 +57,11 @@ export function FieldError({ children }: { children?: string }) {
   return <p className="mt-1.5 text-[12px] text-destructive">{children}</p>;
 }
 
-export function OrDivider() {
+export function OrDivider({ label = "or" }: { label?: string }) {
   return (
     <div className="my-6 flex items-center gap-3 text-[11px] uppercase tracking-wider text-subtle-foreground">
       <span className="h-px flex-1 bg-border" />
-      or
+      {label}
       <span className="h-px flex-1 bg-border" />
     </div>
   );
