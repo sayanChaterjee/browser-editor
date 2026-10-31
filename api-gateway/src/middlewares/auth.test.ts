@@ -122,17 +122,24 @@ test('sign-out drops the cached session immediately', { skip }, async () => {
   assert.equal(identityCalls - before, 1, 'after sign-out the session is checked again');
 });
 
-test('Redis down: sessions are checked at identity-service instead', { skip }, async () => {
-  // disconnect() returns before the connection is closed; wait, so the request really runs
+test('Redis down: checked at identity-service once, then served from memory', { skip }, async () => {
+  // disconnect() returns before the connection is closed; wait, so the requests really run
   // without Redis (and connect() below doesn't find it still connected)
   const ended = new Promise((resolve) => redis.once('end', resolve));
   redis.disconnect();
   await ended;
   try {
     assert.equal(redis.status, 'end');
+    const cookie = token('valid-d');
     const before = identityCalls;
-    assert.equal((await call('/api/v1/x', token('valid-d'))).status, 200);
-    assert.equal(identityCalls - before, 1);
+    assert.equal((await call('/api/v1/x', cookie)).status, 200);
+    assert.equal((await call('/api/v1/x', cookie)).status, 200);
+    assert.equal(identityCalls - before, 1, 'the second request came from the memory fallback');
+
+    // Signing out clears it: the next request is checked again
+    assert.equal((await call('/api/auth/sign-out', cookie, { method: 'POST' })).status, 200);
+    await call('/api/v1/x', cookie);
+    assert.equal(identityCalls - before, 2);
   } finally {
     await redis.connect();
   }
