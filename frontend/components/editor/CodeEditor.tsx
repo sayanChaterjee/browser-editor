@@ -83,7 +83,11 @@ export default function CodeEditor({ language, value, onChange, onInsert, restri
   // can lag a keystroke or two behind fast typing; handing such an echo back as `value` makes
   // the editor library replace the newer text with it, dropping keystrokes. So only values that
   // came from elsewhere (loading a project, switching files) are pushed into the editor.
+  // Each file has its own language, so the language identifies the open file. The memory is
+  // only for the file being edited: switching files (even back to one edited before) starts
+  // it afresh, so the file's content is always loaded into the editor.
   const [echoes, setEchoes] = useState<{ language: string; values: string[] }>({ language, values: [] });
+  if (echoes.language !== language) setEchoes({ language, values: [] });
   const isEcho = echoes.language === language && echoes.values.includes(value);
   const report = (next: string) => {
     setEchoes((prev) => ({
