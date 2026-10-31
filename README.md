@@ -86,6 +86,7 @@ One-page records in [docs/adr](docs/adr), each with the alternatives and trade-o
 9. [Rate limits and sign-in lockout keep working without Redis](docs/adr/0009-limits-without-redis.md)
 10. [Nonce-based CSP, with previews in a frame page of their own](docs/adr/0010-strict-csp-preview-frame.md)
 11. [Contest integrity from signals the server keeps](docs/adr/0011-contest-signals.md)
+12. [Scheduled contests with rooms](docs/adr/0012-scheduled-contests-and-rooms.md)
 
 ## Results
 

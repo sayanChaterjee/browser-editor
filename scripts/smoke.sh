@@ -127,13 +127,26 @@ call "$ADMIN_JAR" POST /api/auth/sign-in/email "$ADMIN_BODY"
 call "$ADMIN_JAR" GET /api/v1/user/profile
 if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
   # Contest (contest-service): the admin opens one, the user gets a strike and submits
-  NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  # Contests run on their schedule: this one started a minute ago and runs for an hour
+  START="$(date -u -d '-1 minute' +%Y-%m-%dT%H:%M:%SZ)"
+  END="$(date -u -d '+1 hour' +%Y-%m-%dT%H:%M:%SZ)"
   expect_status "admin creates contest" 201 "$ADMIN_JAR" POST /api/v1/contest \
-    "{\"title\":\"Smoke contest\",\"startTime\":\"$NOW\",\"endTime\":\"$NOW\"}"
+    "{\"title\":\"Smoke contest\",\"startTime\":\"$START\",\"endTime\":\"$END\",\"html\":\"<h1>target</h1>\"}"
   CONTEST_ID="$(jq -r '._id' <<<"$BODY")"
   expect_status "admin activates contest" 200 "$ADMIN_JAR" PATCH "/api/v1/contest/$CONTEST_ID/status" '{"status":"active"}'
   request "active contest" GET /api/v1/contest/active
   [[ "$(jq -r '._id' <<<"$BODY")" == "$CONTEST_ID" ]] || fail "active contest is ours" "$BODY"
+
+  # The contest room: join, see the count, get the question (only once live)
+  expect_status "question before joining" 403 "$JAR" GET "/api/v1/contest/$CONTEST_ID/question"
+  request "join the room" POST "/api/v1/contest/$CONTEST_ID/join"
+  jq -e '.contest.phase == "live" and .participants >= 1 and .me != null' <<<"$BODY" >/dev/null \
+    || fail "room shows the live contest and me in it" "$BODY"
+  request "question" GET "/api/v1/contest/$CONTEST_ID/question"
+  [[ "$(jq -r '.html' <<<"$BODY")" == "<h1>target</h1>" ]] || fail "question is the target" "$BODY"
+  request "contests list" GET /api/v1/contest/list
+  jq -e --arg c "$CONTEST_ID" '[.live[]._id] | index($c) != null' <<<"$BODY" >/dev/null \
+    || fail "the list shows it as live" "$BODY"
 
   request "strike" POST "/api/v1/contest/strikes/$PROJECT_ID"
   [[ "$(jq -r '.warningCount' <<<"$BODY")" == 1 ]] || fail "strike count is 1" "$BODY"
@@ -144,7 +157,7 @@ if [[ "$STATUS" == 200 && "$(jq -r '.isAdmin' <<<"$BODY")" == "true" ]]; then
     '{"typedChars":120,"pastedChars":0,"pasteCount":0,"largestPaste":0,"startChars":40}'
   request "profile before ban (session cached)" GET /api/v1/user/profile
   request "submit project" POST /api/v1/contest/submissions \
-    "{\"projectId\":\"$PROJECT_ID\",\"html\":\"<h1>final</h1>\",\"css\":\"\",\"js\":\"\",\"timeTaken\":60}"
+    "{\"contestId\":\"$CONTEST_ID\",\"projectId\":\"$PROJECT_ID\",\"html\":\"<h1>final</h1>\",\"css\":\"\",\"js\":\"\",\"timeTaken\":60}"
   jq -e --arg c "$CONTEST_ID" '.warningCount == 1 and .contestId == $c' <<<"$BODY" >/dev/null \
     || fail "submission records strikes and contest" "$BODY"
   jq -e 'has("signals") or has("flags") | not' <<<"$BODY" >/dev/null \

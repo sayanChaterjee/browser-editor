@@ -3,6 +3,7 @@ import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 import { createSubmission, recordStrike } from '../domain/attempts';
 import { recordActivity } from '../domain/activity';
+import { ContestError } from '../domain/contests';
 import { publishContestEvent } from '../events/publisher';
 import Submission from '../models/submission.model';
 import logger from '../config/logger';
@@ -16,6 +17,7 @@ attemptRouter.use(requireUser);
 
 const submissionSchema = z.object({
   projectId: z.string().refine(isValidObjectId, 'projectId must be a project id'),
+  contestId: z.string().refine(isValidObjectId, 'contestId must be a contest id').optional(),
   html: z.string().optional(),
   css: z.string().optional(),
   js: z.string().optional(),
@@ -29,7 +31,13 @@ attemptRouter.post('/submissions', async (req: Request, res: Response): Promise<
   if (!parsed.success) {
     return res.status(400).json({ errors: parsed.error.errors });
   }
-  const submission = await createSubmission({ ...parsed.data, userId: req.userContext!.id }, publishContestEvent);
+  let submission;
+  try {
+    submission = await createSubmission({ ...parsed.data, userId: req.userContext!.id }, publishContestEvent);
+  } catch (error) {
+    if (error instanceof ContestError) return res.status(error.status).json({ message: error.message });
+    throw error;
+  }
   submissionsCreated.inc();
   for (const flag of submission.flags) submissionFlags.inc({ flag });
   logger.info(`Submission ${submission._id} for project ${submission.projectId}${submission.flags.length ? ` flagged: ${submission.flags.join(', ')}` : ''}`);
