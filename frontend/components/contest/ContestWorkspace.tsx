@@ -102,6 +102,8 @@ export default function ContestWorkspace({ contest, projectId: linkedProject, cl
     codeRef.current = code;
   });
   const finishingRef = useRef(false);
+  // Submitting: shown on the button and, for time-up or the 4th strike, over the workspace
+  const [submitting, setSubmitting] = useState(false);
 
   const secondsLeft = () =>
     Math.max(0, Math.floor((new Date(contest.endTime).getTime() - (Date.now() + clockOffsetMs)) / 1000));
@@ -193,6 +195,7 @@ export default function ContestWorkspace({ contest, projectId: linkedProject, cl
   async function finish(reason: Exclude<FinishReason, "failed">) {
     if (finishingRef.current || !projectId) return;
     finishingRef.current = true;
+    setSubmitting(true);
     isQuittingRef.current = true;
     stopTimer();
     setShowWarningModal(false);
@@ -253,6 +256,14 @@ export default function ContestWorkspace({ contest, projectId: linkedProject, cl
 
   return (
     <div className="flex h-[calc(100vh-56px)] flex-col" onContextMenu={(e) => e.preventDefault()}>
+      {submitting && (
+        <div role="status" className="fixed inset-0 top-14 z-[9998] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner className="size-5" />
+            <span className="text-sm font-medium text-foreground">Submitting your code…</span>
+          </div>
+        </div>
+      )}
       <SecurityWarningModal
         isVisible={showWarningModal}
         strikeCount={strikeCount}
@@ -314,8 +325,9 @@ export default function ContestWorkspace({ contest, projectId: linkedProject, cl
             <Button size="sm" variant="ghost" onClick={() => setShowQuestion((v) => !v)}>
               {showQuestion ? <><Eye /> Preview</> : <><FileQuestion /> Question</>}
             </Button>
-            <Button size="sm" variant="primary" className="ml-auto" onClick={askToSubmit}>
-              <Send /> Submit
+            <Button size="sm" variant="primary" className="ml-auto" onClick={askToSubmit} disabled={submitting}>
+              {submitting ? <Spinner className="size-4 border-primary-foreground/30 border-t-primary-foreground" /> : <Send />}
+              {submitting ? "Submitting…" : "Submit"}
             </Button>
           </div>
         }

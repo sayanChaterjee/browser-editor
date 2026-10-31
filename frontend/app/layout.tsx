@@ -16,6 +16,8 @@ const geistMono = Geist_Mono({
 import DeviceRestriction from "@/components/DeviceRestriction";
 import GlobalSecurity from "@/components/GlobalSecurity";
 import BackendBusy from "@/components/BackendBusy";
+import NavigationProgress from "@/components/NavigationProgress";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "CEditor",
@@ -38,6 +40,9 @@ export default async function RootLayout({
       >
         <GlobalSecurity />
         <BackendBusy />
+        <Suspense>
+          <NavigationProgress />
+        </Suspense>
         <DeviceRestriction>
           {children}
         </DeviceRestriction>

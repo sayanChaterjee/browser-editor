@@ -1,7 +1,6 @@
 /**
- * New accounts by email and password. Off in production (the default): those addresses
- * aren't verified, so new users sign up with Google. identity-service enforces the same rule
- * (EMAIL_SIGN_UP); this only decides whether the sign-up form is shown. Existing email
- * accounts can always log in.
+ * Username/password forms on the sign-in pages. Off in production (the default), where
+ * everyone signs in with Google; on for local development. identity-service enforces the
+ * same rule (EMAIL_PASSWORD_AUTH); this only decides whether the forms are shown.
  */
-export const EMAIL_SIGN_UP = process.env.NEXT_PUBLIC_EMAIL_SIGN_UP === "true";
+export const EMAIL_PASSWORD_AUTH = process.env.NEXT_PUBLIC_EMAIL_PASSWORD_AUTH === "true";

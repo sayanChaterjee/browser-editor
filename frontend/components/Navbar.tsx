@@ -7,6 +7,7 @@ import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { signOutCompletely } from "@/lib/session";
 import { Logo } from "@/components/ui/logo";
+import { Spinner } from "@/components/ui/spinner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +52,9 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpen]);
 
+  const [signingOut, setSigningOut] = useState(false);
   const handleLogout = async () => {
+    setSigningOut(true);
     await signOutCompletely();
     router.push("/login");
   };
@@ -107,9 +110,10 @@ export default function Navbar() {
                   <Button
                     variant="ghost"
                     onClick={handleLogout}
+                    disabled={signingOut}
                     className="h-auto w-full justify-start px-3 py-2 font-normal"
                   >
-                    <LogOut /> Log out
+                    {signingOut ? <Spinner className="size-4" /> : <LogOut />} {signingOut ? "Logging out…" : "Log out"}
                   </Button>
                 </div>
               )}

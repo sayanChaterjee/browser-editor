@@ -19,14 +19,12 @@ export function getAuth() {
         authInstance = betterAuth({
             database: mongodbAdapter(mongoose.connection.db),
 
+            // Production signs in with Google only (verified addresses). Username/password is
+            // for local development and tests (EMAIL_PASSWORD_AUTH); it was never verified, and
+            // the accounts made with it were removed (scripts/delete-password-accounts).
             emailAndPassword: {
-                enabled: true,
+                enabled: config.EMAIL_PASSWORD_AUTH,
                 autoSignIn: true,
-                // Sign-in stays open for existing accounts; new ones come through Google
-                // (verified addresses). Google is deliberately not linked to existing,
-                // unverified email accounts: someone could pre-register a victim's address and
-                // keep its password after the owner signs in with Google.
-                disableSignUp: !config.EMAIL_SIGN_UP,
             },
 
             // Profile and moderation fields live on Better Auth's own user record, so there's
