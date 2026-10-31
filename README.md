@@ -195,8 +195,9 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
 - **No transactional outbox.** An event can be lost if a service dies between its database
   commit and the publish. The publisher logs and counts this; bans are still enforced
   synchronously. See ADR 0003.
-- **Without Redis, the gateway has no session cache.** Every request then goes to
-  identity-service, which at free-tier capacity returns some 503s (see the failure test).
+- **Without Redis, the gateway caches sessions in its own memory** for 30 s at most, so
+  most requests still skip identity-service. A ban made during the outage takes effect within
+  those 30 s (identity-service can only clear Redis); sign-out is immediate.
 - **Cold starts.** Render's free tier sleeps idle services, and Kafka consumers sleep with them,
   so the first request can take up to a minute and events wait until the service wakes. The
   landing, login and register pages call the gateway's `/api/wake`, which starts every service

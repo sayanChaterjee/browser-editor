@@ -42,7 +42,7 @@ export const sessionCheckDuration = new prom.Histogram({
 
 export const sessionCacheLookups = new prom.Counter({
   name: 'session_cache_lookups_total',
-  help: 'Gateway session cache lookups, by result (hit, miss, unavailable)',
+  help: 'Gateway session cache lookups, by result (hit, miss; memory-hit, memory-miss while Redis is unavailable)',
   labelNames: ['result'] as const,
   registers,
 });

@@ -14,6 +14,7 @@ import { config } from '../config';
 import logger from '../config/logger';
 import redis from '../config/redis';
 import { sessionCacheLookups, sessionCheckDuration } from '../config/metrics';
+import { forgetInMemory, fromMemory, rememberInMemory } from './memorySessionCache';
 
 const SESSION_COOKIES = ['__Secure-better-auth.session_token', 'better-auth.session_token'];
 
@@ -22,19 +23,22 @@ const sessionCookie = (req: Request): string | undefined =>
 
 class IdentityUnavailableError extends Error {}
 
+// Redis unavailable: the in-memory fallback answers instead (memory-hit / memory-miss)
+function fromFallback(cookie: string): CachedSession | null {
+    const session = fromMemory(cookie);
+    sessionCacheLookups.inc({ result: session ? 'memory-hit' : 'memory-miss' });
+    return session;
+}
+
 async function fromCache(cookie: string): Promise<CachedSession | null> {
-    if (!isRedisReady(redis)) {
-        sessionCacheLookups.inc({ result: 'unavailable' });
-        return null;
-    }
+    if (!isRedisReady(redis)) return fromFallback(cookie);
     try {
         const session = await getCachedSession(redis, cookie);
         sessionCacheLookups.inc({ result: session ? 'hit' : 'miss' });
         return session;
     } catch (err: any) {
-        sessionCacheLookups.inc({ result: 'unavailable' });
         logger.warn(`Session cache read failed: ${err.message}`);
-        return null;
+        return fromFallback(cookie);
     }
 }
 
@@ -122,6 +126,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
         if (validated && isRedisReady(redis)) {
             cacheSession(redis, cookie, validated.session, validated.expiresAt)
                 .catch((err) => logger.warn(`Session cache write failed: ${err.message}`));
+        } else if (validated) {
+            rememberInMemory(cookie, validated.session, validated.expiresAt);
         }
     }
 
@@ -152,9 +158,12 @@ const CHANGES_SESSIONS = /^\/(sign-out|revoke-session|revoke-sessions|revoke-oth
  */
 export async function sessionCacheInvalidation(req: Request, res: Response, next: NextFunction) {
     const cookie = sessionCookie(req);
-    if (req.method !== 'POST' || !CHANGES_SESSIONS.test(req.path) || !cookie || !isRedisReady(redis)) {
-        return next();
-    }
+    if (req.method !== 'POST' || !CHANGES_SESSIONS.test(req.path) || !cookie) return next();
+
+    // The memory fallback (filled while Redis is down) is cleared here directly
+    const remembered = fromMemory(cookie);
+    if (remembered) forgetInMemory(remembered.userId);
+    if (!isRedisReady(redis)) return next();
 
     try {
         const userId = (await getCachedSession(redis, cookie))?.userId ?? (await fromIdentity(req))?.session.userId;
