@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { AddressInfo } from 'net';
 import express from 'express';
 import { codeRouter } from './code.route';
+import { jsonBody, MAX_FILE_CHARS } from '../middlewares/body.middleware';
 import Project from '../models/project.model';
 import redis from '../config/redis';
 import { flushDirtyProjects } from '../scripts/flusher.worker';
@@ -17,7 +18,7 @@ const USER = 'writer-1';
 
 async function api(method: string, path: string, body?: unknown) {
   const app = express();
-  app.use(express.json());
+  app.use(jsonBody);
   app.use(codeRouter);
   const server = app.listen(0);
   await new Promise((resolve) => server.once('listening', resolve));
@@ -147,4 +148,18 @@ test('a save in progress locks only its own project', { skip }, async () => {
   } finally {
     await redis.del(`lock:project:${projectId}`);
   }
+});
+
+test('large projects save (up to MAX_FILE_CHARS per file); bigger files are refused', { skip }, async () => {
+  const big = '<p>' + 'x'.repeat(300_000) + '</p>'; // past Express's default 100 KB body limit
+  const saved = await api('POST', '/save', { name: 'big', html: big, css: 'p{}', js: '' });
+  assert.equal(saved.status, 200);
+  assert.equal((await api('GET', `/${saved.body._id}`)).body.html.length, big.length);
+
+  const synced = await api('PATCH', `/sync/${saved.body._id}`, { js: 'y'.repeat(400_000) });
+  assert.equal(synced.status, 200);
+
+  const tooBig = 'z'.repeat(MAX_FILE_CHARS + 1);
+  assert.equal((await api('POST', '/save', { name: 'big', html: tooBig })).status, 400);
+  assert.equal((await api('PATCH', `/sync/${saved.body._id}`, { css: tooBig })).status, 413);
 });

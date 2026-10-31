@@ -19,6 +19,7 @@ import { codeRouter } from './routes/code.route';
 import { startEventsConsumer, isKafkaConnected, stopEventsConsumer } from './events/consumer';
 import { startFlusherWorker } from './scripts/flusher.worker';
 import { startCodeJanitor } from './scripts/janitor.worker';
+import { jsonBody } from './middlewares/body.middleware';
 
 const app = express();
 
@@ -27,7 +28,7 @@ app.use(helmet({
 }));
 // CORS is handled by API Gateway, no need for it here
 app.use(metrics.httpMetrics);
-app.use(express.json());
+app.use(jsonBody);
 app.use(correlationMiddleware);
 
 // /health (liveness) and /ready: MongoDB is required. Redis and Kafka are reported but
