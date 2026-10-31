@@ -19,6 +19,12 @@ interface Room {
 
 // The room refreshes this often while waiting (the count, and the start)
 const POLL_MS = 5_000;
+// While people wait, the room only talks to contest-service, and on Render's free tier the
+// others fall asleep after 15 idle minutes; entering the contest needs code-service at once.
+// So the room keeps every service awake (the gateway pings each at most once a minute).
+const KEEP_AWAKE_MS = 4 * 60_000;
+const WAKE_BEFORE_START_MS = 90_000;
+const wake = () => fetch("/api/wake", { cache: "no-store" }).catch(() => {});
 
 const RULES = [
   { icon: Maximize, text: "The contest runs in full screen. Leaving it, switching tabs or opening developer tools is a strike." },
@@ -63,6 +69,24 @@ export default function ContestRoom({ contestId }: { contestId: string }) {
     const interval = setInterval(() => load(), POLL_MS);
     return () => clearInterval(interval);
   }, [load, inWorkspace, finished, room?.contest.phase]);
+
+  // Keep the backend awake while in the room (not during the contest: it's busy then anyway)
+  useEffect(() => {
+    if (inWorkspace || finished || room?.contest.phase === "ended") return;
+    wake();
+    const interval = setInterval(wake, KEEP_AWAKE_MS);
+    return () => clearInterval(interval);
+  }, [inWorkspace, finished, room?.contest.phase]);
+
+  // ...and once more shortly before the start, whatever the interval's timing
+  const startTime = room?.contest.startTime;
+  useEffect(() => {
+    if (!startTime) return;
+    const wait = new Date(startTime).getTime() - (Date.now() + clockOffsetMs) - WAKE_BEFORE_START_MS;
+    if (wait <= 0) return;
+    const timer = setTimeout(wake, wait);
+    return () => clearTimeout(timer);
+  }, [startTime, clockOffsetMs]);
 
   const join = async () => {
     setJoining(true);

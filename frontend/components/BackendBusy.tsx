@@ -4,8 +4,9 @@ import { useSyncExternalStore } from "react";
 import { Spinner } from "./ui/spinner";
 
 /**
- * When the API proxy answers "busy" (a 503 with x-backend-busy: Render's Cloudflare edge is
- * challenging Vercel's servers, see app/api/[...proxy]), the request never reached the backend,
+ * When the API proxy answers "busy" (a 503 with x-backend-busy: Render's edge is challenging
+ * Vercel's servers or holding requests while a service wakes, see app/api/[...proxy]), the
+ * request never reached the backend,
  * so it is retried here with growing waits while a banner says what's happening. Callers just
  * see their request take longer instead of failing.
  *
@@ -13,7 +14,8 @@ import { Spinner } from "./ui/spinner";
  * it without changes.
  */
 
-const RETRY_DELAYS_MS = [2_000, 4_000, 8_000, 8_000];
+// About a minute in all: long enough for a free-tier service to wake from sleep
+const RETRY_DELAYS_MS = [2_000, 4_000, 6_000, 8_000, 10_000, 12_000, 15_000];
 const SKIP = ["/api/wake", "/api/csp-report"];
 
 let waiting = 0;
