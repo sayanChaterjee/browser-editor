@@ -41,6 +41,8 @@ type Props = {
    * editor (its own Copy/Paste buttons). Practice keeps the normal clipboard.
    */
   restrictClipboard?: boolean;
+  /** Gets the Monaco editor once it is ready (for actions like formatting) */
+  onEditorReady?: (editor: Parameters<OnMount>[0]) => void;
 };
 
 // One insertion this large didn't come from typing (autocomplete inserts far less): a paste
@@ -60,7 +62,7 @@ type FloatingAction = {
   left: number;
 } | null;
 
-export default function CodeEditor({ language, value, onChange, onInsert, restrictClipboard = false }: Props) {
+export default function CodeEditor({ language, value, onChange, onInsert, restrictClipboard = false, onEditorReady }: Props) {
   const [floatingAction, setFloatingAction] = useState<FloatingAction>(null);
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
@@ -191,8 +193,17 @@ export default function CodeEditor({ language, value, onChange, onInsert, restri
             horizontal: 'visible'
           }
         }}
-        onMount={(editor) => {
+        onMount={(editor, monaco) => {
           editorRef.current = editor;
+          onEditorReady?.(editor);
+
+          // Format document: also on Shift+Alt+F (Monaco's own binding doesn't reach it here)
+          editor.addAction({
+            id: "ceditor.formatDocument",
+            label: "Format document",
+            keybindings: [monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF],
+            run: (ed) => ed.getAction("editor.action.formatDocument")?.run(),
+          });
 
           // Contest activity: what the user put in, by typing or in bulk. Not counted: the app
           // setting the value (loading a project, switching files) and undo/redo.
