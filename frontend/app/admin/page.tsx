@@ -14,6 +14,7 @@ import {
 import UserList from '@/components/admin/UserList';
 import PreviewPanel from '@/components/admin/PreviewPanel';
 import SubmissionSignals from '@/components/admin/SubmissionSignals';
+import ContestReplay from '@/components/admin/ContestReplay';
 import ContestManager from '@/components/admin/ContestManager';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Ban, Clock, Crown, Lock, MousePointerClick, ShieldCheck, ShieldMinus, ShieldPlus, TriangleAlert, Users, X, XCircle } from 'lucide-react';
@@ -41,6 +42,8 @@ export default function AdminDashboard() {
   const [moderating, setModerating] = useState(false);
   const [moderationError, setModerationError] = useState<string | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
+  // The submission whose replay is open (closes by itself when another item is selected)
+  const [replayOf, setReplayOf] = useState<string | null>(null);
 
   const toggleAdmin = async () => {
     if (!selectedUser) return;
@@ -354,9 +357,13 @@ export default function AdminDashboard() {
               {/* Preview */}
               <div className="relative flex min-w-0 flex-1 flex-col">
                 {selectedActivity && !('name' in selectedActivity) && (
-                  <SubmissionSignals submission={selectedActivity} />
+                  <SubmissionSignals submission={selectedActivity} onReplay={() => setReplayOf(selectedActivity._id)} />
                 )}
-                {selectedActivity ? (
+                {selectedActivity && replayOf === selectedActivity._id ? (
+                  <div className="min-h-0 flex-1">
+                    <ContestReplay submissionId={selectedActivity._id} onClose={() => setReplayOf(null)} />
+                  </div>
+                ) : selectedActivity ? (
                   <div className="min-h-0 flex-1">
                     <PreviewPanel
                       html={selectedActivity.html}

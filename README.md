@@ -90,6 +90,7 @@ One-page records in [docs/adr](docs/adr), each with the alternatives and trade-o
 12. [Scheduled contests with rooms](docs/adr/0012-scheduled-contests-and-rooms.md)
 13. [Roles in the signed user token](docs/adr/0013-roles-in-the-user-token.md)
 14. [Transactional outbox](docs/adr/0014-transactional-outbox.md)
+15. [Contest replay for admins](docs/adr/0015-contest-replay.md)
 
 ## Results
 

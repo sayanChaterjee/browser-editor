@@ -123,7 +123,7 @@ export default function ContestWorkspace({ contest, projectId: linkedProject, cl
   const activity = useContestActivity({
     contestStarted: started,
     projectId,
-    codeSize: code.html.length + code.css.length + code.js.length,
+    code,
   });
 
   // Local copy every 2 s and a full save to the server every 10 s
@@ -201,7 +201,7 @@ export default function ContestWorkspace({ contest, projectId: linkedProject, cl
     setShowWarningModal(false);
     try {
       // The last few seconds of typing, so the submission's numbers include them
-      await activity.flush();
+      await activity.flush(true);
       const res = await fetch("/api/v1/contest/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

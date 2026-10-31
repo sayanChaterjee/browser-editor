@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createSubmission, recordStrike } from '../domain/attempts';
 import { recordActivity } from '../domain/activity';
 import { ContestError } from '../domain/contests';
+import { replayFor, saveSnapshot, snapshotCode } from '../domain/replay';
 import { outboxRelay, publishContestEvent } from '../events/publisher';
 import Submission from '../models/submission.model';
 import logger from '../config/logger';
@@ -52,12 +53,16 @@ attemptRouter.post('/submissions', async (req: Request, res: Response): Promise<
 // Bounds per heartbeat (15 s): far above what anyone types, small enough to keep totals sane
 const MAX_CHARS_PER_BEAT = 200_000;
 const count = z.number().int().min(0).max(MAX_CHARS_PER_BEAT).default(0);
+// A snapshot's files: bounded like a project (the editor sends one about once a minute)
+const file = z.string().max(500_000);
 const activitySchema = z.object({
   typedChars: count,
   pastedChars: count,
   pasteCount: count,
   largestPaste: count,
   startChars: z.number().int().min(0).max(5_000_000).optional(),
+  codeChars: z.number().int().min(0).max(5_000_000).optional(),
+  snapshot: z.object({ html: file, css: file, js: file }).optional(),
 });
 
 // POST /activity/:projectId - Contest heartbeat: what was typed and pasted since the last one
@@ -68,7 +73,9 @@ attemptRouter.post('/activity/:projectId', async (req: Request, res: Response) =
     res.status(400).json({ message: 'Invalid activity report' });
     return;
   }
-  await recordActivity(req.userContext!.id, projectId, parsed.data);
+  const { snapshot, ...delta } = parsed.data;
+  await recordActivity(req.userContext!.id, projectId, delta);
+  if (snapshot) await saveSnapshot(req.userContext!.id, projectId, snapshot);
   heartbeatsRecorded.inc();
   res.status(204).end();
 });
@@ -92,5 +99,25 @@ attemptRouter.get('/admin/submissions/:userId', requireAdmin, async (req: Reques
   const submissions = await Submission.find({ userId: req.params.userId }).sort({ createdAt: -1 });
   res.json(submissions);
 });
+
+// Turns ContestError into its status (404s for unknown submissions or snapshots)
+const answer = (load: (req: Request) => Promise<unknown>) => async (req: Request, res: Response) => {
+  try {
+    res.json(await load(req));
+  } catch (error) {
+    if (!(error instanceof ContestError)) throw error;
+    res.status(error.status).json({ message: error.message });
+  }
+};
+
+// GET /admin/replay/:submissionId - How a submission came about: timeline and snapshot list
+attemptRouter.get('/admin/replay/:submissionId', requireAdmin, answer((req) => replayFor(String(req.params.submissionId))));
+
+// GET /admin/replay/:submissionId/snapshots/:snapshotId - The code at one moment
+attemptRouter.get(
+  '/admin/replay/:submissionId/snapshots/:snapshotId',
+  requireAdmin,
+  answer((req) => snapshotCode(String(req.params.submissionId), String(req.params.snapshotId))),
+);
 
 export { attemptRouter };
