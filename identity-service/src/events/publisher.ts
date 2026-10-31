@@ -1,22 +1,26 @@
-import { EventPublisher, getCorrelationId } from '@ceditor/common';
+import mongoose, { ClientSession } from 'mongoose';
+import { enqueueEvent, getCorrelationId, OutboxRelay } from '@ceditor/common';
 import { createEvent, TOPICS, UserEvent } from '@ceditor/contracts';
 import { config } from '../config';
 import { producer } from '../config/kafka';
 import logger from '../config/logger';
 import { eventsPublished } from '../config/metrics';
 
-const publisher = new EventPublisher(producer, logger, {
+/** Sends saved user events to Kafka (started with the service; see @ceditor/common outbox). */
+export const outboxRelay = new OutboxRelay(() => mongoose.connection.db, producer, logger, {
   onOutcome: (type, result) => eventsPublished.inc({ type, result }),
 });
 
 /**
- * Publishes a user event, keyed by userId so each user's events stay in order. Call only
- * after the change is committed; returns immediately (delivery is retried in the background).
+ * Saves a user event to the outbox, keyed by userId so each user's events stay in order. Pass
+ * the transaction's session to commit it with the change it describes. The relay sends it;
+ * wake it after the commit to send at once.
  */
-export function publishUserEvent<T extends UserEvent['type']>(type: T, data: Extract<UserEvent, { type: T }>['data']): void {
-  const event = createEvent(type, data, {
-    source: config.SERVICE_NAME,
-    correlationId: getCorrelationId(),
-  });
-  publisher.publish(TOPICS.userEvents, data.userId, event);
+export async function publishUserEvent<T extends UserEvent['type']>(
+  type: T,
+  data: Extract<UserEvent, { type: T }>['data'],
+  session?: ClientSession,
+): Promise<void> {
+  const event = createEvent(type, data, { source: config.SERVICE_NAME, correlationId: getCorrelationId() });
+  await enqueueEvent(mongoose.connection.db!, TOPICS.userEvents, data.userId, event, session);
 }

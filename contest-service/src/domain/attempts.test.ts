@@ -1,7 +1,8 @@
+import '../test/env';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
-import type { PublishContestEvent } from '../events/publisher';
+import { publishContestEvent, type PublishContestEvent } from '../events/publisher';
 import Contest from '../models/contest.model';
 import Submission from '../models/submission.model';
 import Attempt from '../models/attempt.model';
@@ -26,7 +27,7 @@ after(async () => {
 
 function collector() {
   const events: { type: string; data: any }[] = [];
-  const publish: PublishContestEvent = (type, data) => void events.push({ type, data });
+  const publish: PublishContestEvent = async (type, data) => void events.push({ type, data });
   return { events, publish };
 }
 
@@ -205,4 +206,38 @@ test('copied entries in a contest are flagged on both sides; a copied target is 
   assert.equal((await Submission.findById(lifted._id).select('fingerprint').lean())!.fingerprint.length > 0, true);
 
   await Contest.deleteMany({});
+});
+
+// --- Transactional outbox: the change and its event are saved together ---
+
+test('a strike and its event are saved together in the outbox', { skip }, async () => {
+  const project = new mongoose.Types.ObjectId().toString();
+  const count = await recordStrike('olga', project, publishContestEvent);
+  const saved = await mongoose.connection.db!.collection('outbox').find({ key: 'olga' }).toArray();
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].type, 'strike.recorded.v1');
+  assert.equal(JSON.parse(saved[0].value).data.strikeCount, count);
+  assert.equal(saved[0].publishedAt, null, 'waiting for the relay');
+});
+
+test('if the event can\'t be saved, the strike isn\'t either', { skip }, async () => {
+  const project = new mongoose.Types.ObjectId().toString();
+  const failing: PublishContestEvent = async () => {
+    throw new Error('outbox write failed');
+  };
+  await assert.rejects(recordStrike('pete', project, failing), /outbox write failed/);
+  assert.equal(await Attempt.countDocuments({ userId: 'pete' }), 0, 'rolled back with the event');
+});
+
+test('a submission, its "submitted" mark and its event commit together', { skip }, async () => {
+  const project = new mongoose.Types.ObjectId().toString();
+  const failing: PublishContestEvent = async () => {
+    throw new Error('outbox write failed');
+  };
+  await assert.rejects(createSubmission({ userId: 'quinn', projectId: project }, failing), /outbox write failed/);
+  assert.equal(await Submission.countDocuments({ userId: 'quinn' }), 0);
+
+  await createSubmission({ userId: 'quinn', projectId: project }, publishContestEvent);
+  const saved = await mongoose.connection.db!.collection('outbox').findOne({ key: 'quinn', type: 'submission.created.v1' });
+  assert.ok(saved);
 });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { EachMessagePayload } from 'kafkajs';
-import { ConsumeOutcome, createEventHandler, DEAD_LETTER_HEADERS, EventPublisher, ProcessedEventStore } from './events';
+import { ConsumeOutcome, createEventHandler, DEAD_LETTER_HEADERS, ProcessedEventStore } from './events';
 import { createLogger } from './logger';
 import { getCorrelationId } from './context';
 
@@ -132,37 +132,4 @@ test('an event that keeps failing is dead-lettered and not marked processed', as
   assert.equal(processed.ids.has('e3'), false);
   assert.deepEqual(outcomes, ['dead_lettered']);
   assert.equal(dlq.sent[0].messages[0].headers[DEAD_LETTER_HEADERS.error], 'db down');
-});
-
-test('publisher retries until the broker accepts the event', async () => {
-  const producer = fakeProducer(2);
-  const outcomes: string[] = [];
-  const publisher = new EventPublisher(producer, logger, {
-    retry: fast,
-    onOutcome: (_type, outcome) => outcomes.push(outcome),
-  });
-
-  publisher.publish('user-events', 'u1', event('e4'));
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
-  assert.equal(producer.sent.length, 1);
-  assert.equal(producer.sent[0].messages[0].key, 'u1');
-  assert.equal(JSON.parse(producer.sent[0].messages[0].value).eventId, 'e4');
-  assert.deepEqual(outcomes, ['published']);
-});
-
-test('publisher gives up after maxAttempts and reports it', async () => {
-  const producer = fakeProducer(100);
-  const outcomes: string[] = [];
-  const publisher = new EventPublisher(producer, logger, {
-    maxAttempts: 3,
-    retry: fast,
-    onOutcome: (_type, outcome) => outcomes.push(outcome),
-  });
-
-  publisher.publish('user-events', 'u1', event('e5'));
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
-  assert.equal(producer.sent.length, 0);
-  assert.deepEqual(outcomes, ['failed']);
 });

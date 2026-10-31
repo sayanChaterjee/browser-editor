@@ -13,7 +13,7 @@ jobs:
   backend:
     name: Backend (lint, typecheck, test, build)
     runs-on: ubuntu-latest
-    # Real Redis (session-cache tests: Lua script, TTLs) and MongoDB (contest-service tests)
+    # Real Redis (session-cache tests: Lua script, TTLs); MongoDB is started as a step below
     services:
       redis:
         image: redis:7.2-alpine
@@ -21,12 +21,6 @@ jobs:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 5
-      mongo:
-        image: mongo:7
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\").ok'" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,6 +29,16 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
+      # MongoDB as a single-node replica set (transactions, for the outbox); a service container
+      # can't be started with --replSet, so it runs as a step
+      - name: Start MongoDB (replica set)
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 30); do
+            docker exec mongo mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }).ok }" && break
+            sleep 2
+          done
+          docker exec mongo mongosh --quiet --eval "while (!db.hello().isWritablePrimary) { sleep(500) }"
       - name: Lint
         run: npm run lint
       - name: Type check

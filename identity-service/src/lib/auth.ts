@@ -3,7 +3,8 @@ import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { APIError } from "better-auth/api";
 import mongoose from "mongoose";
 import { config } from "../config";
-import { publishUserEvent } from "../events/publisher";
+import { outboxRelay, publishUserEvent } from "../events/publisher";
+import logger from "../config/logger";
 import { isOwner } from "./roles";
 import { lockoutAfterSignIn, lockoutBeforeSignIn } from "./loginLockout";
 
@@ -53,12 +54,19 @@ export function getAuth() {
                         before: async (user) => {
                             if (isOwner(user.email)) return { data: { ...user, role: "admin" } };
                         },
+                        // Better Auth's own insert isn't in our transaction, so the event is saved
+                        // to the outbox right after it (durable from there; see ADR 0014)
                         after: async (user) => {
-                            publishUserEvent("user.registered.v1", {
-                                userId: user.id,
-                                name: user.name,
-                                registeredAt: new Date(user.createdAt).toISOString(),
-                            });
+                            try {
+                                await publishUserEvent("user.registered.v1", {
+                                    userId: user.id,
+                                    name: user.name,
+                                    registeredAt: new Date(user.createdAt).toISOString(),
+                                });
+                                void outboxRelay.wake();
+                            } catch (err) {
+                                logger.error(`Could not save user.registered.v1 for ${user.id}: ${(err as Error).message}`);
+                            }
                         },
                     },
                 },

@@ -1,3 +1,4 @@
+import type { ClientSession } from 'mongoose';
 import Contest, { IContest } from '../models/contest.model';
 import Participant, { IParticipant } from '../models/participant.model';
 
@@ -136,8 +137,8 @@ export async function checkSubmission(contestId: string, userId: string, now = n
   return contest;
 }
 
-export async function markSubmitted(contestId: string, userId: string, now = new Date()) {
-  await Participant.updateOne({ contestId, userId, submittedAt: null }, { $set: { submittedAt: now } });
+export async function markSubmitted(contestId: string, userId: string, now = new Date(), session?: ClientSession) {
+  await Participant.updateOne({ contestId, userId, submittedAt: null }, { $set: { submittedAt: now } }, { session });
 }
 
 /** For the old single-page editor: the published contest that is live now, if any. */
