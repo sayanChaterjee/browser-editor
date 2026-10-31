@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import type { NextFetchEvent, NextRequest } from 'next/server';
 import { contentSecurityPolicy, createNonce } from './lib/csp';
 
 // CSP_REPORT_ONLY=true reports violations (to /api/csp-report) without blocking anything
@@ -17,7 +17,12 @@ const CSP_HEADER = process.env.CSP_REPORT_ONLY === 'true'
  * Note: API route proxying is handled by /app/api/[...proxy]/route.ts
  * because middleware rewrites cannot modify headers for external URLs.
  */
-export function middleware(request: NextRequest) {
+// Signed-in page loads start any sleeping backend services right away (free-tier cold starts),
+// in parallel, before the page's own requests; at most once a minute per browser
+const WAKE_COOKIE = 'ce_woke';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL;
+
+export function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
 
   // Check for session cookie to determine if user is authenticated
@@ -50,6 +55,13 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set(CSP_HEADER, policy);
+
+  const prefetch = request.headers.get('next-router-prefetch') || request.headers.get('purpose') === 'prefetch';
+  if (sessionToken && BACKEND_URL && !prefetch && !request.cookies.get(WAKE_COOKIE)) {
+    // Fire and forget: the gateway pings every service and answers at once
+    event.waitUntil(fetch(`${BACKEND_URL}/api/wake`, { cache: 'no-store' }).then(() => undefined, () => undefined));
+    response.cookies.set(WAKE_COOKIE, '1', { maxAge: 60, httpOnly: true, sameSite: 'lax', path: '/' });
+  }
   return response;
 }
 

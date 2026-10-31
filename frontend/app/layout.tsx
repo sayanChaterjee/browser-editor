@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 
 import DeviceRestriction from "@/components/DeviceRestriction";
 import GlobalSecurity from "@/components/GlobalSecurity";
+import BackendBusy from "@/components/BackendBusy";
 
 export const metadata: Metadata = {
   title: "CEditor",
@@ -36,6 +37,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <GlobalSecurity />
+        <BackendBusy />
         <DeviceRestriction>
           {children}
         </DeviceRestriction>

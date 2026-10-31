@@ -64,7 +64,14 @@ forwards each call to the API gateway (`NEXT_PUBLIC_API_URL`):
   (`lib/csp.ts`): no inline or eval'd scripts except Next.js's own. The preview frame has its own
   policy, so user code isn't affected. Violations are logged by `/api/csp-report`; set
   `CSP_REPORT_ONLY=true` to report without blocking. See ADR 0010.
-- **First load:** the editor shows a loading screen until projects arrive. A brand-new account's
+- **Cold starts and busy spells:** signed-in page loads wake every backend service from the
+  middleware (once a minute, `ce_woke` cookie). Practice opens the last project from this
+  browser's copy immediately (`lib/session.ts` remembers whose copy it is; sign-out and the
+  sign-in pages forget it) and keeps edits made before the server answers. When Render's
+  Cloudflare edge challenges Vercel's servers, the `/api` proxy retries for ~5 s and then
+  answers 503 `busy`; `components/BackendBusy.tsx` retries those for ~20 s more behind a
+  "Server busy, retrying…" banner.
+- **First load:** without a local copy, the editor shows a loading screen until projects arrive. A brand-new account's
   "Welcome" project is created asynchronously by the backend, so for accounts under 5 minutes
   old an empty project list is re-checked for up to a minute before the user is asked to create
   a project. That covers a backend service waking up on Render's free tier.

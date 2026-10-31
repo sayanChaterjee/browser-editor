@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getLocalProject, clearMismatchingProjects } from "../lib/indexedDB";
+import { getLocalProject, getAllLocalProjects, clearMismatchingProjects } from "../lib/indexedDB";
+import { isContestProject, rememberUser, rememberedUser } from "../lib/session";
 import { INITIAL_HTML, INITIAL_CSS, INITIAL_JS } from "../utils/constants";
 
 interface Project {
@@ -86,9 +87,59 @@ export function useProjectManager({
         callbacks.current = { onLogout, onUserLoaded };
     });
 
+    // Opened from this browser's local copy before the server answered (see initData)
+    const preloaded = useRef<{ id: string; html: string; css: string; js: string } | null>(null);
+    const codeRef = useRef({ html, css, js });
     useEffect(() => {
+        codeRef.current = { html, css, js };
+    });
+
+    useEffect(() => {
+        /**
+         * Shows a project's code, unless it is the project opened from the local copy and the
+         * user has edited it since: those edits are newer than anything the server has.
+         */
+        const applyCode = (id: string, code: { html: string; css: string; js: string }) => {
+            const opened = preloaded.current;
+            const current = codeRef.current;
+            const edited = opened?.id === id
+                && (current.html !== opened.html || current.css !== opened.css || current.js !== opened.js);
+            if (edited) return;
+            setHtml(code.html);
+            setCss(code.css);
+            setJs(code.js);
+            setLastSyncedHtml(code.html);
+            setLastSyncedCss(code.css);
+            setLastSyncedJs(code.js);
+        };
+
         const initData = async () => {
             let profile: { id?: string; name: string; email: string; createdAt?: string } | null = null;
+
+            // 0. Open straight away from this browser's copy (the user who last worked here):
+            // on a cold start the server can take ~20 s, and the user can work meanwhile.
+            // The server's answer below then takes over (keeping any edits made in between).
+            const lastUser = rememberedUser();
+            if (lastUser) {
+                try {
+                    const local = (await getAllLocalProjects(lastUser))
+                        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+                    const pick = requestedProjectId
+                        ? local.find((p) => p.id === requestedProjectId)
+                        : local.find((p) => !isContestProject(p.name)) ?? local[0];
+                    if (pick) {
+                        setProjectId(pick.id);
+                        setProjectName(pick.name);
+                        applyCode(pick.id, pick);
+                        // After applying: edits are measured from what was opened
+                        preloaded.current = { id: pick.id, html: pick.html, css: pick.css, js: pick.js };
+                        callbacks.current.onUserLoaded?.(lastUser);
+                        setIsLoading(false);
+                    }
+                } catch {
+                    // no local copy to open: wait for the server as before
+                }
+            }
 
             // 1. Fetch User Profile
             try {
@@ -112,6 +163,7 @@ export function useProjectManager({
                 }
                 if (profile?.id || profile?.email) {
                     const uid = profile.id || profile.email;
+                    rememberUser(uid);
                     await clearMismatchingProjects(uid);
                     if (callbacks.current.onUserLoaded) callbacks.current.onUserLoaded(uid);
                 }
@@ -129,7 +181,12 @@ export function useProjectManager({
                     if (Array.isArray(data) && data.length > 0) {
                         setProjects(data);
 
-                        let targetProject = data[0];
+                        // Stay on the project opened from the local copy; otherwise the most
+                        // recent practice project (a finished contest's project only if that's all)
+                        let targetProject =
+                            data.find((p) => p._id === preloaded.current?.id)
+                            ?? data.find((p) => !isContestProject(p.name))
+                            ?? data[0];
                         if (requestedProjectId) {
                             const found = data.find((p) => p._id === requestedProjectId);
                             if (found) {
@@ -145,22 +202,13 @@ export function useProjectManager({
 
                                         const localData = await getLocalProject(fullProject._id, profile?.id || profile?.email || '');
                                         if (localData && new Date(localData.updatedAt) > new Date(fullProject.updatedAt)) {
-                                            setHtml(localData.html);
-                                            setCss(localData.css);
-                                            setJs(localData.js);
-                                            setLastSyncedHtml(localData.html);
-                                            setLastSyncedCss(localData.css);
-                                            setLastSyncedJs(localData.js);
+                                            applyCode(fullProject._id, localData);
                                         } else {
-                                            const h = fullProject.html?.trim() ? fullProject.html : INITIAL_HTML;
-                                            const c = fullProject.css || INITIAL_CSS;
-                                            const j = fullProject.js || INITIAL_JS;
-                                            setHtml(h);
-                                            setCss(c);
-                                            setJs(j);
-                                            setLastSyncedHtml(h);
-                                            setLastSyncedCss(c);
-                                            setLastSyncedJs(j);
+                                            applyCode(fullProject._id, {
+                                                html: fullProject.html?.trim() ? fullProject.html : INITIAL_HTML,
+                                                css: fullProject.css || INITIAL_CSS,
+                                                js: fullProject.js || INITIAL_JS,
+                                            });
                                         }
                                         setIsLoading(false);
                                         return;
@@ -177,22 +225,13 @@ export function useProjectManager({
 
                         const localData = await getLocalProject(targetProject._id, profile?.id || profile?.email || '');
                         if (localData && new Date(localData.updatedAt) > new Date(targetProject.updatedAt)) {
-                            setHtml(localData.html);
-                            setCss(localData.css);
-                            setJs(localData.js);
-                            setLastSyncedHtml(localData.html);
-                            setLastSyncedCss(localData.css);
-                            setLastSyncedJs(localData.js);
+                            applyCode(targetProject._id, localData);
                         } else {
-                            const h = targetProject.html?.trim() ? targetProject.html : INITIAL_HTML;
-                            const c = targetProject.css || INITIAL_CSS;
-                            const j = targetProject.js || INITIAL_JS;
-                            setHtml(h);
-                            setCss(c);
-                            setJs(j);
-                            setLastSyncedHtml(h);
-                            setLastSyncedCss(c);
-                            setLastSyncedJs(j);
+                            applyCode(targetProject._id, {
+                                html: targetProject.html?.trim() ? targetProject.html : INITIAL_HTML,
+                                css: targetProject.css || INITIAL_CSS,
+                                js: targetProject.js || INITIAL_JS,
+                            });
                         }
                     } else {
                         setIsModalCancelable(false);

@@ -199,7 +199,12 @@ is in the shared group in `render.yaml`, and the gateway won't start if the two 
 - **Cold starts.** Render's free tier sleeps idle services, and Kafka consumers sleep with them,
   so the first request can take up to a minute and events wait until the service wakes. The
   landing, login and register pages call the gateway's `/api/wake`, which starts every service
-  (at most one ping each per minute), so start-up overlaps with signing in. The editor shows a
+  (at most one ping each per minute), so start-up overlaps with signing in; signed-in page loads
+  do the same from the Next.js middleware, and practice opens from the browser's local copy
+  while the services start.
+- **Cloudflare sometimes challenges Vercel → Render requests** (Render's edge, shared Vercel
+  server addresses). The `/api` proxy retries them and the app shows "Server busy, retrying…";
+  a custom domain with the browser calling the gateway directly would remove the hop. The editor shows a
   loading screen, and waits up to a minute for a new user's starter project.
 - **Sign-in takes ~2 s on the free tier.** Most of it is the password hash (scrypt, ~80 ms on a
   full core) on a fraction of a CPU; lowering its cost would weaken password storage.
