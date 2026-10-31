@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Contest, fetchAllContests, createContest, updateContest, updateContestStatus, deleteContest } from '@/lib/adminApi';
 import PreviewPanel from '@/components/admin/PreviewPanel';
-import { ImageIcon, Pencil, Play, Square, Trash2, Trophy } from 'lucide-react';
+import { EyeOff, ImageIcon, Pencil, Send, Square, Trash2, Trophy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input, Label } from '@/components/ui/input';
@@ -40,21 +40,6 @@ export default function ContestManager() {
     loadContests();
   }, []);
 
-  // Auto-update contest status when endTime passes
-  const handleStatusChangeRef = useRef<typeof handleStatusChange | null>(null);
-  useEffect(() => {
-    handleStatusChangeRef.current = handleStatusChange;
-  });
-  useEffect(() => {
-    const interval = setInterval(() => {
-      contests.forEach(c => {
-        if (c.status === 'active' && new Date(c.endTime).getTime() <= Date.now()) {
-          handleStatusChangeRef.current?.(c._id, 'ended');
-        }
-      });
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [contests]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -269,10 +254,7 @@ export default function ContestManager() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <h4 className="truncate text-sm font-medium text-foreground">{c.title}</h4>
-                        <Badge tone={c.status === 'active' ? 'success' : c.status === 'pending' ? 'warning' : 'neutral'}>
-                          {c.status === 'active' && <span className="size-1.5 rounded-full bg-success" />}
-                          {c.status}
-                        </Badge>
+                        <PhaseBadge contest={c} />
                       </div>
                       <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
                         {new Date(c.startTime).toLocaleString()} → {new Date(c.endTime).toLocaleString()}
@@ -281,14 +263,20 @@ export default function ContestManager() {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1">
+                    {/* Contests open and close on their schedule; publishing makes one visible */}
                     {c.status === 'pending' && (
                       <Button size="sm" variant="primary" onClick={() => handleStatusChange(c._id, 'active')}>
-                        <Play /> Start
+                        <Send /> Publish
                       </Button>
                     )}
-                    {c.status === 'active' && (
+                    {c.status === 'active' && phaseOf(c) === 'upcoming' && (
+                      <Button size="sm" variant="secondary" onClick={() => handleStatusChange(c._id, 'pending')}>
+                        <EyeOff /> Unpublish
+                      </Button>
+                    )}
+                    {c.status === 'active' && phaseOf(c) === 'live' && (
                       <Button size="sm" variant="secondary" onClick={() => handleStatusChange(c._id, 'ended')}>
-                        <Square /> End
+                        <Square /> End now
                       </Button>
                     )}
                     <Button size="icon" variant="ghost" aria-label={`Edit ${c.title}`} title="Edit" onClick={() => handleEditClick(c)}>
@@ -305,5 +293,32 @@ export default function ContestManager() {
         </section>
       </div>
     </div>
+  );
+}
+
+type Phase = 'draft' | 'upcoming' | 'live' | 'ended';
+
+// Same rule as contest-service: status publishes (or ends early); the clock does the rest
+function phaseOf(c: Contest): Phase {
+  if (c.status === 'pending') return 'draft';
+  const now = Date.now();
+  if (c.status === 'ended' || now >= new Date(c.endTime).getTime()) return 'ended';
+  return now < new Date(c.startTime).getTime() ? 'upcoming' : 'live';
+}
+
+const PHASE_LABEL: Record<Phase, { label: string; tone: 'warning' | 'info' | 'success' | 'neutral' }> = {
+  draft: { label: 'Draft', tone: 'warning' },
+  upcoming: { label: 'Upcoming', tone: 'info' },
+  live: { label: 'Live', tone: 'success' },
+  ended: { label: 'Ended', tone: 'neutral' },
+};
+
+function PhaseBadge({ contest }: { contest: Contest }) {
+  const { label, tone } = PHASE_LABEL[phaseOf(contest)];
+  return (
+    <Badge tone={tone}>
+      {tone === 'success' && <span className="size-1.5 animate-pulse rounded-full bg-success" />}
+      {label}
+    </Badge>
   );
 }

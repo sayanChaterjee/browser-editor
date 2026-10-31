@@ -133,7 +133,7 @@ export default function ProfilePage() {
             </p>
           </div>
         </div>
-        <Button variant="primary" onClick={() => router.push("/editor")}>
+        <Button variant="primary" onClick={() => router.push("/practice")}>
           <Plus /> New project
         </Button>
       </header>
@@ -158,7 +158,7 @@ export default function ProfilePage() {
           <FolderCode className="size-8 text-subtle-foreground" />
           <p className="mt-4 font-medium text-foreground">No projects yet</p>
           <p className="mt-1 text-sm text-muted-foreground">Create one in the editor; it shows up here.</p>
-          <Button variant="primary" className="mt-6" onClick={() => router.push("/editor")}>
+          <Button variant="primary" className="mt-6" onClick={() => router.push("/practice")}>
             <Plus /> New project
           </Button>
         </div>
@@ -171,8 +171,8 @@ export default function ProfilePage() {
               key={proj._id}
               role="link"
               tabIndex={0}
-              onClick={() => router.push(`/editor?projectId=${proj._id}`)}
-              onKeyDown={(e) => e.key === "Enter" && router.push(`/editor?projectId=${proj._id}`)}
+              onClick={() => router.push(`/practice?projectId=${proj._id}`)}
+              onKeyDown={(e) => e.key === "Enter" && router.push(`/practice?projectId=${proj._id}`)}
               className="group flex cursor-pointer flex-col rounded-xl border border-border bg-card p-5 transition-colors hover:border-border-strong hover:bg-muted"
             >
               <div className="flex items-start justify-between gap-3">

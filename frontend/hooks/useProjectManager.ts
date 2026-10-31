@@ -42,22 +42,13 @@ async function fetchProjectList(waitForStarterProject: boolean, onWaiting: () =>
 
 interface UseProjectManagerProps {
     onLogout: () => void;
-    onContestStart: () => void;
-    isContestPending: boolean;
-    setIsContestPending: (pending: boolean) => void;
-    setTimeLeft: (time: number) => void;
-    setIgnoreNextBlur?: (val: boolean) => void;
     showToast?: (message: string, type: "success" | "error" | "warning" | "info") => void;
     onUserLoaded?: (id: string) => void;
 }
 
+/** The practice workspace's projects: loading, switching, creating, auto-sync and saving. */
 export function useProjectManager({
     onLogout,
-    onContestStart,
-    isContestPending,
-    setIsContestPending,
-    setTimeLeft,
-    setIgnoreNextBlur,
     showToast,
     onUserLoaded,
 }: UseProjectManagerProps) {
@@ -65,7 +56,6 @@ export function useProjectManager({
     const searchParams = useSearchParams();
     const requestedProjectId = searchParams.get("projectId");
 
-    const [activeFile, setActiveFile] = useState("index.html");
     const [html, setHtml] = useState("");
     const [css, setCss] = useState("");
     const [js, setJs] = useState("");
@@ -78,7 +68,6 @@ export function useProjectManager({
     const [isModalCancelable, setIsModalCancelable] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
     const [loadingMessage, setLoadingMessage] = useState("Loading your workspace...");
-    const [activeContest, setActiveContest] = useState<{ _id: string, title: string, imageUrl: string, startTime: string, endTime: string, html?: string, css?: string, js?: string } | null>(null);
 
     const [lastSyncedHtml, setLastSyncedHtml] = useState("");
     const [lastSyncedCss, setLastSyncedCss] = useState("");
@@ -92,25 +81,14 @@ export function useProjectManager({
 
     // The loader runs when the requested project changes, using the caller's latest
     // callbacks (they are new functions on every render)
-    const callbacks = useRef({ onLogout, onUserLoaded, setIsContestPending, setTimeLeft });
+    const callbacks = useRef({ onLogout, onUserLoaded });
     useEffect(() => {
-        callbacks.current = { onLogout, onUserLoaded, setIsContestPending, setTimeLeft };
+        callbacks.current = { onLogout, onUserLoaded };
     });
 
     useEffect(() => {
         const initData = async () => {
             let profile: { id?: string; name: string; email: string; createdAt?: string } | null = null;
-
-            // 0. Fetch Active Contest
-            try {
-                const contestRes = await fetch(`/api/v1/contest/active`, { credentials: 'include' });
-                if (contestRes.ok) {
-                    const contestInfo = await contestRes.json();
-                    setActiveContest(contestInfo);
-                }
-            } catch (err) {
-                console.error("Failed to fetch active contest", err);
-            }
 
             // 1. Fetch User Profile
             try {
@@ -184,10 +162,6 @@ export function useProjectManager({
                                             setLastSyncedCss(c);
                                             setLastSyncedJs(j);
                                         }
-
-                                        if (fullProject.timeLeft !== undefined) {
-                                            callbacks.current.setTimeLeft(fullProject.timeLeft);
-                                        }
                                         setIsLoading(false);
                                         return;
                                     }
@@ -220,13 +194,8 @@ export function useProjectManager({
                             setLastSyncedCss(c);
                             setLastSyncedJs(j);
                         }
-
-                        if (targetProject.timeLeft !== undefined) {
-                            callbacks.current.setTimeLeft(targetProject.timeLeft);
-                        }
                     } else {
                         setIsModalCancelable(false);
-                        callbacks.current.setIsContestPending(false);
                         setShowCreateModal(true);
                     }
                 }
@@ -305,7 +274,6 @@ export function useProjectManager({
                     html: INITIAL_HTML,
                     css: INITIAL_CSS,
                     js: INITIAL_JS,
-                    timeLeft: 0, // updated on start
                 }),
             });
 
@@ -320,24 +288,15 @@ export function useProjectManager({
                     setJs(INITIAL_JS);
                     setProjectId(project_id);
                     setProjects((prev) => [...prev, newData]);
-                    if (setIgnoreNextBlur) setIgnoreNextBlur(true);
                     notify(`Project "${name}" created successfully!`, "success");
-
-                    if (isContestPending) {
-                        onContestStart();
-                        setIsContestPending(false);
-                    }
                 } else {
-                    if (setIgnoreNextBlur) setIgnoreNextBlur(true);
                     notify("Project created but missing ID. Please try again.", "warning");
                 }
             } else {
                 const errorText = await res.text();
-                if (setIgnoreNextBlur) setIgnoreNextBlur(true);
                 notify(`Failed to create project: ${errorText}`, "error");
             }
         } catch {
-            if (setIgnoreNextBlur) setIgnoreNextBlur(true);
             notify("Network error while creating project.", "error");
         } finally {
             setIsCreatingProject(false);
@@ -345,7 +304,7 @@ export function useProjectManager({
         }
     };
 
-    const saveCode = async (currentData: { html: string; css: string; js: string; timeLeft: number }) => {
+    const saveCode = async (currentData: { html: string; css: string; js: string }) => {
         try {
             const res = await fetch(
                 `/api/v1/code/save`,
@@ -361,7 +320,6 @@ export function useProjectManager({
                         html: currentData.html,
                         css: currentData.css,
                         js: currentData.js,
-                        timeLeft: currentData.timeLeft
                     }),
                 }
             );
@@ -369,21 +327,17 @@ export function useProjectManager({
                 const data = await res.json();
                 const project_id = data._id || data.id;
                 if (project_id) setProjectId(project_id);
-                if (setIgnoreNextBlur) setIgnoreNextBlur(true);
                 notify("Code saved successfully!", "success");
             } else {
                 throw new Error("Save failed");
             }
         } catch (error) {
             console.error("Failed to save code", error);
-            if (setIgnoreNextBlur) setIgnoreNextBlur(true);
             notify("Failed to save code. Please check your connection.", "error");
         }
     };
 
     return {
-        activeFile,
-        setActiveFile,
         html,
         setHtml,
         css,
@@ -403,6 +357,5 @@ export function useProjectManager({
         saveCode,
         isLoading,
         loadingMessage,
-        activeContest,
     };
 }

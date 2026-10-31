@@ -23,7 +23,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isPending && session) {
-      router.push("/editor");
+      router.push("/practice");
     }
   }, [session, isPending, router]);
 
@@ -82,10 +82,10 @@ export default function LoginPage() {
         
         try {
           router.refresh();
-          router.push("/editor");
+          router.push("/practice");
         } catch (e) {
           console.error("Router redirect failed, using window.location", e);
-          window.location.href = "/editor";
+          window.location.href = "/practice";
         }
       } else {
         console.error("Unexpected response:", result);
@@ -107,7 +107,7 @@ export default function LoginPage() {
       const { signIn } = await import("../../../lib/auth-client");
       await signIn.social({
         provider: "google",
-        callbackURL: window.location.origin + "/editor",
+        callbackURL: window.location.origin + "/practice",
       });
     } catch (error) {
       console.error("Google login failed:", error);

@@ -137,8 +137,8 @@ export default function AdminDashboard() {
           </div>
           <h1 className="mt-4 text-lg font-semibold tracking-tight text-foreground">Admins only</h1>
           <p className="mt-1 text-sm text-muted-foreground">Your account doesn&apos;t have access to the admin console.</p>
-          <Button variant="secondary" className="mt-6" onClick={() => router.push('/editor')}>
-            <ArrowLeft /> Back to the editor
+          <Button variant="secondary" className="mt-6" onClick={() => router.push('/practice')}>
+            <ArrowLeft /> Back to practice
           </Button>
         </div>
       </div>
@@ -153,10 +153,10 @@ export default function AdminDashboard() {
       <aside className="z-10 flex w-80 shrink-0 flex-col border-r border-border bg-background">
         <div className="flex h-14 items-center justify-between border-b border-border px-4">
           <div className="flex items-center gap-2">
-            <Logo href="/editor" />
+            <Logo href="/practice" />
             <Badge>Admin</Badge>
           </div>
-          <Button variant="ghost" size="icon" aria-label="Back to the editor" title="Back to the editor" onClick={() => router.push('/editor')}>
+          <Button variant="ghost" size="icon" aria-label="Back to practice" title="Back to practice" onClick={() => router.push('/practice')}>
             <ArrowLeft />
           </Button>
         </div>

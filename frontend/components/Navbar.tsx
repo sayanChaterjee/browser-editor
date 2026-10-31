@@ -20,7 +20,8 @@ const initials = (name?: string | null) =>
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   const pathname = usePathname();
-  const active = pathname === href;
+  // A section stays highlighted on its sub-pages (a contest room under Contests)
+  const active = pathname === href || pathname?.startsWith(`${href}/`);
   return (
     <Link
       href={href}
@@ -61,7 +62,8 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           <Logo />
           <div className="ml-2 hidden items-center sm:flex">
-            <NavLink href="/editor">Editor</NavLink>
+            <NavLink href="/practice">Practice</NavLink>
+            <NavLink href="/contests">Contests</NavLink>
             {isAuthenticated && <NavLink href="/profile">Projects</NavLink>}
           </div>
         </div>
