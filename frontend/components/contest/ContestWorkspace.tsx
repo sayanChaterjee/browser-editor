@@ -42,11 +42,23 @@ interface Question {
   js: string;
 }
 
+class RequestError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+  }
+}
+
 const json = async (res: Response) => {
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.message || `Request failed (${res.status})`);
+  if (!res.ok) throw new RequestError(res.status, body.message || `Request failed (${res.status})`);
   return body;
 };
+
+// Setting up can meet a service still waking (Render's free tier) even after the client's own
+// retries; these failures are worth another go. Anything else (e.g. the contest ended) is final.
+const SETUP_ATTEMPTS = 4;
+const SETUP_RETRY_MS = 5_000;
+const temporary = (err: unknown) => !(err instanceof RequestError) || err.status === 429 || err.status >= 500;
 
 /**
  * Sets up the participant's contest project: the one already linked, or a new one linked now
@@ -74,6 +86,7 @@ async function contestProject(contest: ContestInfo, linked: string | null): Prom
 /** The live contest: timer, question, anti-cheat, heartbeats and submit. Runs in full screen. */
 export default function ContestWorkspace({ contest, projectId: linkedProject, clockOffsetMs, onFinished }: Props) {
   const [loading, setLoading] = useState(true);
+  const [setupAttempt, setSetupAttempt] = useState(1);
   const [userId, setUserId] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("");
@@ -119,33 +132,47 @@ export default function ContestWorkspace({ contest, projectId: linkedProject, cl
   // Load: who I am, my contest project, its code (a newer local copy wins), and the question
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const profile = await json(await fetch("/api/v1/user/profile", { credentials: "include" }));
-        const uid: string = profile.id || profile.email;
-        const id = await contestProject(contest, linkedProject);
-        const [project, q] = await Promise.all([
-          json(await fetch(`/api/v1/code/${id}`, { credentials: "include" })),
-          json(await fetch(`/api/v1/contest/${contest._id}/question`, { credentials: "include" })),
-        ]);
-        const local = await getLocalProject(id, uid);
-        const fromServer = { html: project.html || INITIAL_HTML, css: project.css || INITIAL_CSS, js: project.js || INITIAL_JS };
-        const newer = local && new Date(local.updatedAt) > new Date(project.updatedAt);
-        if (cancelled) return;
+    const setUp = async () => {
+      const profile = await json(await fetch("/api/v1/user/profile", { credentials: "include" }));
+      const uid: string = profile.id || profile.email;
+      const id = await contestProject(contest, linkedProject);
+      const [project, q] = await Promise.all([
+        json(await fetch(`/api/v1/code/${id}`, { credentials: "include" })),
+        json(await fetch(`/api/v1/contest/${contest._id}/question`, { credentials: "include" })),
+      ]);
+      const local = await getLocalProject(id, uid);
+      const fromServer = { html: project.html || INITIAL_HTML, css: project.css || INITIAL_CSS, js: project.js || INITIAL_JS };
+      const newer = local && new Date(local.updatedAt) > new Date(project.updatedAt);
+      if (cancelled) return;
 
-        setUserId(uid);
-        setProjectId(id);
-        setProjectName(project.name);
-        setCode(newer ? { html: local.html, css: local.css, js: local.js } : fromServer);
-        setQuestion(q);
-        setStrikeCount(project.warningCount ?? 0);
-        setTimeLeft(secondsLeft());
-        startedAtRef.current = Date.now();
-        startTimer();
-        setStarted(true);
-        setLoading(false);
-      } catch (err) {
-        if (!cancelled) onFinished("failed", err instanceof Error ? err.message : "Could not start the contest");
+      setUserId(uid);
+      setProjectId(id);
+      setProjectName(project.name);
+      setCode(newer ? { html: local.html, css: local.css, js: local.js } : fromServer);
+      setQuestion(q);
+      setStrikeCount(project.warningCount ?? 0);
+      setTimeLeft(secondsLeft());
+      startedAtRef.current = Date.now();
+      startTimer();
+      setStarted(true);
+      setLoading(false);
+    };
+
+    (async () => {
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await setUp();
+          return;
+        } catch (err) {
+          if (cancelled) return;
+          if (attempt >= SETUP_ATTEMPTS || !temporary(err)) {
+            onFinished("failed", err instanceof Error ? err.message : "Could not start the contest");
+            return;
+          }
+          setSetupAttempt(attempt + 1);
+          await new Promise((resolve) => setTimeout(resolve, SETUP_RETRY_MS));
+          if (cancelled) return;
+        }
       }
     })();
     return () => {
@@ -213,7 +240,10 @@ export default function ContestWorkspace({ contest, projectId: linkedProject, cl
       <div className="flex h-[calc(100vh-56px)] items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-center">
           <Spinner className="size-5" />
-          <span className="text-sm font-medium text-foreground">Setting up your contest workspace…</span>
+          <span className="text-sm font-medium text-foreground">
+            {setupAttempt === 1 ? "Setting up your contest workspace…" : "Starting the contest server… this can take up to a minute"}
+          </span>
+          <span className="text-[13px] text-muted-foreground">Your contest time is already running; you won&apos;t lose your place.</span>
         </div>
       </div>
     );

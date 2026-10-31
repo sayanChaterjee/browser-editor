@@ -6,15 +6,19 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL;
 const BFF_SHARED_SECRET = process.env.BFF_SHARED_SECRET;
 const PROXY_HEADERS = ['x-bff-secret', 'x-client-ip'];
 
-// Render's Cloudflare edge sometimes challenges requests from Vercel's shared server addresses
-// with a "Just a moment..." page (cf-mitigated: challenge), which a server can't solve. These
-// spells last seconds to minutes. A challenged request never reached the gateway, so retrying
-// is safe for any method; after these waits the browser gets a 503 marked busy instead
+// Answers that mean "not now", from Render's edge rather than our services, for a request that
+// never reached them (so retrying is safe for any method):
+// - Cloudflare challenging Vercel's shared server addresses ("Just a moment...",
+//   cf-mitigated: challenge, or an HTML 403/429/503), which a server can't solve;
+// - Render turning requests away while a free-tier service wakes from sleep
+//   (x-render-routing: hibernate-rate-limited, on this hop or the gateway's to a service).
+// They pass within seconds to a minute. After these waits the browser gets a 503 marked busy
 // (components/BackendBusy retries those with a banner).
 const CHALLENGE_RETRY_DELAYS_MS = [400, 1200, 3000];
 
 function isChallenge(res: Response): boolean {
     if (res.headers.get('cf-mitigated') === 'challenge') return true;
+    if ((res.headers.get('x-render-routing') || '').startsWith('hibernate')) return true;
     const html = (res.headers.get('content-type') || '').includes('text/html');
     return html && [403, 429, 503].includes(res.status);
 }
