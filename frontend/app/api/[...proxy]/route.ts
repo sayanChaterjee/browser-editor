@@ -6,6 +6,19 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL;
 const BFF_SHARED_SECRET = process.env.BFF_SHARED_SECRET;
 const PROXY_HEADERS = ['x-bff-secret', 'x-client-ip'];
 
+// Render's Cloudflare edge sometimes challenges requests from Vercel's shared server addresses
+// with a "Just a moment..." page (cf-mitigated: challenge), which a server can't solve. These
+// spells last seconds to minutes. A challenged request never reached the gateway, so retrying
+// is safe for any method; after these waits the browser gets a 503 marked busy instead
+// (components/BackendBusy retries those with a banner).
+const CHALLENGE_RETRY_DELAYS_MS = [400, 1200, 3000];
+
+function isChallenge(res: Response): boolean {
+    if (res.headers.get('cf-mitigated') === 'challenge') return true;
+    const html = (res.headers.get('content-type') || '').includes('text/html');
+    return html && [403, 429, 503].includes(res.status);
+}
+
 // Vercel sets x-real-ip to the connecting client's address (clients can't override it);
 // locally, fall back to the first X-Forwarded-For entry.
 function getClientIp(request: NextRequest): string | undefined {
@@ -96,15 +109,29 @@ async function proxyRequest(request: NextRequest, pathSegments: string[]) {
             body = await request.text();
         }
 
-        // 3. Make the proxied request
+        // 3. Make the proxied request, retrying Cloudflare challenges
         // CRITICAL: Set redirect to 'manual' to prevent proxy from swallowing 302 redirects
-        const response = await fetch(backendUrl, {
+        const send = () => fetch(backendUrl, {
             method: request.method,
             headers: headers,
             body: body,
             cache: 'no-store',
             redirect: 'manual',
         });
+        let response = await send();
+        for (const delay of CHALLENGE_RETRY_DELAYS_MS) {
+            if (!isChallenge(response)) break;
+            console.warn(`[Proxy][${requestId}] Cloudflare challenge (${response.status}); retrying in ${delay} ms`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            response = await send();
+        }
+        if (isChallenge(response)) {
+            console.error(`[Proxy][${requestId}] Still challenged after retries`);
+            return NextResponse.json(
+                { error: 'BackendBusy', message: 'The server is busy. Retrying shortly.', busy: true },
+                { status: 503, headers: { 'Retry-After': '5', 'x-backend-busy': '1' } },
+            );
+        }
 
         console.log(`[Proxy][${requestId}] Backend Status: ${response.status} ${response.statusText}`);
 

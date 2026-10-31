@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { signOut } from "@/lib/auth-client";
+import { signOutCompletely } from "@/lib/session";
 import { Logo } from "@/components/ui/logo";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -52,7 +52,7 @@ export default function Navbar() {
   }, [menuOpen]);
 
   const handleLogout = async () => {
-    await signOut();
+    await signOutCompletely();
     router.push("/login");
   };
 

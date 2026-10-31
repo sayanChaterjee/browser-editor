@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useWakeBackend } from "@/components/WakeBackend";
+import { forgetUser } from "@/lib/session";
 import { AuthCard, FieldError, FormMessage, GoogleButton, OrDivider } from "@/components/auth/AuthCard";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
@@ -10,6 +11,9 @@ import { Input, Label } from "@/components/ui/input";
 export default function RegisterPage() {
   // Start the backend now: by the time the form is sent, it is awake
   useWakeBackend();
+  // Someone may be about to sign in as a different user: practice mustn't open the previous
+  // user's local copy for them (lib/session)
+  useEffect(forgetUser, []);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");

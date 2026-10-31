@@ -8,8 +8,7 @@ import Workbench, { type Code } from "./Workbench";
 import CreateProjectModal from "./CreateProjectModal";
 import { useEditorPersistence } from "../../hooks/useEditorPersistence";
 import { useProjectManager } from "../../hooks/useProjectManager";
-import { clearLocalProjects } from "../../lib/indexedDB";
-import { signOut } from "../../lib/auth-client";
+import { signOutCompletely } from "../../lib/session";
 import ToastNotification, { useToast } from "../ui/ToastNotification";
 import { Button, buttonVariants } from "../ui/button";
 import { Spinner } from "../ui/spinner";
@@ -27,8 +26,7 @@ export default function PracticeWorkspace() {
     handleCreateProject, saveCode, isLoading, loadingMessage,
   } = useProjectManager({
     onLogout: async () => {
-      await clearLocalProjects();
-      await signOut();
+      await signOutCompletely();
       router.push("/login");
     },
     showToast,
